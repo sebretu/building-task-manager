@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
+type Project = { id: string; name: string };
 type Task = {
   id: string;
   title: string;
@@ -11,154 +13,188 @@ type Task = {
   due_date: string | null;
 };
 
-const QUICK_USERS = [
-  { email: "admin@demo.local", label: "admin" },
-  { email: "mod@demo.local", label: "mod" },
-  { email: "user@demo.local", label: "user" },
-];
+function looksLikeJwt(t: string | null | undefined) {
+  if (!t) return false;
+  const parts = t.split(".");
+  return parts.length === 3 && parts.every((p) => p.length > 0);
+}
+
+async function getToken(): Promise<string | null> {
+  const { data } = await supabase.auth.getSession();
+  const tok = data.session?.access_token ?? null;
+  // jeśli to nie JWT, traktuj jak brak tokenu
+  return looksLikeJwt(tok) ? tok : null;
+}
+
+async function apiGet<T>(path: string, token?: string | null): Promise<T> {
+  const headers: Record<string, string> = {};
+  if (looksLikeJwt(token || null)) headers.Authorization = `Bearer ${token}`;
+
+  const r = await fetch(path, { headers: Object.keys(headers).length ? headers : undefined });
+  const j = await r.json();
+
+  if (!j.ok) throw new Error(j?.error?.message || "api error");
+  return j.data as T;
+}
 
 export default function Home() {
-  const [sessionEmail, setSessionEmail] = useState<string | null>(null);
   const [email, setEmail] = useState("admin@demo.local");
   const [password, setPassword] = useState("Password123!");
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [projectId, setProjectId] = useState("");
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [msg, setMsg] = useState<string | null>(null);
+  const [q, setQ] = useState("");
+  const [qDebounced, setQDebounced] = useState("");
+  const [limit, setLimit] = useState(10);
+  const [offset, setOffset] = useState(0);
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
 
-  async function refreshSession() {
-    const { data } = await supabase.auth.getSession();
-    setSessionEmail(data.session?.user?.email ?? null);
-  }
-
-  async function loadTasks() {
+  async function loadAll() {
     setErr(null);
-    const { data, error } = await supabase
-      .from("tasks")
-      .select("id,title,status,priority,due_date,created_at")
-      .order("created_at", { ascending: false })
-      .limit(50);
 
-    if (error) setErr(error.message);
-    else setTasks((data ?? []) as Task[]);
+    // token jest opcjonalny (backend i tak ma service role fallback)
+    const token = await getToken();
+
+    const ps = await apiGet<Project[]>("/api/projects", token);
+    setProjects(ps);
+
+    const pid = projectId || ps[0]?.id;
+    if (!pid) return;
+    setProjectId(pid);
+
+    const statusQ = statusFilter ? `&status=${statusFilter}` : "";
+    const qQ = qDebounced ? `&q=${encodeURIComponent(qDebounced)}` : "";
+
+    const ts = await apiGet<Task[]>(
+      `/api/tasks?projectId=${encodeURIComponent(pid)}&limit=${limit}&offset=${offset}${statusQ}${qQ}`,
+      token
+    );
+    setTasks(ts);
   }
 
   useEffect(() => {
-    (async () => {
-      await refreshSession();
-      await loadTasks();
-    })();
+    loadAll().catch((e) => setErr(String(e?.message || e)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [limit, offset, statusFilter, projectId, qDebounced]);
 
-    const { data: sub } = supabase.auth.onAuthStateChange(async () => {
-      await refreshSession();
-      await loadTasks();
-    });
-
-    return () => sub.subscription.unsubscribe();
-  }, []);
-
-  async function signIn() {
-    setLoading(true);
-    setMsg(null);
-    setErr(null);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) setErr(error.message);
-    else setMsg("Logged in!");
-    setLoading(false);
-  }
-
-  async function signOut() {
-    setLoading(true);
-    setMsg(null);
-    setErr(null);
-    const { error } = await supabase.auth.signOut();
-    if (error) setErr(error.message);
-    else setMsg("Logged out!");
-    setLoading(false);
-  }
-
-  async function updateFirstTask() {
-    if (!tasks[0]) return;
-    setLoading(true);
-    setMsg(null);
-    setErr(null);
-
-    const t = tasks[0];
-    const { data, error } = await supabase.rpc("update_task", {
-      p_task_id: t.id,
-      p_title: t.title + " (EDYCJA z UI)",
-      p_description: "Opis po edycji z UI",
-      p_priority: "CRITICAL",
-      p_due_date: new Date(Date.now() + 10 * 24 * 3600 * 1000).toISOString().slice(0, 10),
-      p_assigned_user_id: "44444444-4444-4444-4444-444444444444",
-      p_assigned_company_id: null,
-    });
-
-    if (error) setErr(error.message);
-    else setMsg("Updated task via RPC: " + (data?.id ?? t.id));
-
-    await loadTasks();
-    setLoading(false);
-  }
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setQDebounced(q);
+      setOffset(0);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [q]);
 
   return (
-    <main style={{ padding: 24, fontFamily: "system-ui", maxWidth: 900 }}>
+    <main style={{ padding: 24 }}>
       <h1>Tasks</h1>
 
-      <p>
-        Session: <b>{sessionEmail ?? "(not logged in)"}</b>
-      </p>
+      <div style={{ marginBottom: 12 }}>
+        <Link href="/plans" style={{ textDecoration: "none" }}>
+          → Plans
+        </Link>
+      </div>
 
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+      {err && (
+        <div style={{ marginBottom: 12, color: "crimson" }}>
+          {err}
+        </div>
+      )}
+
+      <div style={{ marginBottom: 12 }}>
+        <label>
+          Project:{" "}
+          <select
+            value={projectId}
+            onChange={(e) => {
+              setProjectId(e.target.value);
+              setOffset(0);
+            }}
+          >
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <div style={{ marginBottom: 12 }}>
         <input
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="email"
-          style={{ padding: 8, minWidth: 260 }}
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search…"
+          style={{ width: 280 }}
         />
-        <input
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="password"
-          type="password"
-          style={{ padding: 8, minWidth: 220 }}
-        />
-        <button onClick={signIn} disabled={loading} style={{ padding: "8px 12px" }}>
-          Login
-        </button>
-        <button onClick={signOut} disabled={loading} style={{ padding: "8px 12px" }}>
-          Logout
-        </button>
-        <button onClick={updateFirstTask} disabled={loading || tasks.length === 0} style={{ padding: "8px 12px" }}>
-          Update first task (RPC)
+      </div>
+
+      <div style={{ marginBottom: 12 }}>
+        <input value={email} onChange={(e) => setEmail(e.target.value)} />
+        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+        <button
+          onClick={async () => {
+            try {
+              await supabase.auth.signInWithPassword({ email, password });
+              await loadAll();
+            } catch (e: any) {
+              setErr(String(e?.message || e));
+            }
+          }}
+        >
+          Sign in
         </button>
       </div>
 
-      <p style={{ marginTop: 8 }}>
-        Quick users:{" "}
-        {QUICK_USERS.map((u) => (
+      <div style={{ marginBottom: 12 }}>
+        {[null, "OPEN", "DONE_WAITING_APPROVAL", "APPROVED"].map((s) => (
           <button
-            key={u.email}
-            onClick={() => setEmail(u.email)}
-            style={{ marginRight: 8, padding: "6px 10px" }}
+            key={s ?? "ALL"}
+            onClick={() => {
+              setStatusFilter(s);
+              setOffset(0);
+            }}
+            style={{ marginRight: 8, fontWeight: statusFilter === s ? "bold" : "normal" }}
           >
-            {u.label}
+            {s ?? "ALL"}
           </button>
-        ))}{" "}
-        (Password123!)
-      </p>
+        ))}
+      </div>
 
-      {msg && <p style={{ color: "green" }}>{msg}</p>}
-      {err && <p style={{ color: "crimson" }}>Error: {err}</p>}
-
-      <hr style={{ margin: "16px 0" }} />
+      <div style={{ marginBottom: 12 }}>
+        <button
+          onClick={() => setOffset((o) => Math.max(0, o - limit))}
+          disabled={offset === 0}
+          style={{ marginRight: 8 }}
+        >
+          Prev
+        </button>
+        <button onClick={() => setOffset((o) => o + limit)} style={{ marginRight: 8 }}>
+          Next
+        </button>
+        <label style={{ marginLeft: 12 }}>
+          Limit:{" "}
+          <input
+            type="number"
+            value={limit}
+            min={1}
+            max={200}
+            onChange={(e) => {
+              setLimit(Math.max(1, Math.min(200, Number(e.target.value) || 10)));
+              setOffset(0);
+            }}
+            style={{ width: 72 }}
+          />
+        </label>
+      </div>
 
       <ul>
         {tasks.map((t) => (
-          <li key={t.id} style={{ marginBottom: 6 }}>
-            <b>{t.title}</b> — {t.status} / {t.priority}
-            {t.due_date ? ` (due ${t.due_date})` : ""}
-            <div style={{ fontSize: 12, opacity: 0.75 }}>{t.id}</div>
+          <li key={t.id}>
+            <Link href={`/task/${t.id}`} style={{ textDecoration: "none", color: "inherit" }}>
+              [{t.status}] {t.title}
+            </Link>
           </li>
         ))}
       </ul>

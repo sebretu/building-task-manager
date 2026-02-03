@@ -3,19 +3,21 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "NEXT_DISABLE_TURBOPACK=1 next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
   },
   "dependencies": {
+    "@repo/i18n": "file:../packages/i18n",
+    "@repo/shared": "file:../packages/shared",
+    "@repo/supabase": "file:../packages/supabase",
     "@supabase/supabase-js": "^2.93.3",
+    "leaflet": "^1.9.4",
     "next": "16.1.6",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "@repo/shared": "file:../packages/shared",
-    "@repo/supabase": "file:../packages/supabase",
-    "@repo/i18n": "file:../packages/i18n"
+    "react-leaflet": "^5.0.0"
   },
   "devDependencies": {
     "@types/node": "^20",
