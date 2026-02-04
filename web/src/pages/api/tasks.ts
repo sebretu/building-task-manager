@@ -8,72 +8,6 @@ function asInt(v: any, def: number) {
   const n = Number(v);
   return Number.isFinite(n) ? Math.max(0, Math.trunc(n)) : def;
 }
-// ------------------------
-// PATCH /api/tasks (update)
-// ------------------------
-if (req.method === "PATCH") {
-  const body = readJsonBody(req);
-
-  const id = String(body?.id || "").trim();
-  if (!id) {
-    return res.status(400).json({
-      ok: false,
-      error: { code: "BAD_REQUEST", message: "Missing id (uuid)" },
-    });
-  }
-
-  // DEV: wymagamy changed_by
-  const changed_by = String(body?.changed_by || "").trim();
-  if (!changed_by) {
-    return res.status(400).json({
-      ok: false,
-      error: {
-        code: "BAD_REQUEST",
-        message: "Missing changed_by (DEV). Provide profile UUID.",
-      },
-    });
-  }
-
-  const updates: any = {};
-  if (body.title !== undefined) updates.title = String(body.title);
-  if (body.description !== undefined) updates.description = body.description;
-  if (body.priority !== undefined) updates.priority = body.priority;
-  if (body.status !== undefined) updates.status = body.status;
-  if (body.assigned_user_id !== undefined)
-    updates.assigned_user_id = body.assigned_user_id || null;
-  if (body.assigned_company_id !== undefined)
-    updates.assigned_company_id = body.assigned_company_id || null;
-
-  try {
-    // 🔑 KLUCZ: ustawiamy auth.uid() dla triggerów
-    await supabase.rpc("set_config", {
-      key: "request.jwt.claim.sub",
-      value: changed_by,
-      is_local: true,
-    });
-
-    const { data, error } = await supabase
-      .from("tasks")
-      .update(updates)
-      .eq("id", id)
-      .select("*")
-      .single();
-
-    if (error) throw error;
-
-    return res.status(200).json({ ok: true, data });
-  } catch (e: any) {
-    return res.status(400).json({
-      ok: false,
-      error: {
-        code: "SUPABASE",
-        message: e.message,
-        meta: e,
-      },
-    });
-  }
-}
-
 
 function readJsonBody(req: NextApiRequest): any {
   if (typeof req.body === "string") {
@@ -95,6 +29,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
   const service = process.env.SUPABASE_SERVICE_ROLE_KEY || null;
 
+  // Ten klient (service/anon) używamy do GET/POST jak dotychczas.
+  // PATCH robimy osobnym klientem “jako user” (Authorization Bearer), bo inaczej auth.uid() = null i trigger padnie.
   const supabase = createClient(url, service || anon, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
   });
@@ -184,10 +120,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       return;
     }
 
-    // DEV: created_by z body. Docelowo auth.uid()
+    // DEV: created_by z body (u Ciebie jest NOT NULL + FK)
     const created_by = body?.created_by ? String(body.created_by).trim() : "";
-
-    if (!created_by) {
+    if (!created_by || !isUuid(created_by)) {
       res.status(400).json({
         ok: false,
         error: { code: "BAD_REQUEST", message: "Missing created_by (DEV). Provide your profile UUID." },
@@ -226,7 +161,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
   }
 
   // ------------------------
-  // PATCH /api/tasks (update)  ✅ DOPISANE
+  // PATCH /api/tasks (update)
   // ------------------------
   if (req.method === "PATCH") {
     const body = readJsonBody(req);
@@ -237,42 +172,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       return;
     }
 
-    // allow-list pól (żeby nie nadpisywać przypadkiem workflow pól)
-    const upd: any = {};
-
-    if (body?.title !== undefined) upd.title = String(body.title || "").trim();
-    if (body?.description !== undefined) upd.description = body.description == null ? null : String(body.description);
-    if (body?.status !== undefined) upd.status = String(body.status || "").trim();
-    if (body?.priority !== undefined) upd.priority = String(body.priority || "").trim();
-    if (body?.due_date !== undefined) upd.due_date = body.due_date ? String(body.due_date) : null;
-
-    if (body?.assigned_user_id !== undefined) {
-      const v = body.assigned_user_id == null ? "" : String(body.assigned_user_id).trim();
-      if (v && !isUuid(v)) {
-        res.status(400).json({ ok: false, error: { code: "BAD_REQUEST", message: "assigned_user_id must be uuid or null" } });
-        return;
-      }
-      upd.assigned_user_id = v || null;
-    }
-
-    if (body?.assigned_company_id !== undefined) {
-      const v = body.assigned_company_id == null ? "" : String(body.assigned_company_id).trim();
-      if (v && !isUuid(v)) {
-        res.status(400).json({ ok: false, error: { code: "BAD_REQUEST", message: "assigned_company_id must be uuid or null" } });
-        return;
-      }
-      upd.assigned_company_id = v || null;
-    }
-
-    if (body?.done_note !== undefined) upd.done_note = body.done_note == null ? null : String(body.done_note);
-
-    // nic do update?
-    if (Object.keys(upd).length === 0) {
-      res.status(400).json({ ok: false, error: { code: "BAD_REQUEST", message: "No fields to update" } });
+    // 🔑 MUSI być JWT usera -> inaczej auth.uid() w triggerach = null -> task_history.changed_by wybucha
+    const authHeader = String(req.headers.authorization || "").trim();
+    if (!authHeader.startsWith("Bearer ")) {
+      res.status(401).json({
+        ok: false,
+        error: { code: "UNAUTHORIZED", message: "Missing Authorization: Bearer <access_token>" },
+      });
       return;
     }
 
-    const { data, error } = await supabase.from("tasks").update(upd).eq("id", id).select("*").single();
+    // klient “w imieniu usera” (anon key + Authorization header)
+    const supaUser = createClient(url, anon, {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    const updates: any = {};
+    if (body.title !== undefined) updates.title = String(body.title);
+    if (body.description !== undefined) updates.description = body.description;
+    if (body.priority !== undefined) updates.priority = body.priority;
+    if (body.status !== undefined) updates.status = body.status;
+    if (body.due_date !== undefined) updates.due_date = body.due_date || null;
+    if (body.assigned_user_id !== undefined) updates.assigned_user_id = body.assigned_user_id || null;
+    if (body.assigned_company_id !== undefined) updates.assigned_company_id = body.assigned_company_id || null;
+
+    // (opcjonalnie) pozwól na przesuwanie na mapie
+    if (body.x_norm !== undefined) updates.x_norm = body.x_norm;
+    if (body.y_norm !== undefined) updates.y_norm = body.y_norm;
+    if (body.plan_id !== undefined) updates.plan_id = body.plan_id;
+
+    const { data, error } = await supaUser.from("tasks").update(updates).eq("id", id).select("*").single();
 
     if (error) {
       res.status((error as any).status || 400).json({
