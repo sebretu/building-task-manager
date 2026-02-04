@@ -8,6 +8,72 @@ function asInt(v: any, def: number) {
   const n = Number(v);
   return Number.isFinite(n) ? Math.max(0, Math.trunc(n)) : def;
 }
+// ------------------------
+// PATCH /api/tasks (update)
+// ------------------------
+if (req.method === "PATCH") {
+  const body = readJsonBody(req);
+
+  const id = String(body?.id || "").trim();
+  if (!id) {
+    return res.status(400).json({
+      ok: false,
+      error: { code: "BAD_REQUEST", message: "Missing id (uuid)" },
+    });
+  }
+
+  // DEV: wymagamy changed_by
+  const changed_by = String(body?.changed_by || "").trim();
+  if (!changed_by) {
+    return res.status(400).json({
+      ok: false,
+      error: {
+        code: "BAD_REQUEST",
+        message: "Missing changed_by (DEV). Provide profile UUID.",
+      },
+    });
+  }
+
+  const updates: any = {};
+  if (body.title !== undefined) updates.title = String(body.title);
+  if (body.description !== undefined) updates.description = body.description;
+  if (body.priority !== undefined) updates.priority = body.priority;
+  if (body.status !== undefined) updates.status = body.status;
+  if (body.assigned_user_id !== undefined)
+    updates.assigned_user_id = body.assigned_user_id || null;
+  if (body.assigned_company_id !== undefined)
+    updates.assigned_company_id = body.assigned_company_id || null;
+
+  try {
+    // 🔑 KLUCZ: ustawiamy auth.uid() dla triggerów
+    await supabase.rpc("set_config", {
+      key: "request.jwt.claim.sub",
+      value: changed_by,
+      is_local: true,
+    });
+
+    const { data, error } = await supabase
+      .from("tasks")
+      .update(updates)
+      .eq("id", id)
+      .select("*")
+      .single();
+
+    if (error) throw error;
+
+    return res.status(200).json({ ok: true, data });
+  } catch (e: any) {
+    return res.status(400).json({
+      ok: false,
+      error: {
+        code: "SUPABASE",
+        message: e.message,
+        meta: e,
+      },
+    });
+  }
+}
+
 
 function readJsonBody(req: NextApiRequest): any {
   if (typeof req.body === "string") {
