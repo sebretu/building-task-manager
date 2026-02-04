@@ -29,6 +29,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
   const service = process.env.SUPABASE_SERVICE_ROLE_KEY || null;
 
+  // Ten klient (service/anon) używamy do GET/POST jak dotychczas.
+  // PATCH robimy osobnym klientem “jako user” (Authorization Bearer), bo inaczej auth.uid() = null i trigger padnie.
   const supabase = createClient(url, service || anon, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
   });
@@ -118,12 +120,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       return;
     }
 
-    // DEV: podajemy created_by z body (docelowo auth.uid())
+    // DEV: created_by z body (u Ciebie jest NOT NULL + FK)
     const created_by = body?.created_by ? String(body.created_by).trim() : "";
     if (!created_by || !isUuid(created_by)) {
       res.status(400).json({
         ok: false,
-        error: { code: "BAD_REQUEST", message: "Missing/invalid created_by (uuid) (DEV)" },
+        error: { code: "BAD_REQUEST", message: "Missing created_by (DEV). Provide your profile UUID." },
       });
       return;
     }
@@ -166,22 +168,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
 
     const id = String(body?.id || "").trim();
     if (!id || !isUuid(id)) {
-      res.status(400).json({
+      res.status(400).json({ ok: false, error: { code: "BAD_REQUEST", message: "Missing/invalid id (uuid)" } });
+      return;
+    }
+
+    // 🔑 MUSI być JWT usera -> inaczej auth.uid() w triggerach = null -> task_history.changed_by wybucha
+    const authHeader = String(req.headers.authorization || "").trim();
+    if (!authHeader.startsWith("Bearer ")) {
+      res.status(401).json({
         ok: false,
-        error: { code: "BAD_REQUEST", message: "Missing/invalid id (uuid)" },
+        error: { code: "UNAUTHORIZED", message: "Missing Authorization: Bearer <access_token>" },
       });
       return;
     }
 
-    // DEV: wymagamy changed_by (docelowo auth.uid() z tokena)
-    const changed_by = String(body?.changed_by || "").trim();
-    if (!changed_by || !isUuid(changed_by)) {
-      res.status(400).json({
-        ok: false,
-        error: { code: "BAD_REQUEST", message: "Missing/invalid changed_by (uuid) (DEV)" },
-      });
-      return;
-    }
+    // klient “w imieniu usera” (anon key + Authorization header)
+    const supaUser = createClient(url, anon, {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+      global: { headers: { Authorization: authHeader } },
+    });
 
     const updates: any = {};
     if (body.title !== undefined) updates.title = String(body.title);
@@ -192,31 +197,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     if (body.assigned_user_id !== undefined) updates.assigned_user_id = body.assigned_user_id || null;
     if (body.assigned_company_id !== undefined) updates.assigned_company_id = body.assigned_company_id || null;
 
-    try {
-      // Ustawiamy auth.uid() dla triggerów (changed_by -> sub)
-      await supabase.rpc("set_config", {
-        key: "request.jwt.claim.sub",
-        value: changed_by,
-        is_local: true,
-      });
+    // (opcjonalnie) pozwól na przesuwanie na mapie
+    if (body.x_norm !== undefined) updates.x_norm = body.x_norm;
+    if (body.y_norm !== undefined) updates.y_norm = body.y_norm;
+    if (body.plan_id !== undefined) updates.plan_id = body.plan_id;
 
-      const { data, error } = await supabase.from("tasks").update(updates).eq("id", id).select("*").single();
+    const { data, error } = await supaUser.from("tasks").update(updates).eq("id", id).select("*").single();
 
-      if (error) throw error;
-
-      res.status(200).json({ ok: true, data });
-      return;
-    } catch (e: any) {
-      res.status(400).json({
+    if (error) {
+      res.status((error as any).status || 400).json({
         ok: false,
         error: {
           code: "SUPABASE",
-          message: e?.message || "Supabase error",
-          meta: { code: e?.code, details: e?.details },
+          message: error.message,
+          meta: { code: (error as any).code, details: (error as any).details },
         },
       });
       return;
     }
+
+    res.status(200).json({ ok: true, data });
+    return;
   }
 
   res.setHeader("Allow", "GET, POST, PATCH");
