@@ -53,22 +53,13 @@ function statusBadge(status?: string) {
     width: "fit-content",
   };
 
+  // szybkie wyróżnienie bez zabawy w theme
   if (s === "OPEN") return <span style={common}>🟦 OPEN</span>;
   if (s === "IN_PROGRESS") return <span style={common}>🟨 IN_PROGRESS</span>;
   if (s === "DONE_WAITING_APPROVAL") return <span style={common}>🟧 DONE</span>;
   if (s === "APPROVED") return <span style={common}>🟩 APPROVED</span>;
   if (s === "REJECTED") return <span style={common}>🟥 REJECTED</span>;
   return <span style={common}>{s}</span>;
-}
-
-// ✅ FIX: jeśli backend zwróci URL z 127.0.0.1:54321, to podmień na host strony + ten sam protokół
-function fixStorageUrl(u: string) {
-  if (!u) return u;
-
-  const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-  const proto = typeof window !== "undefined" ? window.location.protocol : "http:";
-
-  return u.replace("http://127.0.0.1:54321", `${proto}//${host}:54321`);
 }
 
 export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }) {
@@ -108,14 +99,13 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
   async function loadThumb(taskId: string) {
     const r = await fetch(`/api/task-photos?taskId=${encodeURIComponent(taskId)}`, { cache: "no-store" });
     const j = await r.json();
-
-    const raw = j?.ok && j.data && j.data.length ? j.data[0].url : null;
-    const fixed = raw ? fixStorageUrl(raw) : null;
-
-    setThumbByTask((p) => ({ ...p, [taskId]: fixed }));
+    setThumbByTask((p) => ({
+      ...p,
+      [taskId]: j?.ok && j.data && j.data.length ? j.data[0].url : null,
+    }));
   }
 
-  // EVENT z TaskDrawer po uploadzie: odśwież miniaturę + listę tasków
+  // EVENT z TaskDrawer po uploadzie: odśwież miniaturę + listę tasków (status/assigned też może się zmienić)
   useEffect(() => {
     const h = (e: any) => {
       const id = e?.detail?.taskId;
@@ -123,11 +113,9 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
       loadThumb(id).catch(() => {});
       loadTasks().catch(() => {});
     };
-
     window.addEventListener("task-photo-added", h);
     window.addEventListener("task-saved", loadTasks as any);
     window.addEventListener("task-deleted", loadTasks as any);
-
     return () => {
       window.removeEventListener("task-photo-added", h);
       window.removeEventListener("task-saved", loadTasks as any);
@@ -139,7 +127,6 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
     useMapEvents({
       click: async (e) => {
         const p = CRS.latLngToPoint(e.latlng, meta.maxZoom);
-
         const r = await fetch("/api/tasks", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -153,12 +140,10 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
             created_by: CREATED_BY,
           }),
         });
-
         const j = await r.json();
         if (j?.ok && j?.data?.id) {
           setDrawerTaskId(j.data.id);
           loadTasks().catch(() => {});
-          loadThumb(j.data.id).catch(() => {});
         }
       },
     });

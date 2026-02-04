@@ -25,22 +25,6 @@ function isUuid(v: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
 }
 
-// ✅ FIX: jeśli backend zwróci URL z 127.0.0.1:54321, to podmień na host strony
-function fixStorageUrl(u: string) {
-  if (!u) return u;
-
-  const host =
-    typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-  const proto =
-    typeof window !== "undefined" ? window.location.protocol : "http:";
-
-  return u.replace(
-    "http://127.0.0.1:54321",
-    `${proto}//${host}:54321`
-  );
-}
-
-
 async function fileToBase64(file: File): Promise<string> {
   const buf = await file.arrayBuffer();
   let binary = "";
@@ -89,9 +73,6 @@ export default function TaskDrawer({
       if (!r1.ok || !j1.ok) throw new Error((j1 as any)?.error?.message || "task fetch failed");
 
       setTask(j1.data);
-
-      // ✅ ustawiamy formularz na podstawie taska
-      // (ta funkcja jest ok przy otwarciu drawer; problem był w tym, że wołałeś ją po uploadzie)
       setTitle(j1.data.title || "");
       setDescription(j1.data.description || "");
       setStatus(j1.data.status || "OPEN");
@@ -132,6 +113,7 @@ export default function TaskDrawer({
     if (!isUuid(taskId)) return setErr("taskId nie jest UUID");
     if (!isUuid(uploadedBy)) return setErr("changed_by(uploadedBy) nie jest UUID");
 
+    // assigned_user_id: puste => null, a jak wpisane to UUID
     const trimmed = assignedUserId.trim();
     if (trimmed && !isUuid(trimmed)) return setErr("assigned_user_id musi być UUID albo puste");
 
@@ -171,7 +153,6 @@ export default function TaskDrawer({
     setUploading(true);
     try {
       const base64 = await fileToBase64(file);
-
       const r = await fetch("/api/task-photos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -183,18 +164,14 @@ export default function TaskDrawer({
           base64,
         }),
       });
-
       const j = await r.json();
       if (!r.ok || !j?.ok) throw new Error(j?.error?.message || "upload failed");
 
       setCaption("");
+      // odśwież listę zdjęć (żeby miniatury były pewne)
+      await loadAll(taskId);
 
-      // ✅ KLUCZOWE: nie odświeżamy taska (bo nadpisuje wpisany tytuł/opis)
-      // tylko dopinamy nowe zdjęcie do listy:
-      const newPhoto: TaskPhoto = j.data;
-      setPhotos((prev) => [newPhoto, ...prev]);
-
-      // 🔔 popup na mapie ma się zaktualizować (miniaturka)
+      // 🔔 popup na mapie ma się zaktualizować
       window.dispatchEvent(new CustomEvent("task-photo-added", { detail: { taskId } }));
     } catch (e: any) {
       setErr(e?.message || String(e));
@@ -289,58 +266,74 @@ export default function TaskDrawer({
         {/* BODY */}
         <div style={{ padding: 16, overflow: "auto", display: "grid", gap: 14 }}>
           {err ? (
-            <div style={{ padding: "10px 12px", borderRadius: 12, background: "rgba(185,28,28,0.08)", color: "#991b1b" }}>
+            <div
+              style={{
+                padding: "10px 12px",
+                borderRadius: 12,
+                border: "1px solid rgba(185,28,28,0.25)",
+                background: "rgba(185,28,28,0.06)",
+                color: "#b91c1c",
+                fontSize: 13,
+                fontWeight: 700,
+              }}
+            >
               {err}
             </div>
           ) : null}
 
+          {!taskId ? (
+            <div style={{ fontSize: 13, opacity: 0.8 }}>Brak taskId</div>
+          ) : null}
+
           <label style={labelStyle}>
-            <div>Tytuł</div>
-            <input value={title} onChange={(e) => setTitle(e.target.value)} style={inputStyle} />
+            <div style={{ fontWeight: 800 }}>Tytuł</div>
+            <input style={inputStyle} value={title} onChange={(e) => setTitle(e.target.value)} />
           </label>
 
           <label style={labelStyle}>
-            <div>Opis</div>
+            <div style={{ fontWeight: 800 }}>Opis</div>
             <textarea
+              style={{ ...inputStyle, minHeight: 110, resize: "vertical" }}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              style={{ ...inputStyle, minHeight: 120, resize: "vertical" }}
             />
           </label>
 
-          <label style={labelStyle}>
-            <div>Status</div>
-            <select value={status} onChange={(e) => setStatus(e.target.value as TaskRow["status"])} style={inputStyle}>
-              <option value="OPEN">OPEN</option>
-              <option value="IN_PROGRESS">IN_PROGRESS</option>
-              <option value="DONE_WAITING_APPROVAL">DONE_WAITING_APPROVAL</option>
-              <option value="APPROVED">APPROVED</option>
-              <option value="REJECTED">REJECTED</option>
-            </select>
-          </label>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <label style={labelStyle}>
+              <div style={{ fontWeight: 800 }}>Status</div>
+              <select style={inputStyle} value={status} onChange={(e) => setStatus(e.target.value as any)}>
+                <option value="OPEN">OPEN</option>
+                <option value="IN_PROGRESS">IN_PROGRESS</option>
+                <option value="DONE_WAITING_APPROVAL">DONE_WAITING_APPROVAL</option>
+                <option value="APPROVED">APPROVED</option>
+                <option value="REJECTED">REJECTED</option>
+              </select>
+            </label>
 
-          <label style={labelStyle}>
-            <div>assigned_user_id</div>
-            <input
-              value={assignedUserId}
-              onChange={(e) => setAssignedUserId(e.target.value)}
-              placeholder="uuid albo puste"
-              style={inputStyle}
-            />
-          </label>
+            <label style={labelStyle}>
+              <div style={{ fontWeight: 800 }}>assigned_user_id</div>
+              <input
+                style={inputStyle}
+                value={assignedUserId}
+                onChange={(e) => setAssignedUserId(e.target.value)}
+                placeholder="UUID lub puste"
+              />
+            </label>
+          </div>
 
           <button
             onClick={save}
             disabled={saving}
             style={{
-              marginTop: 6,
               padding: "12px 14px",
               borderRadius: 14,
               border: "1px solid rgba(17,24,39,0.18)",
-              background: "#111827",
-              color: "#fff",
+              background: saving ? "rgba(17,24,39,0.06)" : "#111827",
+              color: saving ? "#111827" : "#fff",
+              cursor: saving ? "default" : "pointer",
               fontWeight: 900,
-              cursor: "pointer",
+              fontSize: 14,
             }}
           >
             {saving ? "Zapisuję…" : "Zapisz"}
@@ -354,25 +347,26 @@ export default function TaskDrawer({
               border: "1px solid rgba(185,28,28,0.35)",
               background: "rgba(185,28,28,0.06)",
               color: "#b91c1c",
-              fontWeight: 900,
               cursor: "pointer",
+              fontWeight: 900,
+              fontSize: 14,
             }}
           >
             Usuń task
           </button>
 
-          <hr style={{ border: "none", borderTop: "1px solid rgba(17,24,39,0.08)", margin: "6px 0" }} />
+          <hr style={{ border: "none", borderTop: "1px solid rgba(17,24,39,0.08)" }} />
 
           {/* PHOTOS */}
           <div style={{ display: "grid", gap: 10 }}>
             <div style={{ fontWeight: 900 }}>Zdjęcia</div>
 
             <label style={labelStyle}>
-              <div>Podpis (opcjonalnie)</div>
-              <input value={caption} onChange={(e) => setCaption(e.target.value)} style={inputStyle} />
+              <div style={{ fontWeight: 800 }}>Podpis (opcjonalnie)</div>
+              <input style={inputStyle} value={caption} onChange={(e) => setCaption(e.target.value)} />
             </label>
 
-            <label style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <input
                 type="file"
                 accept="image/*"
@@ -380,30 +374,24 @@ export default function TaskDrawer({
                 onChange={async (e) => {
                   const input = e.currentTarget;
                   const f = input.files?.[0];
-                  input.value = ""; // reset od razu
+                  input.value = "";
                   if (!f) return;
                   await uploadPhoto(f);
                 }}
               />
-              <span style={{ fontSize: 12, opacity: 0.75, color: "#111827" }}>{uploading ? "Wysyłam…" : ""}</span>
+              <span style={{ fontSize: 12, opacity: 0.75 }}>{uploading ? "Wysyłam…" : ""}</span>
             </label>
 
-            {photos.length === 0 ? <div style={{ fontSize: 12, opacity: 0.7 }}>Brak zdjęć.</div> : null}
+            {photos.length === 0 ? <div style={{ fontSize: 12, opacity: 0.75 }}>Brak zdjęć.</div> : null}
 
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-                gap: 10,
-              }}
-            >
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 }}>
               {photos.map((p) => (
                 <button
                   key={p.id}
-                  onClick={() => setPreviewUrl(fixStorageUrl(p.url))}
+                  onClick={() => setPreviewUrl(p.url)}
                   style={{
                     border: "1px solid rgba(17,24,39,0.12)",
-                    borderRadius: 14,
+                    borderRadius: 12,
                     padding: 0,
                     overflow: "hidden",
                     background: "#fff",
@@ -412,9 +400,9 @@ export default function TaskDrawer({
                   title={p.caption || ""}
                 >
                   <img
-                    src={fixStorageUrl(p.url)}
-                    alt={p.caption || "photo"}
-                    style={{ width: "100%", height: 110, objectFit: "cover", display: "block" }}
+                    src={p.url}
+                    alt={p.caption || ""}
+                    style={{ width: "100%", height: 88, objectFit: "cover", display: "block" }}
                   />
                 </button>
               ))}
@@ -430,48 +418,25 @@ export default function TaskDrawer({
           style={{
             position: "fixed",
             inset: 0,
-            background: "rgba(0,0,0,0.65)",
+            background: "rgba(0,0,0,0.72)",
             zIndex: 10000,
-            display: "grid",
-            placeItems: "center",
-            padding: 16,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
           }}
         >
-          <div
-            onClick={(e) => e.stopPropagation()}
+          <img
+            src={previewUrl}
+            alt=""
             style={{
-              width: "min(980px, 96vw)",
-              maxHeight: "92vh",
-              background: "#fff",
-              borderRadius: 16,
-              overflow: "hidden",
+              maxWidth: "min(980px, 96vw)",
+              maxHeight: "min(92vh, 920px)",
+              borderRadius: 14,
               boxShadow: "0 25px 60px rgba(0,0,0,0.45)",
-              border: "1px solid rgba(255,255,255,0.15)",
+              background: "#fff",
             }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px" }}>
-              <div style={{ fontWeight: 900, fontSize: 13, color: "#111827" }}>Podgląd</div>
-              <button
-                onClick={() => setPreviewUrl(null)}
-                style={{
-                  padding: "6px 10px",
-                  borderRadius: 10,
-                  border: "1px solid rgba(17,24,39,0.18)",
-                  background: "#fff",
-                  color: "#111827",
-                  cursor: "pointer",
-                  fontWeight: 900,
-                }}
-              >
-                Zamknij ✕
-              </button>
-            </div>
-            <img
-              src={previewUrl}
-              alt="preview"
-              style={{ width: "100%", height: "auto", display: "block", maxHeight: "calc(92vh - 52px)", objectFit: "contain" }}
-            />
-          </div>
+          />
         </div>
       ) : null}
     </>
