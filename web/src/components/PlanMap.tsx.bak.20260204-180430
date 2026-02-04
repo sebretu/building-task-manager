@@ -54,25 +54,6 @@ function shortId(id: string | null | undefined) {
   return `${id.slice(0, 6)}…${id.slice(-4)}`;
 }
 
-function badgeForStatus(status?: string) {
-  const s = String(status || "").toUpperCase();
-  if (s === "APPROVED") return { bg: "#DCFCE7", fg: "#166534", label: "APPROVED" };
-  if (s === "REJECTED") return { bg: "#FEE2E2", fg: "#991B1B", label: "REJECTED" };
-  if (s === "DONE_WAITING_APPROVAL") return { bg: "#FEF3C7", fg: "#92400E", label: "WAITING" };
-  if (s === "IN_PROGRESS") return { bg: "#DBEAFE", fg: "#1D4ED8", label: "IN PROGRESS" };
-  if (s === "OPEN") return { bg: "#E5E7EB", fg: "#111827", label: "OPEN" };
-  return { bg: "#E5E7EB", fg: "#111827", label: status || "—" };
-}
-
-function badgeForPriority(priority?: string) {
-  const p = String(priority || "").toUpperCase();
-  if (p === "CRITICAL") return { bg: "#FFE4E6", fg: "#9F1239", label: "CRITICAL" };
-  if (p === "HIGH") return { bg: "#FFEDD5", fg: "#9A3412", label: "HIGH" };
-  if (p === "MEDIUM") return { bg: "#E5E7EB", fg: "#111827", label: "MEDIUM" };
-  if (p === "LOW") return { bg: "#ECFDF5", fg: "#065F46", label: "LOW" };
-  return { bg: "#E5E7EB", fg: "#111827", label: priority || "—" };
-}
-
 // Poprawny CRS
 const CRS = L.CRS.Simple;
 
@@ -216,6 +197,7 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
           return;
         }
 
+        // 🔥 KLUCZ: po stworzeniu -> otwieramy stronę edycji taska
         const newId = j?.data?.id;
         if (newId) {
           window.location.assign(`/task/${newId}`);
@@ -230,21 +212,14 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
   }
 
   const goToTask = (id: string) => {
+    // stabilniej niż <a href> w Leaflet popup
     window.location.assign(`/task/${id}`);
   };
 
   return (
     <div style={{ width: "100%", height: "calc(100vh - 120px)" }}>
-      <div
-        style={{
-          padding: "8px 10px",
-          fontSize: 12,
-          color: "#111827",
-          background: "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,255,255,0.85))",
-          borderBottom: "1px solid rgba(17,24,39,0.08)",
-        }}
-      >
-        <b>tasks:</b> {tasks.length} {tasksLoading ? "(loading…)" : ""} &nbsp;|&nbsp; <b>planId:</b>{" "}
+      <div style={{ padding: "6px 10px", fontSize: 12, opacity: 0.75 }}>
+        tasks: {tasks.length} {tasksLoading ? "(loading…)" : ""} | planId:{" "}
         <span style={{ fontFamily: "monospace" }}>{planId}</span>
       </div>
 
@@ -258,7 +233,7 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
         bounds={bounds}
         maxBounds={bounds}
         maxBoundsViscosity={1.0}
-        style={{ width: "100%", height: "100%", background: "#F3F4F6" }}
+        style={{ width: "100%", height: "100%", background: "#fff" }}
       >
         <TileLayer
           url={`/api/tiles/${planId}/{z}/{x}/{y}.png`}
@@ -281,8 +256,6 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
           const ll = CRS.pointToLatLng(L.point(x, y), meta.maxZoom);
 
           const thumb = thumbByTaskId[t.id];
-          const st = badgeForStatus(t.status);
-          const pr = badgeForPriority(t.priority);
 
           return (
             <Marker key={t.id} position={ll}>
@@ -293,133 +266,74 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
                   },
                 }}
               >
-                <div style={{ minWidth: 280, maxWidth: 340, color: "#111827" }}>
-                  {/* Card */}
-                  <div
-                    style={{
-                      borderRadius: 14,
-                      border: "1px solid rgba(17,24,39,0.10)",
-                      boxShadow: "0 10px 28px rgba(17,24,39,0.12)",
-                      overflow: "hidden",
-                      background: "linear-gradient(180deg, #FFFFFF, #F9FAFB)",
-                    }}
-                  >
-                    <div style={{ padding: "10px 12px", display: "grid", gap: 8 }}>
-                      <div style={{ display: "flex", gap: 8, alignItems: "flex-start", justifyContent: "space-between" }}>
-                        <div style={{ fontWeight: 900, fontSize: 14, lineHeight: 1.15 }}>{t.title}</div>
-                        <div style={{ display: "inline-flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                          <span
-                            style={{
-                              padding: "4px 8px",
-                              borderRadius: 999,
-                              background: st.bg,
-                              color: st.fg,
-                              fontSize: 11,
-                              fontWeight: 800,
-                              border: "1px solid rgba(0,0,0,0.06)",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            {st.label}
-                          </span>
-                          <span
-                            style={{
-                              padding: "4px 8px",
-                              borderRadius: 999,
-                              background: pr.bg,
-                              color: pr.fg,
-                              fontSize: 11,
-                              fontWeight: 800,
-                              border: "1px solid rgba(0,0,0,0.06)",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            {pr.label}
-                          </span>
-                        </div>
-                      </div>
+                <div style={{ minWidth: 260, maxWidth: 320 }}>
+                  <div style={{ fontWeight: 800 }}>{t.title}</div>
 
-                      <div style={{ fontSize: 12, opacity: 0.9, display: "grid", gap: 4 }}>
-                        <div>
-                          <span style={{ opacity: 0.65 }}>Przydzielone:</span>{" "}
-                          <b style={{ fontWeight: 800 }}>{renderAssigned(t.assigned_user_id)}</b>
-                        </div>
-                      </div>
-
-                      {t.description ? (
-                        <div
-                          style={{
-                            fontSize: 13,
-                            lineHeight: 1.35,
-                            color: "#111827",
-                            background: "rgba(17,24,39,0.04)",
-                            border: "1px solid rgba(17,24,39,0.06)",
-                            borderRadius: 12,
-                            padding: "8px 10px",
-                          }}
-                        >
-                          {t.description}
-                        </div>
-                      ) : null}
-
-                      {/* Thumbnail */}
-                      <div>
-                        {typeof thumb === "string" ? (
-                          <img
-                            src={thumb}
-                            alt="miniatura"
-                            style={{
-                              width: "100%",
-                              height: 120,
-                              objectFit: "cover",
-                              borderRadius: 12,
-                              border: "1px solid rgba(17,24,39,0.10)",
-                              display: "block",
-                              boxShadow: "0 6px 18px rgba(17,24,39,0.10)",
-                            }}
-                          />
-                        ) : (
-                          <div
-                            style={{
-                              width: "100%",
-                              height: 120,
-                              borderRadius: 12,
-                              border: "1px dashed rgba(17,24,39,0.22)",
-                              background: "rgba(17,24,39,0.03)",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              fontSize: 12,
-                              opacity: 0.75,
-                            }}
-                          >
-                            {Object.prototype.hasOwnProperty.call(thumbByTaskId, t.id) ? "Brak zdjęcia" : "Ładuję…"}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Actions */}
-                      <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "space-between" }}>
-                        <button
-                          onClick={() => goToTask(t.id)}
-                          style={{
-                            padding: "8px 10px",
-                            borderRadius: 12,
-                            border: "1px solid rgba(17,24,39,0.12)",
-                            background: "linear-gradient(180deg, #111827, #0B1220)",
-                            color: "#fff",
-                            cursor: "pointer",
-                            fontSize: 12,
-                            fontWeight: 800,
-                            boxShadow: "0 8px 18px rgba(17,24,39,0.18)",
-                          }}
-                        >
-                          Otwórz task →
-                        </button>
-
-                        <span style={{ fontSize: 11, opacity: 0.55, fontFamily: "monospace" }}>{shortId(t.id)}</span>
-                      </div>
+                  <div style={{ marginTop: 8, fontSize: 12, opacity: 0.9, display: "grid", gap: 4 }}>
+                    <div>
+                      <span style={{ opacity: 0.7 }}>Status:</span> <b>{t.status || "—"}</b>
                     </div>
+                    <div>
+                      <span style={{ opacity: 0.7 }}>Priorytet:</span> <b>{t.priority || "—"}</b>
+                    </div>
+                    <div>
+                      <span style={{ opacity: 0.7 }}>Przydzielone:</span> <b>{renderAssigned(t.assigned_user_id)}</b>
+                    </div>
+                  </div>
+
+                  {t.description ? (
+                    <div style={{ marginTop: 8, fontSize: 13, lineHeight: 1.35, opacity: 0.9 }}>{t.description}</div>
+                  ) : null}
+
+                  <div style={{ marginTop: 10 }}>
+                    {typeof thumb === "string" ? (
+                      <img
+                        src={thumb}
+                        alt="miniatura"
+                        style={{
+                          width: "100%",
+                          height: 110,
+                          objectFit: "cover",
+                          borderRadius: 12,
+                          border: "1px solid rgba(0,0,0,0.12)",
+                          display: "block",
+                        }}
+                      />
+                    ) : (
+                      <div
+                        style={{
+                          width: "100%",
+                          height: 110,
+                          borderRadius: 12,
+                          border: "1px dashed rgba(0,0,0,0.2)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: 12,
+                          opacity: 0.7,
+                        }}
+                      >
+                        {Object.prototype.hasOwnProperty.call(thumbByTaskId, t.id) ? "Brak zdjęcia" : "Ładuję…"}
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ marginTop: 10, display: "flex", gap: 8, alignItems: "center" }}>
+                    <button
+                      onClick={() => goToTask(t.id)}
+                      style={{
+                        padding: "7px 10px",
+                        borderRadius: 10,
+                        border: "1px solid rgba(0,0,0,0.15)",
+                        background: "#fff",
+                        cursor: "pointer",
+                        fontSize: 12,
+                      }}
+                    >
+                      Otwórz task →
+                    </button>
+
+                    <span style={{ fontSize: 11, opacity: 0.6, fontFamily: "monospace" }}>{t.id}</span>
                   </div>
                 </div>
               </Popup>

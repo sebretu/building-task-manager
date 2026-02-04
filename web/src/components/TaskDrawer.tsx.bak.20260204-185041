@@ -40,6 +40,15 @@ async function fileToBase64(file: File): Promise<string> {
   return btoa(binary);
 }
 
+async function readApi<T>(r: Response): Promise<ApiOk<T> | ApiErr> {
+  const txt = await r.text();
+  try {
+    return JSON.parse(txt);
+  } catch {
+    return { ok: false, error: { code: "BAD_RESPONSE", message: `Nie-JSON z API (${r.status}): ${txt.slice(0, 200)}` } };
+  }
+}
+
 export default function TaskDrawer({
   open,
   taskId,
@@ -49,7 +58,7 @@ export default function TaskDrawer({
   open: boolean;
   taskId: string | null;
   onClose: () => void;
-  uploadedBy: string;
+  uploadedBy: string; // DEV: UUID profilu
 }) {
   const [task, setTask] = useState<TaskRow | null>(null);
   const [photos, setPhotos] = useState<TaskPhoto[]>([]);
@@ -73,8 +82,8 @@ export default function TaskDrawer({
     setErr(null);
     try {
       const r1 = await fetch(`/api/task?id=${encodeURIComponent(id)}`, { cache: "no-store" });
-      const j1 = (await r1.json()) as ApiOk<TaskRow> | ApiErr;
-      if (!r1.ok || !j1.ok) throw new Error((j1 as any)?.error?.message || "task fetch failed");
+      const j1 = (await readApi<TaskRow>(r1)) as ApiOk<TaskRow> | ApiErr;
+      if (!r1.ok || !j1.ok) throw new Error((j1 as any)?.error?.message || `task fetch failed (${r1.status})`);
       setTask(j1.data);
 
       setTitle(j1.data.title || "");
@@ -84,8 +93,8 @@ export default function TaskDrawer({
       setAssignedUserId(j1.data.assigned_user_id || "");
 
       const r2 = await fetch(`/api/task-photos?taskId=${encodeURIComponent(id)}`, { cache: "no-store" });
-      const j2 = (await r2.json()) as ApiOk<TaskPhoto[]> | ApiErr;
-      if (!r2.ok || !j2.ok) throw new Error((j2 as any)?.error?.message || "photos fetch failed");
+      const j2 = (await readApi<TaskPhoto[]>(r2)) as ApiOk<TaskPhoto[]> | ApiErr;
+      if (!r2.ok || !j2.ok) throw new Error((j2 as any)?.error?.message || `photos fetch failed (${r2.status})`);
       setPhotos(j2.data || []);
     } catch (e: any) {
       setErr(e?.message || String(e));
@@ -100,9 +109,18 @@ export default function TaskDrawer({
   async function save() {
     setErr(null);
 
-    if (!taskId) return setErr("Brak taskId");
-    if (!isUuid(taskId)) return setErr("taskId nie jest UUID");
-    if (!isUuid(uploadedBy)) return setErr("uploadedBy (changed_by) nie jest UUID");
+    if (!taskId) {
+      setErr("Brak taskId");
+      return;
+    }
+    if (!isUuid(taskId)) {
+      setErr("taskId nie jest UUID");
+      return;
+    }
+    if (!uploadedBy || !isUuid(uploadedBy)) {
+      setErr(`uploadedBy jest puste lub nie-UUID. W PlanMap musisz przekazać uploadedBy={CREATED_BY}. Teraz: "${uploadedBy}"`);
+      return;
+    }
 
     setSaving(true);
     try {
@@ -120,7 +138,7 @@ export default function TaskDrawer({
         }),
       });
 
-      const j = (await r.json()) as ApiOk<TaskRow> | ApiErr;
+      const j = (await readApi<TaskRow>(r)) as ApiOk<TaskRow> | ApiErr;
       if (!r.ok || !j.ok) throw new Error((j as any)?.error?.message || `save failed (${r.status})`);
 
       setTask(j.data);
@@ -134,9 +152,18 @@ export default function TaskDrawer({
   async function uploadPhoto(file: File) {
     setErr(null);
 
-    if (!taskId) return setErr("Brak taskId");
-    if (!isUuid(taskId)) return setErr("taskId nie jest UUID");
-    if (!isUuid(uploadedBy)) return setErr("uploadedBy nie jest UUID");
+    if (!taskId) {
+      setErr("Brak taskId");
+      return;
+    }
+    if (!isUuid(taskId)) {
+      setErr("taskId nie jest UUID");
+      return;
+    }
+    if (!uploadedBy || !isUuid(uploadedBy)) {
+      setErr(`uploadedBy jest puste lub nie-UUID. Teraz: "${uploadedBy}"`);
+      return;
+    }
 
     setUploading(true);
     try {
@@ -154,7 +181,7 @@ export default function TaskDrawer({
         }),
       });
 
-      const j = (await r.json()) as ApiOk<TaskPhoto> | ApiErr;
+      const j = (await readApi<TaskPhoto>(r)) as ApiOk<TaskPhoto> | ApiErr;
       if (!r.ok || !j.ok) throw new Error((j as any)?.error?.message || `upload failed (${r.status})`);
 
       setPhotos((p) => [j.data, ...p]);
@@ -212,7 +239,7 @@ export default function TaskDrawer({
             gap: 10,
           }}
         >
-          <div style={{ fontSize: 14 }}>{headerTitle}</div>
+          <div>{headerTitle}</div>
           <button
             type="button"
             onClick={onClose}
@@ -223,6 +250,7 @@ export default function TaskDrawer({
               padding: "6px 10px",
               cursor: "pointer",
             }}
+            aria-label="Zamknij"
             title="Zamknij"
           >
             ✕
@@ -230,7 +258,7 @@ export default function TaskDrawer({
         </div>
 
         {/* BODY */}
-        <div style={{ padding: 16, overflow: "auto", display: "grid", gap: 16 }}>
+        <div style={{ padding: 16, overflow: "auto", display: "grid", gap: 14 }}>
           {err && (
             <div
               style={{
@@ -255,7 +283,7 @@ export default function TaskDrawer({
               style={{
                 padding: "10px 12px",
                 borderRadius: 12,
-                border: "1px solid rgba(0,0,0,0.15)",
+                border: "1px solid rgba(0,0,0,0.14)",
                 fontSize: 14,
               }}
             />
@@ -270,7 +298,7 @@ export default function TaskDrawer({
               style={{
                 padding: "10px 12px",
                 borderRadius: 12,
-                border: "1px solid rgba(0,0,0,0.15)",
+                border: "1px solid rgba(0,0,0,0.14)",
                 fontSize: 14,
                 resize: "vertical",
               }}
@@ -278,32 +306,77 @@ export default function TaskDrawer({
           </label>
 
           <label style={{ display: "grid", gap: 6 }}>
-            <div style={{ fontSize: 12, opacity: 0.7 }}>assigned_user_id (DEV)</div>
+            <div style={{ fontSize: 12, opacity: 0.7 }}>assigned_user_id (na razie UUID)</div>
             <input
               value={assignedUserId}
               onChange={(e) => setAssignedUserId(e.target.value)}
+              placeholder="uuid albo puste"
               style={{
                 padding: "10px 12px",
                 borderRadius: 12,
-                border: "1px solid rgba(0,0,0,0.15)",
+                border: "1px solid rgba(0,0,0,0.14)",
                 fontSize: 14,
-                fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+                fontFamily: "monospace",
               }}
             />
           </label>
 
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <label style={{ display: "grid", gap: 6 }}>
+              <div style={{ fontSize: 12, opacity: 0.7 }}>Priority</div>
+              <select
+                value={priority}
+                onChange={(e) => setPriority(e.target.value as any)}
+                style={{
+                  padding: "10px 12px",
+                  borderRadius: 12,
+                  border: "1px solid rgba(0,0,0,0.14)",
+                  fontSize: 14,
+                  background: "#fff",
+                }}
+              >
+                <option value="LOW">LOW</option>
+                <option value="MEDIUM">MEDIUM</option>
+                <option value="HIGH">HIGH</option>
+                <option value="CRITICAL">CRITICAL</option>
+              </select>
+            </label>
+
+            <label style={{ display: "grid", gap: 6 }}>
+              <div style={{ fontSize: 12, opacity: 0.7 }}>Status</div>
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value as any)}
+                style={{
+                  padding: "10px 12px",
+                  borderRadius: 12,
+                  border: "1px solid rgba(0,0,0,0.14)",
+                  fontSize: 14,
+                  background: "#fff",
+                }}
+              >
+                <option value="OPEN">OPEN</option>
+                <option value="IN_PROGRESS">IN_PROGRESS</option>
+                <option value="DONE_WAITING_APPROVAL">DONE_WAITING_APPROVAL</option>
+                <option value="APPROVED">APPROVED</option>
+                <option value="REJECTED">REJECTED</option>
+              </select>
+            </label>
+          </div>
+
           <button
             type="button"
-            onClick={save}
+            onClick={() => save().catch(() => {})}
             disabled={saving}
             style={{
               padding: "10px 12px",
               borderRadius: 14,
               border: "1px solid rgba(0,0,0,0.12)",
-              background: saving ? "rgba(17,24,39,0.06)" : "#111827",
-              color: saving ? "#111827" : "#fff",
-              cursor: saving ? "default" : "pointer",
-              fontWeight: 900,
+              background: "#111827",
+              color: "#fff",
+              fontWeight: 800,
+              cursor: "pointer",
+              opacity: saving ? 0.7 : 1,
             }}
           >
             {saving ? "Zapisuję…" : "Zapisz"}
@@ -314,45 +387,57 @@ export default function TaskDrawer({
           <div style={{ display: "grid", gap: 10 }}>
             <div style={{ fontWeight: 900 }}>Zdjęcia</div>
 
-            <input
-              value={caption}
-              onChange={(e) => setCaption(e.target.value)}
-              placeholder="Podpis"
-              style={{
-                padding: "10px 12px",
-                borderRadius: 12,
-                border: "1px solid rgba(0,0,0,0.15)",
-                fontSize: 14,
-              }}
-            />
+            <label style={{ display: "grid", gap: 6 }}>
+              <div style={{ fontSize: 12, opacity: 0.7 }}>Podpis (opcjonalnie)</div>
+              <input
+                value={caption}
+                onChange={(e) => setCaption(e.target.value)}
+                style={{
+                  padding: "10px 12px",
+                  borderRadius: 12,
+                  border: "1px solid rgba(0,0,0,0.14)",
+                  fontSize: 14,
+                }}
+              />
+            </label>
 
             <label style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
               <input
                 type="file"
                 accept="image/*"
-                disabled={uploading}
+                disabled={uploading || !taskId}
                 onChange={async (e) => {
                   const input = e.currentTarget;
                   const f = input.files?.[0];
                   if (!f) return;
+
+                  // reset od razu (bez await)
                   input.value = "";
+
                   await uploadPhoto(f);
                 }}
               />
               <span style={{ fontSize: 12, opacity: 0.7 }}>{uploading ? "Wysyłam…" : ""}</span>
             </label>
 
+            {photos.length === 0 ? <div style={{ fontSize: 12, opacity: 0.7 }}>Brak zdjęć.</div> : null}
+
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8 }}>
               {photos.map((p) => (
                 <img
                   key={p.id}
                   src={p.url}
-                  style={{ width: "100%", height: 110, borderRadius: 12, objectFit: "cover" }}
+                  alt={p.caption || "photo"}
+                  style={{
+                    width: "100%",
+                    aspectRatio: "1 / 1",
+                    objectFit: "cover",
+                    borderRadius: 12,
+                    border: "1px solid rgba(0,0,0,0.10)",
+                  }}
                 />
               ))}
             </div>
-
-            {photos.length === 0 ? <div style={{ fontSize: 12, opacity: 0.7 }}>Brak zdjęć.</div> : null}
           </div>
         </div>
       </div>
