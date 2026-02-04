@@ -41,23 +41,34 @@ a {
   }
 }
 
-/* ------------------------------
-   Leaflet / tiles seams fix
-   ------------------------------ */
+/* =========================================================
+   LEAFLET – USUWANIE LINII / SZWÓW MIĘDZY KAFLAMI
+   ========================================================= */
 
-/* Domyślnie Leaflet potrafi zostawiać 1px "szwy" między kaflami przy oddaleniu (subpiksele). */
+/* 1️⃣ Leaflet nie może skalować subpikselowo */
 .leaflet-container {
   background: #fff;
+  image-rendering: pixelated;
 }
 
-/* Najczęściej działa: outline transparent + ukrycie backface, żeby przeglądarka inaczej składała warstwy. */
-.plan-tiles {
-  backface-visibility: hidden;
+/* 2️⃣ TileLayer – absolutne pozycjonowanie bez zaokrągleń */
+.plan-tiles .leaflet-tile {
+  width: 256px !important;
+  height: 256px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+
+  image-rendering: pixelated;
   transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
-.plan-tiles.leaflet-tile {
-  outline: 1px solid transparent;
-  backface-visibility: hidden;
-  transform: translateZ(0);
+/* 3️⃣ Zabijamy scale() które robi szczeliny */
+.leaflet-zoom-animated .leaflet-tile {
+  will-change: transform;
+}
+
+/* 4️⃣ Wyłączamy subpixel rounding w Chrome */
+.leaflet-pane {
+  transform: translate3d(0, 0, 0);
 }
