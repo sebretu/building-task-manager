@@ -23,6 +23,17 @@ type TaskRow = {
   description: string | null;
 };
 
+type TaskPhoto = {
+  id: string;
+  task_id: string;
+  url: string;
+  caption: string | null;
+  uploaded_by: string;
+  created_at: string;
+  storage_bucket: string;
+  storage_path: string | null;
+};
+
 function clamp01(n: number) {
   return Math.max(0, Math.min(1, n));
 }
@@ -49,6 +60,10 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
   const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [tasksLoading, setTasksLoading] = useState(false);
   const [map, setMap] = useState<L.Map | null>(null);
+
+  // ✅ zdjęcia per task (cache + loading)
+  const [photosByTask, setPhotosByTask] = useState<Record<string, TaskPhoto[]>>({});
+  const [photosLoading, setPhotosLoading] = useState<Record<string, boolean>>({});
 
   // Rozmiar świata w pikselach NA maxZoom (bo gridW/gridH są dla maxZoom)
   const worldPxW = meta.gridW * meta.tileSize;
@@ -79,6 +94,28 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
       setTasksLoading(false);
     }
   }, [PROJECT_ID, planId]);
+
+  // ✅ ładowanie zdjęć dopiero gdy trzeba
+  const loadPhotosForTask = useCallback(
+    async (taskId: string) => {
+      if (photosByTask[taskId]) return; // cache
+
+      setPhotosLoading((s) => ({ ...s, [taskId]: true }));
+      try {
+        const r = await fetch(`/api/task-photos?taskId=${encodeURIComponent(taskId)}`, { cache: "no-store" });
+        const j = await r.json();
+        if (!r.ok || !j?.ok) throw new Error(j?.error?.message || "task-photos fetch failed");
+        setPhotosByTask((s) => ({ ...s, [taskId]: (j.data || []) as TaskPhoto[] }));
+      } catch (e) {
+        console.error(e);
+        // żeby nie odpalać fetch za każdym razem po błędzie
+        setPhotosByTask((s) => ({ ...s, [taskId]: [] }));
+      } finally {
+        setPhotosLoading((s) => ({ ...s, [taskId]: false }));
+      }
+    },
+    [photosByTask]
+  );
 
   useEffect(() => {
     loadTasks().catch(console.error);
@@ -182,12 +219,81 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
           // Piksele maxZoom → LatLng
           const ll = CRS.pointToLatLng(L.point(x, y), meta.maxZoom);
 
+          const photos = photosByTask[t.id];
+          const isPhotosLoading = !!photosLoading[t.id];
+
           return (
-            <Marker key={t.id} position={ll}>
+            <Marker
+              key={t.id}
+              position={ll}
+              eventHandlers={{
+                popupopen: () => {
+                  loadPhotosForTask(t.id).catch(console.error);
+                },
+              }}
+            >
               <Popup>
-                <div style={{ minWidth: 220 }}>
+                <div style={{ minWidth: 260 }}>
                   <div style={{ fontWeight: 700 }}>{t.title}</div>
                   {t.description ? <div style={{ marginTop: 6 }}>{t.description}</div> : null}
+
+                  {/* ✅ zdjęcia */}
+                  <div style={{ marginTop: 10 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Zdjęcia</div>
+
+                    {isPhotosLoading ? (
+                      <div style={{ fontSize: 12, opacity: 0.75 }}>Ładowanie…</div>
+                    ) : photos ? (
+                      photos.length === 0 ? (
+                        <div style={{ fontSize: 12, opacity: 0.75 }}>Brak zdjęć</div>
+                      ) : (
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          {photos.slice(0, 6).map((p) => (
+                            <a
+                              key={p.id}
+                              href={p.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              title={p.caption || ""}
+                              style={{ display: "block", width: 72, textDecoration: "none" }}
+                            >
+                              <img
+                                src={p.url}
+                                alt={p.caption || "task photo"}
+                                style={{
+                                  width: 72,
+                                  height: 72,
+                                  objectFit: "cover",
+                                  borderRadius: 8,
+                                  border: "1px solid rgba(0,0,0,0.12)",
+                                }}
+                              />
+                              {p.caption ? (
+                                <div style={{ fontSize: 11, opacity: 0.8, marginTop: 4, lineHeight: 1.1 }}>
+                                  {p.caption}
+                                </div>
+                              ) : null}
+                            </a>
+                          ))}
+                        </div>
+                      )
+                    ) : (
+                      <button
+                        onClick={() => loadPhotosForTask(t.id)}
+                        style={{
+                          fontSize: 12,
+                          padding: "6px 10px",
+                          borderRadius: 8,
+                          border: "1px solid rgba(0,0,0,0.2)",
+                          background: "white",
+                          cursor: "pointer",
+                        }}
+                      >
+                        Wczytaj zdjęcia
+                      </button>
+                    )}
+                  </div>
+
                   <div style={{ marginTop: 8, fontSize: 12, opacity: 0.7 }}>{t.id}</div>
                 </div>
               </Popup>
