@@ -49,6 +49,20 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "/leaflet/images/marker-shadow.png",
 });
 
+async function fileToBase64(file: File): Promise<string> {
+  return await new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onerror = () => reject(new Error("FileReader error"));
+    r.onload = () => {
+      const s = String(r.result || "");
+      // r.result jest w formie: data:image/jpeg;base64,AAAA...
+      const m = s.match(/base64,(.*)$/);
+      resolve(m ? m[1] : "");
+    };
+    r.readAsDataURL(file);
+  });
+}
+
 export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }) {
   // DEMO (na razie na sztywno)
   const PROJECT_ID = "55555555-5555-5555-5555-555555555555";
@@ -64,15 +78,12 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
   // ✅ zdjęcia per task (cache + loading)
   const [photosByTask, setPhotosByTask] = useState<Record<string, TaskPhoto[]>>({});
   const [photosLoading, setPhotosLoading] = useState<Record<string, boolean>>({});
+  const [uploadingByTask, setUploadingByTask] = useState<Record<string, boolean>>({});
 
   // Rozmiar świata w pikselach NA maxZoom (bo gridW/gridH są dla maxZoom)
   const worldPxW = meta.gridW * meta.tileSize;
   const worldPxH = meta.gridH * meta.tileSize;
 
-  /**
-   * Bounds w Leaflet muszą być w "jednostkach CRS" (LatLng), a nie surowe piksele maxZoom.
-   * Konwertujemy piksele maxZoom → LatLng przez CRS.pointToLatLng(point, zoom=maxZoom)
-   */
   const bounds = useMemo(() => {
     const sw = CRS.pointToLatLng(L.point(0, worldPxH), meta.maxZoom); // (x=0, y=H)
     const ne = CRS.pointToLatLng(L.point(worldPxW, 0), meta.maxZoom); // (x=W, y=0)
@@ -95,10 +106,9 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
     }
   }, [PROJECT_ID, planId]);
 
-  // ✅ ładowanie zdjęć dopiero gdy trzeba
   const loadPhotosForTask = useCallback(
-    async (taskId: string) => {
-      if (photosByTask[taskId]) return; // cache
+    async (taskId: string, force = false) => {
+      if (!force && photosByTask[taskId]) return; // cache
 
       setPhotosLoading((s) => ({ ...s, [taskId]: true }));
       try {
@@ -108,7 +118,6 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
         setPhotosByTask((s) => ({ ...s, [taskId]: (j.data || []) as TaskPhoto[] }));
       } catch (e) {
         console.error(e);
-        // żeby nie odpalać fetch za każdym razem po błędzie
         setPhotosByTask((s) => ({ ...s, [taskId]: [] }));
       } finally {
         setPhotosLoading((s) => ({ ...s, [taskId]: false }));
@@ -117,17 +126,48 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
     [photosByTask]
   );
 
+  const uploadPhotoForTask = useCallback(
+    async (taskId: string, file: File) => {
+      setUploadingByTask((s) => ({ ...s, [taskId]: true }));
+      try {
+        const base64 = await fileToBase64(file);
+        if (!base64) throw new Error("Empty base64");
+
+        const caption = (window.prompt("Podpis (opcjonalnie)?", "") || "").trim() || null;
+
+        const r = await fetch("/api/task-photos", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            task_id: taskId,
+            uploaded_by: CREATED_BY, // DEV: docelowo auth.uid()
+            file_name: file.name || "photo.jpg",
+            caption,
+            base64,
+          }),
+        });
+
+        const j = await r.json();
+        if (!r.ok || !j?.ok) throw new Error(j?.error?.message || "upload failed");
+
+        // odśwież listę zdjęć
+        await loadPhotosForTask(taskId, true);
+      } finally {
+        setUploadingByTask((s) => ({ ...s, [taskId]: false }));
+      }
+    },
+    [CREATED_BY, loadPhotosForTask]
+  );
+
   useEffect(() => {
     loadTasks().catch(console.error);
   }, [loadTasks]);
 
-  // ✅ Twarde ograniczenie świata + start na planie (bez fitBounds, bo nadpisuje zoom)
   useEffect(() => {
     if (!map) return;
 
     map.setMaxBounds(bounds);
 
-    // start zoom: clamp do min/max z meta
     const z = Math.max(meta.minZoom, Math.min(meta.maxZoom, START_ZOOM));
     map.setView(center, z, { animate: false });
   }, [map, bounds, center, meta.minZoom, meta.maxZoom, START_ZOOM]);
@@ -135,7 +175,6 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
   function ClickToCreate() {
     useMapEvents({
       click: async (e) => {
-        // Zamieniamy kliknięty LatLng → piksele na maxZoom
         const p = CRS.latLngToPoint(e.latlng, meta.maxZoom);
         const x = p.x;
         const y = p.y;
@@ -201,26 +240,22 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
           maxZoom={meta.maxZoom}
           minNativeZoom={meta.minZoom}
           maxNativeZoom={meta.maxZoom}
-          // NA RAZIE zostaw false; jeśli okaże się, że kafle są odwrócone w Y, zmienisz na true.
           tms={false}
           noWrap={true}
           keepBuffer={4}
-          // klucz: dajemy klasę, żeby w CSS domknąć "szwy" między kaflami
           className="plan-tiles"
         />
 
         <ClickToCreate />
 
         {tasks.map((t) => {
-          // Task trzymasz jako norm (0..1) względem świata maxZoom → liczmy piksele maxZoom
           const x = Number(t.x_norm) * worldPxW;
           const y = Number(t.y_norm) * worldPxH;
-
-          // Piksele maxZoom → LatLng
           const ll = CRS.pointToLatLng(L.point(x, y), meta.maxZoom);
 
           const photos = photosByTask[t.id];
           const isPhotosLoading = !!photosLoading[t.id];
+          const isUploading = !!uploadingByTask[t.id];
 
           return (
             <Marker
@@ -233,22 +268,56 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
               }}
             >
               <Popup>
-                <div style={{ minWidth: 260 }}>
+                <div style={{ minWidth: 280 }}>
                   <div style={{ fontWeight: 700 }}>{t.title}</div>
                   {t.description ? <div style={{ marginTop: 6 }}>{t.description}</div> : null}
 
-                  {/* ✅ zdjęcia */}
                   <div style={{ marginTop: 10 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Zdjęcia</div>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700 }}>Zdjęcia</div>
+
+                      {/* ✅ dodawanie zdjęcia */}
+                      <label
+                        style={{
+                          fontSize: 12,
+                          padding: "6px 10px",
+                          borderRadius: 8,
+                          border: "1px solid rgba(0,0,0,0.2)",
+                          background: "white",
+                          cursor: isUploading ? "not-allowed" : "pointer",
+                          opacity: isUploading ? 0.6 : 1,
+                          userSelect: "none",
+                        }}
+                      >
+                        {isUploading ? "Wysyłanie…" : "Dodaj zdjęcie"}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          disabled={isUploading}
+                          style={{ display: "none" }}
+                          onChange={async (ev) => {
+                            const f = ev.target.files?.[0];
+                            ev.target.value = ""; // pozwala wybrać ten sam plik drugi raz
+                            if (!f) return;
+                            try {
+                              await uploadPhotoForTask(t.id, f);
+                            } catch (e: any) {
+                              console.error(e);
+                              alert(`Błąd uploadu: ${e?.message || e}`);
+                            }
+                          }}
+                        />
+                      </label>
+                    </div>
 
                     {isPhotosLoading ? (
-                      <div style={{ fontSize: 12, opacity: 0.75 }}>Ładowanie…</div>
+                      <div style={{ fontSize: 12, opacity: 0.75, marginTop: 6 }}>Ładowanie…</div>
                     ) : photos ? (
                       photos.length === 0 ? (
-                        <div style={{ fontSize: 12, opacity: 0.75 }}>Brak zdjęć</div>
+                        <div style={{ fontSize: 12, opacity: 0.75, marginTop: 6 }}>Brak zdjęć</div>
                       ) : (
-                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                          {photos.slice(0, 6).map((p) => (
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+                          {photos.slice(0, 8).map((p) => (
                             <a
                               key={p.id}
                               href={p.url}
@@ -278,19 +347,7 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
                         </div>
                       )
                     ) : (
-                      <button
-                        onClick={() => loadPhotosForTask(t.id)}
-                        style={{
-                          fontSize: 12,
-                          padding: "6px 10px",
-                          borderRadius: 8,
-                          border: "1px solid rgba(0,0,0,0.2)",
-                          background: "white",
-                          cursor: "pointer",
-                        }}
-                      >
-                        Wczytaj zdjęcia
-                      </button>
+                      <div style={{ fontSize: 12, opacity: 0.75, marginTop: 6 }}>—</div>
                     )}
                   </div>
 
