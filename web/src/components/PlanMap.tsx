@@ -43,6 +43,9 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
   const PROJECT_ID = "55555555-5555-5555-5555-555555555555";
   const CREATED_BY = "44444444-4444-4444-4444-444444444444";
 
+  // ✅ startowy zoom (ustaw tutaj)
+  const START_ZOOM = 2;
+
   const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [tasksLoading, setTasksLoading] = useState(false);
   const [map, setMap] = useState<L.Map | null>(null);
@@ -52,7 +55,6 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
   const worldPxH = meta.gridH * meta.tileSize;
 
   /**
-   * Kluczowa rzecz:
    * Bounds w Leaflet muszą być w "jednostkach CRS" (LatLng), a nie surowe piksele maxZoom.
    * Konwertujemy piksele maxZoom → LatLng przez CRS.pointToLatLng(point, zoom=maxZoom)
    */
@@ -82,12 +84,16 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
     loadTasks().catch(console.error);
   }, [loadTasks]);
 
-  // Twarde ograniczenie świata + start na planie
+  // ✅ Twarde ograniczenie świata + start na planie (bez fitBounds, bo nadpisuje zoom)
   useEffect(() => {
     if (!map) return;
+
     map.setMaxBounds(bounds);
-    map.fitBounds(bounds, { animate: false });
-  }, [map, bounds]);
+
+    // start zoom: clamp do min/max z meta
+    const z = Math.max(meta.minZoom, Math.min(meta.maxZoom, START_ZOOM));
+    map.setView(center, z, { animate: false });
+  }, [map, bounds, center, meta.minZoom, meta.maxZoom, START_ZOOM]);
 
   function ClickToCreate() {
     useMapEvents({
@@ -143,7 +149,7 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
         crs={CRS}
         whenCreated={setMap}
         center={center}
-        zoom={meta.maxZoom - 1}
+        zoom={Math.max(meta.minZoom, Math.min(meta.maxZoom, START_ZOOM))}
         minZoom={meta.minZoom}
         maxZoom={meta.maxZoom}
         bounds={bounds}
@@ -162,6 +168,8 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
           tms={false}
           noWrap={true}
           keepBuffer={4}
+          // klucz: dajemy klasę, żeby w CSS domknąć "szwy" między kaflami
+          className="plan-tiles"
         />
 
         <ClickToCreate />

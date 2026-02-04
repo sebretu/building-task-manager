@@ -41,19 +41,23 @@ a {
   }
 }
 
-/* =========================================
-   Leaflet: ukryj 1px "seams" między kaflami
-   (subpixel rounding przy oddaleniu)
-   ========================================= */
+/* ------------------------------
+   Leaflet / tiles seams fix
+   ------------------------------ */
+
+/* Domyślnie Leaflet potrafi zostawiać 1px "szwy" między kaflami przy oddaleniu (subpiksele). */
 .leaflet-container {
   background: #fff;
 }
 
-.leaflet-container .leaflet-tile {
-  background: #fff;
-  outline: 1px solid transparent; /* maskuje szczeliny */
+/* Najczęściej działa: outline transparent + ukrycie backface, żeby przeglądarka inaczej składała warstwy. */
+.plan-tiles {
+  backface-visibility: hidden;
+  transform: translateZ(0);
 }
 
-.leaflet-container .leaflet-tile-container {
-  will-change: transform;
+.plan-tiles.leaflet-tile {
+  outline: 1px solid transparent;
+  backface-visibility: hidden;
+  transform: translateZ(0);
 }
