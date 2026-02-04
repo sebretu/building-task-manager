@@ -41,34 +41,159 @@ a {
   }
 }
 
-/* =========================================================
-   LEAFLET – USUWANIE LINII / SZWÓW MIĘDZY KAFLAMI
-   ========================================================= */
+/* =========================
+   TaskDrawer (prawy panel)
+   ========================= */
 
-/* 1️⃣ Leaflet nie może skalować subpikselowo */
-.leaflet-container {
+.taskdrawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.25);
+  z-index: 9998;
+}
+
+.taskdrawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: min(440px, 92vw);
+  height: 100vh;
   background: #fff;
-  image-rendering: pixelated;
+  z-index: 9999;
+  box-shadow: -10px 0 30px rgba(0, 0, 0, 0.18);
+  display: flex;
+  flex-direction: column;
 }
 
-/* 2️⃣ TileLayer – absolutne pozycjonowanie bez zaokrągleń */
-.plan-tiles .leaflet-tile {
-  width: 256px !important;
-  height: 256px !important;
-  margin: 0 !important;
-  padding: 0 !important;
-
-  image-rendering: pixelated;
-  transform: translateZ(0);
-  backface-visibility: hidden;
+.taskdrawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 14px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
 }
 
-/* 3️⃣ Zabijamy scale() które robi szczeliny */
-.leaflet-zoom-animated .leaflet-tile {
-  will-change: transform;
+.taskdrawer-title {
+  font-weight: 800;
+  font-size: 16px;
 }
 
-/* 4️⃣ Wyłączamy subpixel rounding w Chrome */
-.leaflet-pane {
-  transform: translate3d(0, 0, 0);
+.taskdrawer-x {
+  border: none;
+  background: transparent;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+
+.taskdrawer-body {
+  padding: 14px;
+  overflow: auto;
+}
+
+.taskdrawer-label {
+  display: block;
+  font-size: 12px;
+  opacity: 0.7;
+  margin: 10px 0 6px;
+}
+
+.taskdrawer-input {
+  width: 100%;
+  padding: 10px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.16);
+  outline: none;
+}
+
+.taskdrawer-textarea {
+  width: 100%;
+  padding: 10px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.16);
+  outline: none;
+  resize: vertical;
+}
+
+.taskdrawer-row2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.taskdrawer-btn {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  background: #111;
+  color: #fff;
+  cursor: pointer;
+}
+
+.taskdrawer-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.taskdrawer-btn-secondary {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  background: #fff;
+  cursor: pointer;
+}
+
+.taskdrawer-photos {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.taskdrawer-thumbBtn {
+  border: 1px solid rgba(0, 0, 0, 0.14);
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  text-align: left;
+}
+
+.taskdrawer-thumb {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+  display: block;
+}
+
+.taskdrawer-thumbCap {
+  padding: 8px 10px;
+  font-size: 12px;
+  opacity: 0.85;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* photo modal */
+.taskdrawer-photomodal {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+}
+
+.taskdrawer-photomodal-inner {
+  background: #fff;
+  border-radius: 14px;
+  padding: 12px;
+  max-width: 95vw;
+  max-height: 90vh;
+  overflow: auto;
 }
