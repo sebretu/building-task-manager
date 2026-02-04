@@ -1182,3 +1182,26 @@ To github.com:sebretu/building-task-manager.git
 done
 ----- 2026-02-04 19:00:01 auto-backup start -----
 whoami=root pwd=/root/building-task-manager
+date: extra operand ‘%H:%M’
+Try 'date --help' for more information.
+[main d839737] auto-backup:
+ 16 files changed, 4508 insertions(+), 395 deletions(-)
+ create mode 100644 web/src/app/task/[id]/TaskClient.tsx.bak.20260204-185021
+ create mode 100644 web/src/app/task/[id]/TaskClient.tsx.bak.20260204-185848
+ create mode 100644 web/src/components/PlanMap.tsx.bak.20260204-180430
+ create mode 100644 web/src/components/TaskDrawer.tsx.bak.20260204-180858
+ create mode 100644 web/src/components/TaskDrawer.tsx.bak.20260204-181301
+ create mode 100644 web/src/components/TaskDrawer.tsx.bak.20260204-181733
+ create mode 100644 web/src/components/TaskDrawer.tsx.bak.20260204-182245
+ create mode 100644 web/src/components/TaskDrawer.tsx.bak.20260204-183233
+ create mode 100644 web/src/components/TaskDrawer.tsx.bak.20260204-183738
+ create mode 100644 web/src/components/TaskDrawer.tsx.bak.20260204-184607
+ create mode 100644 web/src/components/TaskDrawer.tsx.bak.20260204-185041
+ create mode 100644 web/src/components/TaskDrawer.tsx.bak.20260204-185044
+To github.com:sebretu/building-task-manager.git
+   91a49b1..d839737  HEAD -> main
+To github.com:sebretu/building-task-manager.git
+ * [new tag]         auto-backup-20260204-1900 -> auto-backup-20260204-1900
+done
+----- 2026-02-04 20:00:01 auto-backup start -----
+whoami=root pwd=/root/building-task-manager

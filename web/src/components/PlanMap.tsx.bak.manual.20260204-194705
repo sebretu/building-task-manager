@@ -16,13 +16,22 @@ type Meta = {
 
 type TaskRow = {
   id: string;
+  title: string;
+  description: string | null;
+  status: string;
+  priority: string;
+  assigned_user_id: string | null;
   x_norm: number;
   y_norm: number;
-  title: string;
 };
+
+function clamp01(n: number) {
+  return Math.max(0, Math.min(1, n));
+}
 
 const CRS = L.CRS.Simple;
 
+// fix ikon leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: "/leaflet/images/marker-icon-2x.png",
@@ -33,9 +42,13 @@ L.Icon.Default.mergeOptions({
 export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }) {
   const PROJECT_ID = "55555555-5555-5555-5555-555555555555";
   const CREATED_BY = "44444444-4444-4444-4444-444444444444";
+  const START_ZOOM = 2;
 
   const [tasks, setTasks] = useState<TaskRow[]>([]);
-  const [thumbByTask, setThumbByTask] = useState<Record<string, string | null>>({});
+  const [map, setMap] = useState<L.Map | null>(null);
+
+  // drawer
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerTaskId, setDrawerTaskId] = useState<string | null>(null);
 
   const worldPxW = meta.gridW * meta.tileSize;
@@ -50,50 +63,49 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
   const center = bounds.getCenter();
 
   const loadTasks = useCallback(async () => {
-    const r = await fetch(`/api/tasks?projectId=${PROJECT_ID}&planId=${planId}&limit=200&offset=0`);
+    const r = await fetch(
+      `/api/tasks?projectId=${PROJECT_ID}&planId=${planId}&limit=200&offset=0`,
+      { cache: "no-store" }
+    );
     const j = await r.json();
     if (j?.ok) setTasks(j.data || []);
   }, [PROJECT_ID, planId]);
 
   useEffect(() => {
-    loadTasks();
+    loadTasks().catch(console.error);
   }, [loadTasks]);
 
-  async function loadThumb(taskId: string) {
-    const r = await fetch(`/api/task-photos?taskId=${taskId}`);
-    const j = await r.json();
-    setThumbByTask((p) => ({
-      ...p,
-      [taskId]: j?.ok && j.data.length ? j.data[0].url : null,
-    }));
-  }
-
-  /** 🔔 EVENT z TaskDrawer po uploadzie */
   useEffect(() => {
-    const h = (e: any) => loadThumb(e.detail.taskId);
-    window.addEventListener("task-photo-added", h);
-    return () => window.removeEventListener("task-photo-added", h);
-  }, []);
+    if (!map) return;
+    map.setMaxBounds(bounds);
+    map.setView(center, START_ZOOM, { animate: false });
+  }, [map, bounds, center]);
 
   function ClickToCreate() {
     useMapEvents({
       click: async (e) => {
         const p = CRS.latLngToPoint(e.latlng, meta.maxZoom);
+        const x_norm = clamp01(p.x / worldPxW);
+        const y_norm = clamp01(p.y / worldPxH);
+
         const r = await fetch("/api/tasks", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             project_id: PROJECT_ID,
             plan_id: planId,
-            x_norm: p.x / worldPxW,
-            y_norm: p.y / worldPxH,
+            x_norm,
+            y_norm,
             title: "Nowy task",
+            description: null,
             created_by: CREATED_BY,
           }),
         });
+
         const j = await r.json();
-        if (j?.ok) {
+        if (j?.ok?.data?.id) {
           setDrawerTaskId(j.data.id);
+          setDrawerOpen(true);
           loadTasks();
         }
       },
@@ -101,44 +113,65 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
     return null;
   }
 
+  const openTask = (id: string) => {
+    setDrawerTaskId(id);
+    setDrawerOpen(true);
+  };
+
   return (
-    <>
-      <MapContainer crs={CRS} center={center} zoom={meta.minZoom} bounds={bounds} style={{ height: "100vh" }}>
-        <TileLayer url={`/api/tiles/${planId}/{z}/{x}/{y}.png`} />
+    <div style={{ width: "100%", height: "calc(100vh - 120px)" }}>
+      <MapContainer
+        crs={CRS}
+        whenCreated={setMap}
+        center={center}
+        zoom={START_ZOOM}
+        minZoom={meta.minZoom}
+        maxZoom={meta.maxZoom}
+        bounds={bounds}
+        style={{ width: "100%", height: "100%" }}
+      >
+        <TileLayer
+          url={`/api/tiles/${planId}/{z}/{x}/{y}.png`}
+          tileSize={meta.tileSize}
+          minZoom={meta.minZoom}
+          maxZoom={meta.maxZoom}
+          noWrap
+        />
+
         <ClickToCreate />
 
         {tasks.map((t) => {
-          const ll = CRS.pointToLatLng(
-            L.point(t.x_norm * worldPxW, t.y_norm * worldPxH),
-            meta.maxZoom
-          );
+          const x = t.x_norm * worldPxW;
+          const y = t.y_norm * worldPxH;
+          const ll = CRS.pointToLatLng(L.point(x, y), meta.maxZoom);
 
           return (
             <Marker key={t.id} position={ll}>
-              <Popup eventHandlers={{ popupopen: () => loadThumb(t.id) }}>
-                <div style={{ width: 220, color: "#111" }}>
-                  {thumbByTask[t.id] ? (
-                    <img src={thumbByTask[t.id]!} style={{ width: "100%", borderRadius: 8 }} />
-                  ) : (
-                    <div style={{ fontSize: 12, opacity: 0.6 }}>Brak zdjęcia</div>
-                  )}
+              <Popup>
+                <div style={{ minWidth: 220, color: "#111" }}>
+                  <div style={{ fontWeight: 700 }}>{t.title}</div>
 
-                  <div style={{ fontWeight: 700, marginTop: 6 }}>{t.title}</div>
+                  <div style={{ fontSize: 12, marginTop: 6 }}>
+                    Status: <b>{t.status}</b>
+                  </div>
+
+                  <div style={{ fontSize: 12 }}>
+                    Assigned: {t.assigned_user_id || "—"}
+                  </div>
 
                   <button
+                    onClick={() => openTask(t.id)}
                     style={{
-                      marginTop: 8,
-                      width: "100%",
-                      padding: 6,
+                      marginTop: 10,
+                      padding: "6px 10px",
+                      borderRadius: 8,
+                      border: "1px solid #ccc",
                       background: "#fff",
-                      color: "#111",
-                      border: "1px solid #111",
-                      borderRadius: 6,
                       cursor: "pointer",
+                      fontSize: 12,
                     }}
-                    onClick={() => setDrawerTaskId(t.id)}
                   >
-                    Otwórz task
+                    Otwórz task →
                   </button>
                 </div>
               </Popup>
@@ -148,14 +181,11 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
       </MapContainer>
 
       <TaskDrawer
-        open={!!drawerTaskId}
+        open={drawerOpen}
         taskId={drawerTaskId}
+        onClose={() => setDrawerOpen(false)}
         uploadedBy={CREATED_BY}
-        onClose={() => {
-          setDrawerTaskId(null);
-          loadTasks();
-        }}
       />
-    </>
+    </div>
   );
 }

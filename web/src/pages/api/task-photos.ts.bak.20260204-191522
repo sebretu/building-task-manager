@@ -112,13 +112,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     if (up.error) return supaErr(res, up.error);
 
     // Public URL (bucket public)
-// ===== PUBLIC URL (FIX FOR PROD) =====
-const PUBLIC_SUPABASE_URL =
-  process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "") ||
-  "http://188.245.42.178:54321";
-
-const publicUrl = `${PUBLIC_SUPABASE_URL}/storage/v1/object/public/${bucket}/${storage_path}`;
-
+    const pub = supabase.storage.from(bucket).getPublicUrl(storage_path);
+    const publicUrl = pub?.data?.publicUrl;
     if (!publicUrl) return bad(res, "Failed to create public URL");
 
     // Insert do task_photos (kolumny zgodne z Twoją tabelą)

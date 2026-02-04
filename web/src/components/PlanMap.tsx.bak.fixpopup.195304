@@ -16,9 +16,20 @@ type Meta = {
 
 type TaskRow = {
   id: string;
+  plan_id: string;
+  project_id: string;
   x_norm: number;
   y_norm: number;
   title: string;
+  description: string | null;
+  status?: string;
+  assigned_user_id?: string | null;
+};
+
+type TaskPhoto = {
+  id: string;
+  task_id: string;
+  url: string;
 };
 
 const CRS = L.CRS.Simple;
@@ -36,7 +47,8 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
 
   const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [thumbByTask, setThumbByTask] = useState<Record<string, string | null>>({});
-  const [drawerTaskId, setDrawerTaskId] = useState<string | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   const worldPxW = meta.gridW * meta.tileSize;
   const worldPxH = meta.gridH * meta.tileSize;
@@ -59,41 +71,42 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
     loadTasks();
   }, [loadTasks]);
 
-  async function loadThumb(taskId: string) {
+  async function ensureThumb(taskId: string) {
+    if (taskId in thumbByTask) return;
+    setThumbByTask((p) => ({ ...p, [taskId]: null }));
+
     const r = await fetch(`/api/task-photos?taskId=${taskId}`);
     const j = await r.json();
-    setThumbByTask((p) => ({
-      ...p,
-      [taskId]: j?.ok && j.data.length ? j.data[0].url : null,
-    }));
+    if (j?.ok && j.data.length > 0) {
+      setThumbByTask((p) => ({ ...p, [taskId]: j.data[0].url }));
+    }
   }
-
-  /** 🔔 EVENT z TaskDrawer po uploadzie */
-  useEffect(() => {
-    const h = (e: any) => loadThumb(e.detail.taskId);
-    window.addEventListener("task-photo-added", h);
-    return () => window.removeEventListener("task-photo-added", h);
-  }, []);
 
   function ClickToCreate() {
     useMapEvents({
       click: async (e) => {
         const p = CRS.latLngToPoint(e.latlng, meta.maxZoom);
+        const x_norm = p.x / worldPxW;
+        const y_norm = p.y / worldPxH;
+
         const r = await fetch("/api/tasks", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             project_id: PROJECT_ID,
             plan_id: planId,
-            x_norm: p.x / worldPxW,
-            y_norm: p.y / worldPxH,
+            x_norm,
+            y_norm,
             title: "Nowy task",
+            description: null,
             created_by: CREATED_BY,
           }),
         });
+
         const j = await r.json();
         if (j?.ok) {
-          setDrawerTaskId(j.data.id);
+          setSelectedTaskId(j.data.id);
+          setDrawerOpen(true);
           loadTasks();
         }
       },
@@ -103,40 +116,62 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
 
   return (
     <>
-      <MapContainer crs={CRS} center={center} zoom={meta.minZoom} bounds={bounds} style={{ height: "100vh" }}>
+      <MapContainer
+        crs={CRS}
+        center={center}
+        zoom={meta.minZoom}
+        minZoom={meta.minZoom}
+        maxZoom={meta.maxZoom}
+        bounds={bounds}
+        style={{ height: "100vh" }}
+      >
         <TileLayer url={`/api/tiles/${planId}/{z}/{x}/{y}.png`} />
+
         <ClickToCreate />
 
         {tasks.map((t) => {
-          const ll = CRS.pointToLatLng(
-            L.point(t.x_norm * worldPxW, t.y_norm * worldPxH),
-            meta.maxZoom
-          );
+          const x = t.x_norm * worldPxW;
+          const y = t.y_norm * worldPxH;
+          const ll = CRS.pointToLatLng(L.point(x, y), meta.maxZoom);
+          const thumb = thumbByTask[t.id];
 
           return (
-            <Marker key={t.id} position={ll}>
-              <Popup eventHandlers={{ popupopen: () => loadThumb(t.id) }}>
-                <div style={{ width: 220, color: "#111" }}>
-                  {thumbByTask[t.id] ? (
-                    <img src={thumbByTask[t.id]!} style={{ width: "100%", borderRadius: 8 }} />
+            <Marker
+              key={t.id}
+              position={ll}
+              eventHandlers={{
+                popupopen: () => ensureThumb(t.id),
+              }}
+            >
+              <Popup>
+                <div style={{ width: 220, color: "#111827" }}>
+                  {thumb ? (
+                    <img
+                      src={thumb}
+                      style={{ width: "100%", borderRadius: 8, marginBottom: 6 }}
+                    />
                   ) : (
                     <div style={{ fontSize: 12, opacity: 0.6 }}>Brak zdjęcia</div>
                   )}
 
-                  <div style={{ fontWeight: 700, marginTop: 6 }}>{t.title}</div>
+                  <div style={{ fontWeight: 700 }}>{t.title}</div>
 
                   <button
+                    onClick={() => {
+                      setSelectedTaskId(t.id);
+                      setDrawerOpen(true);
+                    }}
                     style={{
                       marginTop: 8,
+                      padding: "6px 10px",
                       width: "100%",
-                      padding: 6,
+                      borderRadius: 8,
+                      border: "1px solid #111827",
                       background: "#fff",
-                      color: "#111",
-                      border: "1px solid #111",
-                      borderRadius: 6,
+                      color: "#111827",
+                      fontWeight: 600,
                       cursor: "pointer",
                     }}
-                    onClick={() => setDrawerTaskId(t.id)}
                   >
                     Otwórz task
                   </button>
@@ -148,11 +183,11 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
       </MapContainer>
 
       <TaskDrawer
-        open={!!drawerTaskId}
-        taskId={drawerTaskId}
+        open={drawerOpen}
+        taskId={selectedTaskId}
         uploadedBy={CREATED_BY}
         onClose={() => {
-          setDrawerTaskId(null);
+          setDrawerOpen(false);
           loadTasks();
         }}
       />
