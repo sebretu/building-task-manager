@@ -40,20 +40,3 @@ a {
     color-scheme: dark;
   }
 }
-
-/* =========================================
-   Leaflet: ukryj 1px "seams" między kaflami
-   (subpixel rounding przy oddaleniu)
-   ========================================= */
-.leaflet-container {
-  background: #fff;
-}
-
-.leaflet-container .leaflet-tile {
-  background: #fff;
-  outline: 1px solid transparent; /* maskuje szczeliny */
-}
-
-.leaflet-container .leaflet-tile-container {
-  will-change: transform;
-}
