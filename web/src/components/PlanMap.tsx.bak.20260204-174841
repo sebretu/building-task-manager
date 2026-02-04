@@ -26,32 +26,16 @@ type TaskRow = {
   assigned_user_id?: string | null;
 };
 
-type ProfileRow = {
-  id: string;
-  full_name: string;
-  email: string;
-  role: string;
-  is_active: boolean;
-  company_id: string;
-};
-
 type TaskPhoto = {
   id: string;
   task_id: string;
   url: string;
   caption: string | null;
-  uploaded_by: string;
   created_at: string;
 };
 
 function clamp01(n: number) {
   return Math.max(0, Math.min(1, n));
-}
-
-function shortId(id: string | null | undefined) {
-  if (!id) return "—";
-  if (id.length <= 12) return id;
-  return `${id.slice(0, 6)}…${id.slice(-4)}`;
 }
 
 // Poprawny CRS
@@ -77,11 +61,7 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
   const [tasksLoading, setTasksLoading] = useState(false);
   const [map, setMap] = useState<L.Map | null>(null);
 
-  // profile cache: id -> ProfileRow
-  const [profileById, setProfileById] = useState<Record<string, ProfileRow>>({});
-  const [profilesLoaded, setProfilesLoaded] = useState(false);
-
-  // miniaturki: taskId -> null/ string
+  // miniaturki: taskId -> url
   const [thumbByTaskId, setThumbByTaskId] = useState<Record<string, string | null>>({});
 
   // Rozmiar świata w pikselach NA maxZoom (bo gridW/gridH są dla maxZoom)
@@ -110,31 +90,9 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
     }
   }, [PROJECT_ID, planId]);
 
-  const loadProfiles = useCallback(async () => {
-    try {
-      const r = await fetch(`/api/profiles?limit=500`, { cache: "no-store" });
-      const j = await r.json();
-      if (!r.ok || !j?.ok) return;
-
-      const next: Record<string, ProfileRow> = {};
-      for (const p of j.data || []) {
-        if (p?.id) next[String(p.id)] = p as ProfileRow;
-      }
-      setProfileById(next);
-      setProfilesLoaded(true);
-    } catch {
-      // ignorujemy
-    }
-  }, []);
-
   useEffect(() => {
     loadTasks().catch(console.error);
   }, [loadTasks]);
-
-  useEffect(() => {
-    if (profilesLoaded) return;
-    loadProfiles().catch(console.error);
-  }, [profilesLoaded, loadProfiles]);
 
   // start map
   useEffect(() => {
@@ -144,38 +102,21 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
     map.setView(center, z, { animate: false });
   }, [map, bounds, center, meta.minZoom, meta.maxZoom]);
 
-  const ensureThumb = async (taskId: string) => {
-    if (Object.prototype.hasOwnProperty.call(thumbByTaskId, taskId)) return;
-
-    setThumbByTaskId((prev) => ({ ...prev, [taskId]: null }));
-
-    try {
-      const r = await fetch(`/api/task-photos?taskId=${encodeURIComponent(taskId)}&limit=1`, { cache: "no-store" });
-      const j = await r.json();
-      if (!r.ok || !j?.ok) return;
-
-      const arr = (j.data || []) as TaskPhoto[];
-      const first = arr[0];
-      if (first?.url) setThumbByTaskId((prev) => ({ ...prev, [taskId]: String(first.url) }));
-    } catch {
-      // nic
-    }
-  };
-
-  const renderAssigned = (assigned_user_id?: string | null) => {
-    if (!assigned_user_id) return "—";
-    const p = profileById[assigned_user_id];
-    if (p?.full_name) return p.full_name;
-    return shortId(assigned_user_id);
-  };
-
-  // Klik w mapę = tworzymy task i OD RAZU idziemy do edycji
   function ClickToCreate() {
     useMapEvents({
       click: async (e) => {
+        // LatLng → piksele na maxZoom
         const p = CRS.latLngToPoint(e.latlng, meta.maxZoom);
-        const x_norm = clamp01(p.x / worldPxW);
-        const y_norm = clamp01(p.y / worldPxH);
+        const x = p.x;
+        const y = p.y;
+
+        const x_norm = clamp01(x / worldPxW);
+        const y_norm = clamp01(y / worldPxH);
+
+        const title = window.prompt("Tytuł taska?", "Nowy task");
+        if (!title) return;
+
+        const description = (window.prompt("Opis (opcjonalnie)?", "") || "").trim() || null;
 
         const r = await fetch("/api/tasks", {
           method: "POST",
@@ -185,8 +126,8 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
             plan_id: planId,
             x_norm,
             y_norm,
-            title: "Nowy task",
-            description: null,
+            title,
+            description,
             created_by: CREATED_BY,
           }),
         });
@@ -197,13 +138,6 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
           return;
         }
 
-        // 🔥 KLUCZ: po stworzeniu -> otwieramy stronę edycji taska
-        const newId = j?.data?.id;
-        if (newId) {
-          window.location.assign(`/task/${newId}`);
-          return;
-        }
-
         await loadTasks();
       },
     });
@@ -211,9 +145,32 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
     return null;
   }
 
-  const goToTask = (id: string) => {
-    // stabilniej niż <a href> w Leaflet popup
-    window.location.assign(`/task/${id}`);
+  const fmtAssignee = (assigned_user_id?: string | null) => {
+    if (!assigned_user_id) return "nieprzydzielony";
+    return assigned_user_id; // na razie UUID; potem zrobimy nazwę
+  };
+
+  const fmtStatus = (status?: string) => status || "OPEN";
+
+  const ensureThumb = async (taskId: string) => {
+    // jeśli już próbowaliśmy (jest klucz) -> nie ponawiaj
+    if (Object.prototype.hasOwnProperty.call(thumbByTaskId, taskId)) return;
+
+    // ustaw od razu null, żeby zablokować duble (w trakcie)
+    setThumbByTaskId((prev) => ({ ...prev, [taskId]: null }));
+
+    try {
+      const r = await fetch(`/api/task-photos?taskId=${encodeURIComponent(taskId)}`, { cache: "no-store" });
+      const j = await r.json();
+      if (!r.ok || !j?.ok) return;
+
+      const arr = (j.data || []) as TaskPhoto[];
+      const first = arr[0]?.url || null;
+
+      setThumbByTaskId((prev) => ({ ...prev, [taskId]: first }));
+    } catch {
+      // nic
+    }
   };
 
   return (
@@ -255,47 +212,34 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
           const y = Number(t.y_norm) * worldPxH;
           const ll = CRS.pointToLatLng(L.point(x, y), meta.maxZoom);
 
-          const thumb = thumbByTaskId[t.id];
+          const thumb = thumbByTaskId[t.id]; // może być undefined (nie próbowano), null (brak/ładowanie), string (url)
 
           return (
-            <Marker key={t.id} position={ll}>
-              <Popup
-                eventHandlers={{
-                  popupopen: () => {
-                    ensureThumb(t.id).catch(() => {});
-                  },
-                }}
-              >
-                <div style={{ minWidth: 260, maxWidth: 320 }}>
-                  <div style={{ fontWeight: 800 }}>{t.title}</div>
+            <Marker
+              key={t.id}
+              position={ll}
+              eventHandlers={{
+                popupopen: () => {
+                  ensureThumb(t.id).catch(() => {});
+                },
+              }}
+            >
+              <Popup>
+                <div style={{ minWidth: 260 }}>
+                  <div style={{ fontWeight: 800, fontSize: 14 }}>{t.title}</div>
 
-                  <div style={{ marginTop: 8, fontSize: 12, opacity: 0.9, display: "grid", gap: 4 }}>
-                    <div>
-                      <span style={{ opacity: 0.7 }}>Status:</span> <b>{t.status || "—"}</b>
-                    </div>
-                    <div>
-                      <span style={{ opacity: 0.7 }}>Priorytet:</span> <b>{t.priority || "—"}</b>
-                    </div>
-                    <div>
-                      <span style={{ opacity: 0.7 }}>Przydzielone:</span> <b>{renderAssigned(t.assigned_user_id)}</b>
-                    </div>
-                  </div>
-
-                  {t.description ? (
-                    <div style={{ marginTop: 8, fontSize: 13, lineHeight: 1.35, opacity: 0.9 }}>{t.description}</div>
-                  ) : null}
-
-                  <div style={{ marginTop: 10 }}>
-                    {typeof thumb === "string" ? (
+                  {/* miniaturka */}
+                  <div style={{ marginTop: 8 }}>
+                    {thumb ? (
                       <img
                         src={thumb}
-                        alt="miniatura"
+                        alt="photo"
                         style={{
                           width: "100%",
                           height: 110,
                           objectFit: "cover",
-                          borderRadius: 12,
-                          border: "1px solid rgba(0,0,0,0.12)",
+                          borderRadius: 10,
+                          border: "1px solid rgba(0,0,0,0.10)",
                           display: "block",
                         }}
                       />
@@ -304,13 +248,13 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
                         style={{
                           width: "100%",
                           height: 110,
-                          borderRadius: 12,
-                          border: "1px dashed rgba(0,0,0,0.2)",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
+                          borderRadius: 10,
+                          border: "1px dashed rgba(0,0,0,0.20)",
+                          background: "rgba(0,0,0,0.02)",
+                          display: "grid",
+                          placeItems: "center",
                           fontSize: 12,
-                          opacity: 0.7,
+                          opacity: 0.65,
                         }}
                       >
                         {Object.prototype.hasOwnProperty.call(thumbByTaskId, t.id) ? "Brak zdjęcia" : "Ładuję…"}
@@ -318,23 +262,36 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
                     )}
                   </div>
 
-                  <div style={{ marginTop: 10, display: "flex", gap: 8, alignItems: "center" }}>
+                  {t.description ? <div style={{ marginTop: 8 }}>{t.description}</div> : null}
+
+                  <div style={{ marginTop: 8, fontSize: 12, opacity: 0.85, display: "grid", gap: 4 }}>
+                    <div>
+                      <b>Status:</b> {fmtStatus(t.status)}
+                    </div>
+                    <div>
+                      <b>Przydzielony:</b> {fmtAssignee(t.assigned_user_id)}
+                    </div>
+                  </div>
+
+                  <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
                     <button
-                      onClick={() => goToTask(t.id)}
+                      onClick={() => {
+                        window.location.href = `/task/${t.id}`;
+                      }}
                       style={{
-                        padding: "7px 10px",
-                        borderRadius: 10,
+                        padding: "6px 10px",
+                        borderRadius: 8,
                         border: "1px solid rgba(0,0,0,0.15)",
                         background: "#fff",
                         cursor: "pointer",
                         fontSize: 12,
                       }}
                     >
-                      Otwórz task →
+                      Otwórz →
                     </button>
-
-                    <span style={{ fontSize: 11, opacity: 0.6, fontFamily: "monospace" }}>{t.id}</span>
                   </div>
+
+                  <div style={{ marginTop: 8, fontSize: 12, opacity: 0.6 }}>{t.id}</div>
                 </div>
               </Popup>
             </Marker>

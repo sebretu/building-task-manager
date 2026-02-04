@@ -159,7 +159,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
   }
 
   // ------------------------
-  // PATCH /api/tasks (update)
+  // PATCH /api/tasks (update)  (DEV: changed_by w body)
   // ------------------------
   if (req.method === "PATCH") {
     const body = readJsonBody(req);
@@ -173,7 +173,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       return;
     }
 
-    // DEV: wymagamy changed_by (docelowo auth.uid() z tokena)
     const changed_by = String(body?.changed_by || "").trim();
     if (!changed_by || !isUuid(changed_by)) {
       res.status(400).json({
@@ -183,24 +182,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       return;
     }
 
-    const updates: any = {};
-    if (body.title !== undefined) updates.title = String(body.title);
-    if (body.description !== undefined) updates.description = body.description;
-    if (body.priority !== undefined) updates.priority = body.priority;
-    if (body.status !== undefined) updates.status = body.status;
-    if (body.due_date !== undefined) updates.due_date = body.due_date || null;
-    if (body.assigned_user_id !== undefined) updates.assigned_user_id = body.assigned_user_id || null;
-    if (body.assigned_company_id !== undefined) updates.assigned_company_id = body.assigned_company_id || null;
+    // patch jako jsonb (tylko pola, które chcesz zmienić)
+    const patch: any = {};
+    if (body.title !== undefined) patch.title = String(body.title);
+    if (body.description !== undefined) patch.description = body.description == null ? "" : String(body.description);
+    if (body.priority !== undefined) patch.priority = String(body.priority);
+    if (body.status !== undefined) patch.status = String(body.status);
+    if (body.due_date !== undefined) patch.due_date = body.due_date == null ? "" : String(body.due_date);
+    if (body.assigned_user_id !== undefined) patch.assigned_user_id = body.assigned_user_id || "";
+    if (body.assigned_company_id !== undefined) patch.assigned_company_id = body.assigned_company_id || "";
 
     try {
-      // Ustawiamy auth.uid() dla triggerów (changed_by -> sub)
-      await supabase.rpc("set_config", {
-        key: "request.jwt.claim.sub",
-        value: changed_by,
-        is_local: true,
+      const { data, error } = await supabase.rpc("update_task_api", {
+        p_id: id,
+        p_changed_by: changed_by,
+        p_patch: patch,
       });
-
-      const { data, error } = await supabase.from("tasks").update(updates).eq("id", id).select("*").single();
 
       if (error) throw error;
 
