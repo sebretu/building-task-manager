@@ -3,8 +3,14 @@ set -euo pipefail
 
 # Pliki, które traktujemy jako "DO NOT TOUCH"
 FILES=(
-  "web/src/pages/api/tiles/[planId]/[z]/[x]/[y].png.ts"
+  # ✅ App Router (NOWE) - tiles endpoint
+  "web/src/app/api/tiles/[planId]/[z]/[x]/[y].png/route.ts"
+
+  # viewer / map
   "web/src/components/PlanViewer.tsx"
+  "web/src/components/PlanMap.tsx"
+
+  # generator
   "web/scripts/generate-tiles.mjs"
 )
 
