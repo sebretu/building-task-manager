@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import PlanViewer from "@/components/PlanViewer";
+import dynamic from "next/dynamic";
+
+// ✅ Leaflet nie może iść przez SSR
+const PlanViewer = dynamic(() => import("@/components/PlanViewer"), { ssr: false });
 
 type ApiOk<T> = { ok: true; data: T };
 type ApiErr = { ok: false; error: { code: string; message: string; meta?: any } };
@@ -63,10 +66,18 @@ export default function TaskClient({ id }: { id: string }) {
       {task && (
         <>
           <div style={{ marginBottom: 12 }}>
-            <div><b>Title:</b> {task.title}</div>
-            <div><b>Status:</b> {task.status}</div>
-            <div><b>Priority:</b> {task.priority}</div>
-            <div><b>Due:</b> {task.due_date ?? "-"}</div>
+            <div>
+              <b>Title:</b> {task.title}
+            </div>
+            <div>
+              <b>Status:</b> {task.status}
+            </div>
+            <div>
+              <b>Priority:</b> {task.priority}
+            </div>
+            <div>
+              <b>Due:</b> {task.due_date ?? "-"}
+            </div>
           </div>
 
           {task.plan_id ? (

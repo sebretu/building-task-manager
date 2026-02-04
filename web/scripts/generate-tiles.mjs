@@ -17,15 +17,16 @@ function writeJsonPretty(p, obj) {
 }
 
 async function makeBlank(tileSize, outPath) {
+  // ✅ blank = białe, NIE przezroczyste (żeby nie było prześwitów i “kratki”)
   const buf = await sharp({
     create: {
       width: tileSize,
       height: tileSize,
       channels: 4,
-      background: { r: 0, g: 0, b: 0, alpha: 0 },
+      background: { r: 255, g: 255, b: 255, alpha: 1 },
     },
   })
-    .png()
+    .png({ palette: false })
     .toBuffer();
 
   fs.writeFileSync(outPath, buf);
@@ -66,9 +67,6 @@ async function main() {
   // blank.png
   await makeBlank(tileSize, path.join(outBase, "blank.png"));
 
-  // Generujemy kafle per zoom:
-  // Na maxZoom: obraz w naturalnym rozmiarze srcW x srcH
-  // Na niższych zoomach: downscale o 2^(maxZoom - z)
   const limits = {};
 
   for (let z = minZoom; z <= maxZoom; z++) {
@@ -81,10 +79,11 @@ async function main() {
     const maxY = Math.ceil(zH / tileSize) - 1;
     limits[String(z)] = { maxX, maxY };
 
-    // przygotuj obraz na dany zoom
+    // ✅ klucz: spłaszcz na białe tło BEFORE cięcie kafli (koniec z przezroczystością)
     const zImg = sharp(input, { failOn: "none" })
       .resize(zW, zH, { fit: "fill", kernel: sharp.kernel.lanczos3 })
-      .ensureAlpha(); // ważne: kanał alpha
+      .flatten({ background: { r: 255, g: 255, b: 255 } })
+      .ensureAlpha(); // alpha będzie 255 po flatten (opaque)
 
     for (let x = 0; x <= maxX; x++) {
       for (let y = 0; y <= maxY; y++) {
@@ -96,20 +95,18 @@ async function main() {
 
         const outPath = path.join(outDir, `${y}.png`);
 
-        // Wycinamy tileSize x tileSize.
-        // Jeśli wychodzimy poza obraz, dopełniamy przezroczystością
         const extractW = Math.min(tileSize, Math.max(0, zW - left));
         const extractH = Math.min(tileSize, Math.max(0, zH - top));
 
         let tile;
         if (extractW <= 0 || extractH <= 0) {
-          // totalnie poza — zapisujemy blank
+          // totalnie poza — blank (biały)
           tile = sharp({
             create: {
               width: tileSize,
               height: tileSize,
               channels: 4,
-              background: { r: 0, g: 0, b: 0, alpha: 0 },
+              background: { r: 255, g: 255, b: 255, alpha: 1 },
             },
           });
         } else {
@@ -118,17 +115,18 @@ async function main() {
             .extract({ left, top, width: extractW, height: extractH });
 
           if (extractW !== tileSize || extractH !== tileSize) {
+            // ✅ dopełniaj białym, NIE przezroczystym
             tile = tile.extend({
               top: 0,
               left: 0,
               bottom: tileSize - extractH,
               right: tileSize - extractW,
-              background: { r: 0, g: 0, b: 0, alpha: 0 },
+              background: { r: 255, g: 255, b: 255, alpha: 1 },
             });
           }
         }
 
-        const buf = await tile.png().toBuffer();
+        const buf = await tile.png({ palette: false }).toBuffer();
         fs.writeFileSync(outPath, buf);
       }
     }
@@ -140,8 +138,8 @@ async function main() {
     tileSize,
     minZoom,
     maxZoom,
-    gridW, // tiles @ maxZoom
-    gridH, // tiles @ maxZoom
+    gridW,
+    gridH,
     format: "png",
     limits,
   };
@@ -154,4 +152,3 @@ main().catch((e) => {
   console.error(e);
   process.exit(1);
 });
-

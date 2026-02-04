@@ -1,139 +1,169 @@
 "use client";
 
-import "leaflet/dist/leaflet.css";
-import L from "leaflet";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { MapContainer, TileLayer, ZoomControl } from "react-leaflet";
+import dynamic from "next/dynamic";
+import { useEffect, useState } from "react";
 
 type Meta = {
   tileSize: number;
   minZoom: number;
   maxZoom: number;
-  gridW: number; // tiles at maxZoom
-  gridH: number; // tiles at maxZoom
+  gridW: number;
+  gridH: number;
+  format?: string;
 };
+
+// Leaflet / PlanMap ładowany WYŁĄCZNIE w przeglądarce
+const PlanMap = dynamic(() => import("./PlanMap"), {
+  ssr: false,
+  loading: () => (
+    <div
+      style={{
+        width: "100%",
+        height: "calc(100vh - 120px)",
+        display: "grid",
+        placeItems: "center",
+        opacity: 0.75,
+      }}
+    >
+      Ładuję mapę…
+    </div>
+  ),
+});
 
 export default function PlanViewer({ planId }: { planId: string }) {
   const [meta, setMeta] = useState<Meta | null>(null);
-  const mapRef = useRef<L.Map | null>(null);
+  const [metaStatus, setMetaStatus] = useState<
+    "LOADING" | "PROCESSING" | "READY" | "ERROR"
+  >("LOADING");
+  const [metaErr, setMetaErr] = useState<string | null>(null);
 
+  // --- polling meta.json ---
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const r = await fetch(`/tiles/${planId}/meta.json`, { cache: "no-store" });
-      if (!r.ok) throw new Error(`meta.json fetch failed: ${r.status}`);
-      const j = (await r.json()) as Meta;
+    let alive = true;
+    let timer: any = null;
 
-      if (
-        typeof j?.tileSize !== "number" ||
-        typeof j?.minZoom !== "number" ||
-        typeof j?.maxZoom !== "number" ||
-        typeof j?.gridW !== "number" ||
-        typeof j?.gridH !== "number"
-      ) {
-        throw new Error("meta.json ma zły format");
+    setMeta(null);
+    setMetaErr(null);
+    setMetaStatus("LOADING");
+
+    const tick = async () => {
+      try {
+        const r = await fetch(`/tiles/${planId}/meta.json`, {
+          cache: "no-store",
+        });
+
+        // tiles jeszcze się generują → NORMALNY STAN
+        if (r.status === 404) {
+          if (!alive) return;
+          setMetaStatus("PROCESSING");
+          timer = setTimeout(tick, 1200);
+          return;
+        }
+
+        if (!r.ok) {
+          throw new Error(`meta.json fetch failed: ${r.status}`);
+        }
+
+        const j = (await r.json()) as Meta;
+
+        if (
+          typeof j.tileSize !== "number" ||
+          typeof j.minZoom !== "number" ||
+          typeof j.maxZoom !== "number" ||
+          typeof j.gridW !== "number" ||
+          typeof j.gridH !== "number"
+        ) {
+          throw new Error("meta.json ma zły format");
+        }
+
+        if (!alive) return;
+        setMeta(j);
+        setMetaStatus("READY");
+      } catch (e: any) {
+        if (!alive) return;
+        setMetaStatus("ERROR");
+        setMetaErr(e?.message || "meta load error");
       }
+    };
 
-      if (!cancelled) setMeta(j);
-    })().catch((e) => {
-      console.error("[PlanViewer] meta load error:", e);
-      if (!cancelled) setMeta(null);
-    });
+    tick();
 
     return () => {
-      cancelled = true;
+      alive = false;
+      if (timer) clearTimeout(timer);
     };
   }, [planId]);
 
-  // ✅ CRS dla kafli XYZ (y dodatnie w dół)
-  const crs = useMemo(() => {
-    return L.Util.extend({}, L.CRS.Simple, {
-      // domyślnie CRS.Simple odwraca oś Y (lat -> -y),
-      // my chcemy y rosnące w dół jak w kaflach XYZ
-      transformation: new L.Transformation(1, 0, 1, 0),
-    });
-  }, []);
-
-  const { bounds, center, startZoom } = useMemo(() => {
-    if (!meta) return { bounds: null as any, center: null as any, startZoom: 0 };
-
-    const scale = Math.pow(2, meta.maxZoom);
-    const maxPxW = meta.gridW * meta.tileSize; // px na maxZoom
-    const maxPxH = meta.gridH * meta.tileSize;
-
-    // ✅ jednostki "na zoom=0"
-    const w0 = maxPxW / scale;
-    const h0 = maxPxH / scale;
-
-    const b = L.latLngBounds(
-      L.latLng(0, 0),
-      L.latLng(h0, w0)
-    );
-
-    const c = b.getCenter();
-    const z = Math.max(meta.minZoom, meta.maxZoom - 1);
-
-    return { bounds: b, center: c, startZoom: z };
-  }, [meta]);
-
-  useEffect(() => {
-    if (!meta || !bounds || !mapRef.current) return;
-
-    const map = mapRef.current;
-
-    // ✅ ważne: po mount (gdy kontener ma rozmiar) dopasuj
-    // robimy to 2x (raf + timeout), bo Next/React potrafi przestawiać layout
-    requestAnimationFrame(() => {
-      map.invalidateSize();
-      map.fitBounds(bounds, { padding: [20, 20], animate: false });
-      setTimeout(() => {
-        map.invalidateSize();
-        map.fitBounds(bounds, { padding: [20, 20], animate: false });
-      }, 50);
-    });
-  }, [meta, bounds]);
-
-  if (!meta) {
+  // ------------------------------------------------------------------
+  // 1) META JESZCZE NIE MA → POKAZUJ PDF (ZERO LEAFLET, ZERO SSR PROBLEMÓW)
+  // ------------------------------------------------------------------
+  if (metaStatus === "LOADING" || metaStatus === "PROCESSING") {
     return (
-      <div style={{ height: "70vh", display: "grid", placeItems: "center" }}>
-        <div>Ładowanie planu…</div>
+      <div
+        style={{
+          width: "100%",
+          height: "calc(100vh - 120px)",
+          display: "grid",
+          gridTemplateRows: "auto 1fr",
+        }}
+      >
+        <div style={{ padding: "10px 12px", fontSize: 12, opacity: 0.85 }}>
+          <div style={{ fontWeight: 800 }}>Plan się przetwarza…</div>
+          <div style={{ marginTop: 4 }}>
+            Pokazuję PDF. Gdy tylko pojawi się <code>meta.json</code>, włączę
+            zoom i tiles.
+          </div>
+          <div style={{ marginTop: 6, fontFamily: "monospace" }}>
+            planId: {planId}
+          </div>
+        </div>
+
+        <div style={{ borderTop: "1px solid rgba(0,0,0,0.08)" }}>
+          <object
+            data={`/api/plans/pdf?id=${encodeURIComponent(planId)}#view=FitH`}
+            type="application/pdf"
+            style={{ width: "100%", height: "100%", border: 0 }}
+          >
+            <div style={{ padding: 12 }}>
+              Ten browser nie potrafi osadzić PDF.
+              <div style={{ marginTop: 8 }}>
+                <a
+                  href={`/api/plans/pdf?id=${encodeURIComponent(planId)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Otwórz PDF w nowej karcie
+                </a>
+              </div>
+            </div>
+          </object>
+        </div>
       </div>
     );
   }
 
-  return (
-    <div style={{ height: "70vh", width: "100%" }}>
-      <MapContainer
-        whenCreated={(m) => (mapRef.current = m)}
-        crs={crs as any}
-        center={center}
-        zoom={startZoom}
-        minZoom={meta.minZoom}
-        maxZoom={meta.maxZoom}
-        zoomControl={false}
-        // ✅ trzymamy użytkownika w obrębie planszy
-        bounds={bounds}
-        maxBounds={bounds}
-        maxBoundsViscosity={0.9}
-        style={{ height: "100%", width: "100%", background: "#fff" }}
-      >
-        <ZoomControl position="topright" />
+  // -----------------------
+  // 2) META ERROR
+  // -----------------------
+  if (metaStatus === "ERROR") {
+    return (
+      <div style={{ padding: 12 }}>
+        <div style={{ color: "crimson", fontWeight: 700 }}>Błąd</div>
+        <div style={{ marginTop: 6, fontFamily: "monospace" }}>{metaErr}</div>
 
-        <TileLayer
-          url={`/api/tiles/${planId}/{z}/{x}/{y}.png`}
-          tileSize={meta.tileSize}
-          minZoom={meta.minZoom}
-          maxZoom={meta.maxZoom}
-          minNativeZoom={meta.minZoom}
-          maxNativeZoom={meta.maxZoom}
-          // ✅ to jest XYZ, więc tms MUSI być false (albo brak)
-          tms={false}
-          // ✅ ważne: nie owijamy świata
-          noWrap={true}
-          // (nie dawaj tutaj bounds=... — to potrafi psuć docinanie)
-          keepBuffer={4}
-        />
-      </MapContainer>
-    </div>
-  );
+        <div style={{ marginTop: 12, height: "60vh" }}>
+          <iframe
+            title="Plan PDF"
+            src={`/api/plans/pdf?id=${encodeURIComponent(planId)}#view=FitH`}
+            style={{ width: "100%", height: "100%", border: 0 }}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // -----------------------
+  // 3) READY → LEAFLET
+  // -----------------------
+  return <PlanMap planId={planId} meta={meta!} />;
 }

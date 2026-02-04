@@ -13,11 +13,14 @@
     "@repo/shared": "file:../packages/shared",
     "@repo/supabase": "file:../packages/supabase",
     "@supabase/supabase-js": "^2.93.3",
+    "formidable": "^3.5.4",
     "leaflet": "^1.9.4",
     "next": "16.1.6",
+    "pdfjs-dist": "^5.4.624",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "react-leaflet": "^5.0.0"
+    "react-leaflet": "^5.0.0",
+    "react-pdf": "^10.3.0"
   },
   "devDependencies": {
     "@types/node": "^20",
