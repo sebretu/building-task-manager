@@ -20,6 +20,10 @@ function readJsonBody(req: NextApiRequest): any {
   return req.body;
 }
 
+function isUuid(v: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse<ApiOk | ApiErr>) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -114,8 +118,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       return;
     }
 
-    // Jeśli chcesz wymusić created_by (masz NOT NULL w DB), to na DEV podajemy go z body.
-    // Docelowo weźmiemy auth.uid() z tokena usera.
+    // DEV: created_by z body. Docelowo auth.uid()
     const created_by = body?.created_by ? String(body.created_by).trim() : "";
 
     if (!created_by) {
@@ -156,6 +159,71 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     return;
   }
 
-  res.setHeader("Allow", "GET, POST");
-  res.status(405).json({ ok: false, error: { code: "METHOD_NOT_ALLOWED", message: "Use GET or POST" } });
+  // ------------------------
+  // PATCH /api/tasks (update)  ✅ DOPISANE
+  // ------------------------
+  if (req.method === "PATCH") {
+    const body = readJsonBody(req);
+
+    const id = String(body?.id || "").trim();
+    if (!id || !isUuid(id)) {
+      res.status(400).json({ ok: false, error: { code: "BAD_REQUEST", message: "Missing/invalid id (uuid)" } });
+      return;
+    }
+
+    // allow-list pól (żeby nie nadpisywać przypadkiem workflow pól)
+    const upd: any = {};
+
+    if (body?.title !== undefined) upd.title = String(body.title || "").trim();
+    if (body?.description !== undefined) upd.description = body.description == null ? null : String(body.description);
+    if (body?.status !== undefined) upd.status = String(body.status || "").trim();
+    if (body?.priority !== undefined) upd.priority = String(body.priority || "").trim();
+    if (body?.due_date !== undefined) upd.due_date = body.due_date ? String(body.due_date) : null;
+
+    if (body?.assigned_user_id !== undefined) {
+      const v = body.assigned_user_id == null ? "" : String(body.assigned_user_id).trim();
+      if (v && !isUuid(v)) {
+        res.status(400).json({ ok: false, error: { code: "BAD_REQUEST", message: "assigned_user_id must be uuid or null" } });
+        return;
+      }
+      upd.assigned_user_id = v || null;
+    }
+
+    if (body?.assigned_company_id !== undefined) {
+      const v = body.assigned_company_id == null ? "" : String(body.assigned_company_id).trim();
+      if (v && !isUuid(v)) {
+        res.status(400).json({ ok: false, error: { code: "BAD_REQUEST", message: "assigned_company_id must be uuid or null" } });
+        return;
+      }
+      upd.assigned_company_id = v || null;
+    }
+
+    if (body?.done_note !== undefined) upd.done_note = body.done_note == null ? null : String(body.done_note);
+
+    // nic do update?
+    if (Object.keys(upd).length === 0) {
+      res.status(400).json({ ok: false, error: { code: "BAD_REQUEST", message: "No fields to update" } });
+      return;
+    }
+
+    const { data, error } = await supabase.from("tasks").update(upd).eq("id", id).select("*").single();
+
+    if (error) {
+      res.status((error as any).status || 400).json({
+        ok: false,
+        error: {
+          code: "SUPABASE",
+          message: error.message,
+          meta: { code: (error as any).code, details: (error as any).details },
+        },
+      });
+      return;
+    }
+
+    res.status(200).json({ ok: true, data });
+    return;
+  }
+
+  res.setHeader("Allow", "GET, POST, PATCH");
+  res.status(405).json({ ok: false, error: { code: "METHOD_NOT_ALLOWED", message: "Use GET, POST or PATCH" } });
 }
