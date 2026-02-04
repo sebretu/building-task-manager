@@ -13,11 +13,9 @@ if git diff --quiet && git diff --cached --quiet; then
 fi
 
 git add -A
-
-# commit (jeśli nie ma co commitować, nie wywalaj)
 git commit -m "auto-backup: $(date +%Y-%m-%d %H:%M)" --no-verify || true
-
-# push + tag
 git push origin HEAD
+
+# tag (opcjonalnie) - możesz zakomentować jeśli nie chcesz tylu tagów
 git tag "auto-backup-$(date +%Y%m%d-%H%M)" || true
 git push origin --tags || true
