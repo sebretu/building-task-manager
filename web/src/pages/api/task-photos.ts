@@ -124,16 +124,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     if (up.error) return supaErr(res, up.error);
 
     // Public URL (bucket public)
-    // ===== PUBLIC URL (FIX FOR PROD) =====
-    const PUBLIC_SUPABASE_URL =
-      process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "") || "http://188.245.42.178:54321";
+    // Choose NEXT_PUBLIC_SUPABASE_URL when available. For local dev, avoid
+    // generating URLs that point at localhost/127.0.0.1 — rewrite to the
+    // developer-facing host so clients can fetch the image.
+    let PUBLIC_SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "") || "http://188.245.42.178:54321";
+
+    if (process.env.NODE_ENV !== "production") {
+      // If env points to localhost, rewrite host to the known dev host
+      // so browser clients (which can't reach the server's 127.0.0.1:54321)
+      // can fetch the object. This is a development-only convenience.
+      PUBLIC_SUPABASE_URL = PUBLIC_SUPABASE_URL.replace(/localhost|127\.0\.0\.1/, "188.245.42.178");
+    }
 
     const publicUrl = `${PUBLIC_SUPABASE_URL}/storage/v1/object/public/${bucket}/${storage_path}`;
 
     if (!publicUrl) return bad(res, "Failed to create public URL");
 
     // Insert do task_photos (kolumny zgodne z Twoją tabelą)
-    const ins = await supabase
+    const ins = await (supabase as any)
       .from("task_photos")
       .insert({
         task_id,
@@ -142,7 +150,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         url: publicUrl,
         storage_bucket: bucket,
         storage_path,
-      })
+      } as any)
       .select("*")
       .single();
 

@@ -23,6 +23,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     return res.status(401).json({ ok: false, error: { code: "AUTH_INVALID", message: "Missing Bearer token" } });
   }
 
+  const projectId = (req.query.projectId as string) || "";
+  if (!projectId) return res.status(400).json({ ok: false, error: { code: "BAD_REQUEST", message: "Missing query: projectId" } });
+
+  const floorId = (req.query.floorId as string) || undefined;
+  const onlyCurrent = ((req.query.current as string) || "").toLowerCase() === "true";
+
   let q = supabase
     .from("plans")
     .select("id,project_id,floor_id,version,status,pdf_path,image_path,image_width,image_height,is_current,storage_bucket,storage_path,processing_error,created_at,updated_at")

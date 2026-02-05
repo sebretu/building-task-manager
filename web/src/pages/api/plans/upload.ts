@@ -1,7 +1,7 @@
 // src/pages/api/plans/upload.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import { createClient } from "@supabase/supabase-js";
-import formidable, { type File as FormidableFile } from "formidable";
+import formidable from "formidable";
 import crypto from "crypto";
 import os from "os";
 import path from "path";
@@ -40,14 +40,14 @@ function getSupabaseAdmin() {
 
 async function parseMultipart(req: NextApiRequest): Promise<{
   fields: Record<string, any>;
-  file: FormidableFile;
+  file: any;
 }> {
   const form = formidable({
     multiples: false,
     keepExtensions: true,
     uploadDir: os.tmpdir(),
     maxFileSize: 200 * 1024 * 1024, // 200MB
-    filter: (part) => {
+    filter: (part: any) => {
       // accept only pdf in file field
       if (part.name !== "file") return true;
       const ct = (part.mimetype || "").toLowerCase();
@@ -56,10 +56,10 @@ async function parseMultipart(req: NextApiRequest): Promise<{
   });
 
   return await new Promise((resolve, reject) => {
-    form.parse(req, (err, fields, files) => {
+    form.parse(req, (err: any, fields: any, files: any) => {
       if (err) return reject(err);
 
-      const f = (files as any).file as FormidableFile | FormidableFile[] | undefined;
+      const f = (files as any).file as any | any[] | undefined;
       const file = Array.isArray(f) ? f[0] : f;
 
       if (!file) return reject(new Error("Missing file (field name: file)"));

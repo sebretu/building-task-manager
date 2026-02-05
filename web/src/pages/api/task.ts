@@ -36,6 +36,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
   // DELETE /api/task?id=...
   if (req.method === "DELETE") {
     // bezpieczeństwo: jeśli nie ma service key, to nie kasujemy
+    const service = process.env.SUPABASE_SERVICE_ROLE_KEY || null;
     if (!service) {
       return res.status(400).json({
         ok: false,

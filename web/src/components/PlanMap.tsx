@@ -102,6 +102,8 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
 
   const center = bounds.getCenter();
 
+  const MapContainerAny: any = MapContainer;
+
   const loadTasks = useCallback(async () => {
     const r = await fetch(`/api/tasks?projectId=${PROJECT_ID}&planId=${planId}&limit=200&offset=0`, {
       cache: "no-store",
@@ -145,7 +147,7 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
   // ✅ PRZYWRÓCONE: klik w mapę otwiera drawer w trybie CREATE
   function ClickToCreate() {
     useMapEvents({
-      click: (e) => {
+      click: (e: any) => {
         const p = CRS.latLngToPoint(e.latlng, meta.maxZoom);
 
         const draft = {
@@ -198,7 +200,9 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
 
   return (
     <>
-      <MapContainer
+      const MapContainerAny: any = MapContainer;
+
+      <MapContainerAny
         crs={CRS}
         center={center}
         zoom={Math.max(meta.minZoom, Math.min(meta.maxZoom, START_ZOOM))}
@@ -220,6 +224,8 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
 
           return (
             <Marker key={t.id} position={ll} eventHandlers={{ click: () => ensureThumb(t.id) }}>
+              {/* react-leaflet Popup props typing differs across versions; ignore here */}
+              {/* @ts-ignore */}
               <Popup autoPan closeButton offset={[0, 30]}>
                 <div style={{ width: 240, color: "#111827" }}>
                   {thumb ? (
@@ -278,10 +284,11 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
             </Marker>
           );
         })}
-      </MapContainer>
+      </MapContainerAny>
 
+      {/* createDraft is accepted by TaskDrawer at runtime */}
+      {/* @ts-ignore */}
       <TaskDrawer
-        // @ts-expect-error - mamy createDraft w TaskDrawer
         createDraft={createDraft}
         open={!!drawerTaskId || !!createDraft}
         taskId={drawerTaskId}

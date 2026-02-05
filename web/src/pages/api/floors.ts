@@ -17,6 +17,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     return res.status(401).json({ ok: false, error: { code: "AUTH_INVALID", message: "Missing Bearer token" } });
   }
 
+  const projectId = (req.query.projectId as string) || "";
+  if (!projectId) {
+    return res.status(400).json({ ok: false, error: { code: "BAD_REQUEST", message: "Missing query: projectId" } });
+  }
+
   const { data, error } = await supabase
     .from("floors")
     .select("id,building_id,name,level,created_at,updated_at")

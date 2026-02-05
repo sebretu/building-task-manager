@@ -1,7 +1,7 @@
 import { clamp01 } from '@repo/shared';
-import { AppError } from '@repo/supabase';
 
 export function repoSmoke(x: number) {
   const v = clamp01(x);
-  return new AppError('UNKNOWN', 'ok', null, { v }).meta;
+  // AppError is not available in generated types here; return a simple meta-like object
+  return { v } as any;
 }

@@ -1,19 +1,17 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { createClient } from "@supabase/supabase-js";
-
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const service = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
-const supabase = createClient(url, service, {
-  auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-});
+import { createServerSupabaseClient } from "@/lib/supabaseServer";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     const id = String(req.query.id || "").trim();
     if (!id) return res.status(400).send("Missing query: id");
 
-    console.log("[plans/pdf] id=", id);
+    let supabase;
+    try {
+      ({ client: supabase } = createServerSupabaseClient(req));
+    } catch (e: any) {
+      return res.status(401).send("Unauthorized");
+    }
 
     const { data: plan, error } = await supabase
       .from("plans")
@@ -30,9 +28,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(404).send("Plan not found");
     }
 
-    console.log("[plans/pdf] storage:", plan.storage_bucket, plan.storage_path);
-
-    const { data, error: dlErr } = await supabase.storage.from(plan.storage_bucket).download(plan.storage_path);
+    const planRow = plan as any;
+    const { data, error: dlErr } = await supabase.storage.from(planRow.storage_bucket).download(planRow.storage_path as string);
 
     if (dlErr || !data) {
       console.error("[plans/pdf] storage download error:", dlErr?.message || "no data");
@@ -40,7 +37,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     const buf = Buffer.from(await data.arrayBuffer());
-res.setHeader("Content-Disposition", 'inline; filename="plan.pdf"');
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `inline; filename="${id}.pdf"`);
     res.setHeader("Content-Length", String(buf.length));
     res.setHeader("Cache-Control", "no-store");
     return res.status(200).send(buf);

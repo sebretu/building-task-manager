@@ -58,7 +58,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       .order("created_at", { ascending: false });
 
     if (planId) query = query.eq("plan_id", planId);
-    if (status) query = query.eq("status", status);
+    if (status) query = query.eq("status", status as any);
     if (q) query = query.or(`title.ilike.%${q}%,description.ilike.%${q}%`);
 
     const { data, error } = await query;
@@ -193,7 +193,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     if (body.assigned_company_id !== undefined) patch.assigned_company_id = body.assigned_company_id || "";
 
     try {
-      const { data, error } = await supabase.rpc("update_task_api", {
+      const { data, error } = await (supabase as any).rpc("update_task_api", {
         p_id: id,
         p_changed_by: changed_by,
         p_patch: patch,

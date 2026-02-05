@@ -17,7 +17,8 @@ const TRANSPARENT_PNG = Buffer.from(
 );
 
 function pngResponse(buf: Buffer, debugPath: string) {
-  return new Response(buf, {
+  const body = new Uint8Array(buf);
+  return new Response(body, {
     status: 200,
     headers: {
       "Content-Type": "image/png",
