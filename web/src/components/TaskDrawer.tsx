@@ -28,6 +28,14 @@ type ProfileRow = {
   email?: string;
 };
 
+type TaskComment = {
+  id: string;
+  task_id: string;
+  user_id: string;
+  comment: string;
+  created_at: string;
+};
+
 type PendingPhoto = {
   id: string;
   file: File;
@@ -81,6 +89,7 @@ export default function TaskDrawer({
 
   const [task, setTask] = useState<TaskRow | null>(null);
   const [photos, setPhotos] = useState<TaskPhoto[]>([]);
+  const [comments, setComments] = useState<TaskComment[]>([]);
   const [pendingPhotos, setPendingPhotos] = useState<PendingPhoto[]>([]);
   const [err, setErr] = useState<string | null>(null);
 
@@ -90,6 +99,7 @@ export default function TaskDrawer({
   const [assignedUserId, setAssignedUserId] = useState("");
 
   const [caption, setCaption] = useState(""); // caption dla kolejnego dodawanego pliku
+  const [newComment, setNewComment] = useState(""); // nowy komentarz
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
@@ -130,6 +140,9 @@ export default function TaskDrawer({
       const photoData = await apiGet<TaskPhoto[]>(`/api/task-photos?taskId=${encodeURIComponent(id)}`);
       const fixed = (photoData || []).map((p) => ({ ...p, url: fixStorageUrl(p.url) }));
       setPhotos(fixed);
+
+      const commentData = await apiGet<TaskComment[]>(`/api/task-comments?taskId=${encodeURIComponent(id)}`);
+      setComments(commentData || []);
     } catch (e: any) {
       setErr(e?.message || String(e));
     }
@@ -154,6 +167,8 @@ export default function TaskDrawer({
     if (isCreate) {
       setTask(null);
       setPhotos([]);
+      setComments([]);
+      setNewComment("");
       setErr(null);
       setTitle("Nowy task");
       setDescription("");
@@ -337,6 +352,24 @@ export default function TaskDrawer({
 
       window.dispatchEvent(new CustomEvent("task-deleted"));
       onClose();
+    } catch (e: any) {
+      setErr(e?.message || String(e));
+    }
+  }
+
+  async function addComment() {
+    if (!taskId) return;
+    if (!newComment.trim()) return;
+
+    setErr(null);
+    try {
+      const data = await apiPost<TaskComment>("/api/task-comments", {
+        task_id: taskId,
+        comment: newComment.trim(),
+      });
+
+      setComments((prev) => [...prev, data]);
+      setNewComment("");
     } catch (e: any) {
       setErr(e?.message || String(e));
     }
@@ -699,6 +732,93 @@ export default function TaskDrawer({
               <div style={{ fontSize: 12, opacity: 0.75 }}>Brak zdjęć</div>
             )}
           </div>
+
+          {/* COMMENTS */}
+          {!isCreate && (
+            <>
+              <hr style={{ border: "none", borderTop: "1px solid rgba(17,24,39,0.10)" }} />
+              
+              <div style={{ display: "grid", gap: 10 }}>
+                <div style={{ fontSize: 14, fontWeight: 800 }}>Komentarze ({comments.length})</div>
+
+                {/* Add comment input */}
+                <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+                  <textarea
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                    placeholder="Dodaj komentarz..."
+                    style={{
+                      ...inputStyle,
+                      minHeight: 60,
+                      resize: "vertical",
+                      flex: 1,
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                        e.preventDefault();
+                        addComment();
+                      }
+                    }}
+                  />
+                  <button
+                    onClick={addComment}
+                    disabled={!newComment.trim()}
+                    style={{
+                      padding: "8px 14px",
+                      borderRadius: 10,
+                      border: "1px solid rgba(17,24,39,0.20)",
+                      background: newComment.trim() ? "#111827" : "rgba(17,24,39,0.05)",
+                      color: newComment.trim() ? "#fff" : "rgba(17,24,39,0.4)",
+                      cursor: newComment.trim() ? "pointer" : "not-allowed",
+                      fontWeight: 800,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    Dodaj
+                  </button>
+                </div>
+
+                {/* Comments list */}
+                {comments.length > 0 && (
+                  <div style={{ display: "grid", gap: 8, maxHeight: 300, overflowY: "auto" }}>
+                    {comments.map((c) => {
+                      const profile = profiles.find((p) => p.id === c.user_id);
+                      const userName = profile?.full_name || c.user_id.slice(0, 8);
+                      const timestamp = new Date(c.created_at).toLocaleString("pl-PL", {
+                        year: "numeric",
+                        month: "2-digit",
+                        day: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      });
+
+                      return (
+                        <div
+                          key={c.id}
+                          style={{
+                            padding: 10,
+                            borderRadius: 10,
+                            border: "1px solid rgba(17,24,39,0.10)",
+                            background: "rgba(17,24,39,0.02)",
+                          }}
+                        >
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                            <div style={{ fontWeight: 800, fontSize: 12 }}>{userName}</div>
+                            <div style={{ fontSize: 11, opacity: 0.6 }}>{timestamp}</div>
+                          </div>
+                          <div style={{ fontSize: 13, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{c.comment}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {comments.length === 0 && (
+                  <div style={{ fontSize: 12, opacity: 0.75 }}>Brak komentarzy</div>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </>
