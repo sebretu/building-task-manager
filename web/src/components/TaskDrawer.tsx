@@ -21,50 +21,39 @@ type TaskPhoto = {
   created_at: string;
 };
 
-type CreateDraft = {
-  project_id: string;
-  plan_id: string;
-  x_norm: number;
-  y_norm: number;
+type ProfileRow = {
+  id: string;
+  full_name: string;
+  email?: string;
 };
 
 type PendingPhoto = {
   id: string;
   file: File;
+  previewUrl: string;
   caption: string | null;
-  previewUrl: string; // objectURL
 };
 
 function isUuid(v: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
 }
 
-// ✅ FIX: jeśli backend zwróci URL z 127.0.0.1:54321, to podmień na host strony + protokół strony
+// ✅ FIX: podmień dowolny "http://<host>:54321" na "{proto}//{hostname}:54321"
 function fixStorageUrl(u: string) {
   if (!u) return u;
-  const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-  const proto = typeof window !== "undefined" ? window.location.protocol : "http:";
-  return u.replace("http://127.0.0.1:54321", `${proto}//${host}:54321`);
+  if (typeof window === "undefined") return u;
+
+  const host = window.location.hostname;
+  const proto = window.location.protocol; // "http:" albo "https:"
+  return u.replace(/^http:\/\/[^/]+:54321/i, `${proto}//${host}:54321`);
 }
 
 async function fileToBase64(file: File): Promise<string> {
-  return await new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error("FileReader error"));
-    reader.onload = () => {
-      const result = String(reader.result || "");
-      // result = "data:image/jpeg;base64,AAAA...."
-      const idx = result.indexOf("base64,");
-      if (idx === -1) return reject(new Error("Invalid data URL"));
-      resolve(result.slice(idx + "base64,".length));
-    };
-    reader.readAsDataURL(file);
-  });
-}
-
-
-function uid() {
-  return Math.random().toString(16).slice(2) + "-" + Date.now().toString(16);
+  const buf = await file.arrayBuffer();
+  let binary = "";
+  const bytes = new Uint8Array(buf);
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary);
 }
 
 export default function TaskDrawer({
@@ -72,14 +61,23 @@ export default function TaskDrawer({
   taskId,
   onClose,
   uploadedBy,
-  createDraft = null,
+  createDraft,
 }: {
   open: boolean;
   taskId: string | null;
   onClose: () => void;
   uploadedBy: string;
-  createDraft?: CreateDraft | null;
+  // createDraft = tryb CREATE (klik w mapę)
+  createDraft?: {
+    project_id: string;
+    plan_id: string;
+    x_norm: number;
+    y_norm: number;
+    created_by?: string;
+  } | null;
 }) {
+  const isCreate = !!createDraft && !taskId;
+
   const [task, setTask] = useState<TaskRow | null>(null);
   const [photos, setPhotos] = useState<TaskPhoto[]>([]);
   const [pendingPhotos, setPendingPhotos] = useState<PendingPhoto[]>([]);
@@ -90,83 +88,101 @@ export default function TaskDrawer({
   const [status, setStatus] = useState<TaskRow["status"]>("OPEN");
   const [assignedUserId, setAssignedUserId] = useState("");
 
-  const [caption, setCaption] = useState("");
+  const [caption, setCaption] = useState(""); // caption dla kolejnego dodawanego pliku
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
-  const isCreateMode = open && !taskId && !!createDraft;
-  const isEditMode = open && !!taskId;
+  // ⭐ lista profili do dropdown
+  const [profiles, setProfiles] = useState<ProfileRow[]>([]);
+  const [profilesLoaded, setProfilesLoaded] = useState(false);
+
+  const canShow = open && (!!taskId || !!createDraft);
 
   const headerTitle = useMemo(() => {
-    if (isCreateMode) return "Nowy task";
+    if (isCreate) return "Nowy task";
     if (!taskId) return "Task";
     return task?.title ? `Task: ${task.title}` : `Task: ${taskId}`;
-  }, [isCreateMode, taskId, task?.title]);
+  }, [isCreate, taskId, task?.title]);
+
+  async function loadProfilesOnce() {
+    if (profilesLoaded) return;
+    try {
+      const r = await fetch("/api/profiles?limit=1000", { cache: "no-store" });
+      const j = (await r.json()) as ApiOk<ProfileRow[]> | ApiErr;
+      if (r.ok && (j as any)?.ok) setProfiles((j as any).data || []);
+    } finally {
+      setProfilesLoaded(true);
+    }
+  }
 
   async function loadAll(id: string) {
     setErr(null);
     try {
       const r1 = await fetch(`/api/task?id=${encodeURIComponent(id)}`, { cache: "no-store" });
       const j1 = (await r1.json()) as ApiOk<TaskRow> | ApiErr;
-      if (!r1.ok || !j1.ok) throw new Error((j1 as any)?.error?.message || "task fetch failed");
+      if (!r1.ok || !(j1 as any).ok) throw new Error((j1 as any)?.error?.message || "task fetch failed");
 
-      setTask(j1.data);
+      const data = (j1 as any).data as TaskRow;
+      setTask(data);
 
-      // ustawiamy formularz przy wejściu do edycji
-      setTitle(j1.data.title || "");
-      setDescription(j1.data.description || "");
-      setStatus(j1.data.status || "OPEN");
-      setAssignedUserId(j1.data.assigned_user_id || "");
+      // ustaw formularz z taska
+      setTitle(data.title || "");
+      setDescription(data.description || "");
+      setStatus((data.status as any) || "OPEN");
+      setAssignedUserId(data.assigned_user_id || "");
 
       const r2 = await fetch(`/api/task-photos?taskId=${encodeURIComponent(id)}`, { cache: "no-store" });
       const j2 = (await r2.json()) as ApiOk<TaskPhoto[]> | ApiErr;
-      if (!r2.ok || !j2.ok) throw new Error((j2 as any)?.error?.message || "photos fetch failed");
+      if (!r2.ok || !(j2 as any).ok) throw new Error((j2 as any)?.error?.message || "photos fetch failed");
 
-      setPhotos((j2.data || []).map((p) => ({ ...p, url: fixStorageUrl(p.url) })));
+      const fixed = (((j2 as any).data || []) as TaskPhoto[]).map((p) => ({ ...p, url: fixStorageUrl(p.url) }));
+      setPhotos(fixed);
     } catch (e: any) {
       setErr(e?.message || String(e));
     }
   }
 
-  // Edycja: ładujemy dane tylko gdy mamy taskId
+  // open => doładuj profile
   useEffect(() => {
-    if (!open || !taskId) return;
-    loadAll(taskId).catch(() => {});
+    if (!canShow) return;
+    loadProfilesOnce().catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, taskId]);
+  }, [canShow]);
 
-  // Tworzenie: resetujemy formularz + kolejkę zdjęć
+  // open => edit mode: load task / create mode: reset
   useEffect(() => {
-    if (!open) return;
-    if (!isCreateMode) return;
+    if (!canShow) return;
 
-    setTask(null);
-    setPhotos([]);
-    setErr(null);
+    if (taskId) {
+      loadAll(taskId).catch(() => {});
+      return;
+    }
 
-    setTitle("Nowy task");
-    setDescription("");
-    setStatus("OPEN");
-    setAssignedUserId("");
-    setCaption("");
-    setPreviewUrl(null);
+    if (isCreate) {
+      setTask(null);
+      setPhotos([]);
+      setErr(null);
+      setTitle("Nowy task");
+      setDescription("");
+      setStatus("OPEN");
+      setAssignedUserId("");
+      setCaption("");
+      // pendingPhotos zostawiamy — user może dodać zdjęcia przed zapisem
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canShow, taskId, isCreate]);
 
-    // czyścimy stare objectURL
-    setPendingPhotos((prev) => {
-      prev.forEach((p) => URL.revokeObjectURL(p.previewUrl));
-      return [];
-    });
-  }, [open, isCreateMode]);
-
-  // przy zamknięciu drawer też sprzątaj objectURL (żeby nie ciekło w pamięci)
+  // cleanup blob urls
   useEffect(() => {
-    if (open) return;
-    setPendingPhotos((prev) => {
-      prev.forEach((p) => URL.revokeObjectURL(p.previewUrl));
-      return [];
-    });
-  }, [open]);
+    return () => {
+      for (const p of pendingPhotos) {
+        try {
+          URL.revokeObjectURL(p.previewUrl);
+        } catch {}
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const inputStyle: React.CSSProperties = {
     width: "100%",
@@ -179,51 +195,44 @@ export default function TaskDrawer({
     outline: "none",
   };
 
-  const labelStyle: React.CSSProperties = { display: "grid", gap: 6, fontSize: 12, color: "#111827" };
+  const labelStyle: React.CSSProperties = {
+    display: "grid",
+    gap: 6,
+    fontSize: 12,
+    color: "#111827",
+  };
 
-  async function createTask(): Promise<string> {
-    if (!createDraft) throw new Error("Brak createDraft");
-    if (!isUuid(uploadedBy)) throw new Error("created_by(uploadedBy) nie jest UUID (DEV)");
-
-    const trimmed = assignedUserId.trim();
-    if (trimmed && !isUuid(trimmed)) throw new Error("assigned_user_id musi być UUID albo puste");
-
-    const r = await fetch("/api/tasks", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        project_id: createDraft.project_id,
-        plan_id: createDraft.plan_id,
-        x_norm: createDraft.x_norm,
-        y_norm: createDraft.y_norm,
-        title: title.trim() || "Nowy task",
-        description: description.trim() === "" ? null : description.trim(),
-        status,
-        created_by: uploadedBy,
-        assigned_user_id: trimmed ? trimmed : null,
-      }),
-    });
-
-    const j = await r.json();
-    if (!r.ok || !j?.ok) throw new Error(j?.error?.message || `create failed (${r.status})`);
-
-    const newId = j?.data?.id as string | undefined;
-    if (!newId) throw new Error("create ok, ale brak id");
-
-    return newId;
+  function addPending(file: File) {
+    const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const previewUrl = URL.createObjectURL(file);
+    const cap = caption.trim() === "" ? null : caption.trim();
+    setCaption("");
+    setPendingPhotos((prev) => [{ id, file, previewUrl, caption: cap }, ...prev]);
   }
 
-  async function uploadPhotoToTask(pTaskId: string, file: File, pCaption: string | null) {
+  function removePending(id: string) {
+    setPendingPhotos((prev) => {
+      const hit = prev.find((p) => p.id === id);
+      if (hit) {
+        try {
+          URL.revokeObjectURL(hit.previewUrl);
+        } catch {}
+      }
+      return prev.filter((p) => p.id !== id);
+    });
+  }
+
+  async function uploadOne(task_id: string, file: File, cap: string | null) {
     const base64 = await fileToBase64(file);
 
     const r = await fetch("/api/task-photos", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        task_id: pTaskId,
+        task_id,
         uploaded_by: uploadedBy,
         file_name: file.name || "photo.jpg",
-        caption: pCaption,
+        caption: cap,
         base64,
       }),
     });
@@ -231,130 +240,132 @@ export default function TaskDrawer({
     const j = await r.json();
     if (!r.ok || !j?.ok) throw new Error(j?.error?.message || "upload failed");
 
-    const newPhoto: TaskPhoto = { ...j.data, url: fixStorageUrl(j.data.url) };
+    const newPhoto: TaskPhoto = { ...(j.data as TaskPhoto), url: fixStorageUrl((j.data as TaskPhoto).url) };
     return newPhoto;
   }
 
   async function save() {
     setErr(null);
 
-    // CREATE MODE
-    if (!taskId) {
-      if (!createDraft) {
-        setErr("Brak taskId (edycja) i brak createDraft (tworzenie)");
-        return;
-      }
+    if (!isUuid(uploadedBy)) return setErr("uploadedBy(changed_by) nie jest UUID");
 
-      setSaving(true);
-      setUploading(true);
-      try {
-        const newId = await createTask();
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) return setErr("Tytuł jest wymagany");
 
-        // upload kolejki zdjęć (jeśli są)
-        if (pendingPhotos.length) {
-          const uploaded: TaskPhoto[] = [];
-          for (const p of pendingPhotos) {
-            const up = await uploadPhotoToTask(newId, p.file, p.caption);
-            uploaded.push(up);
-          }
-          // po create+upload możesz mieć od razu listę
-          setPhotos((prev) => [...uploaded.reverse(), ...prev]);
-        }
-
-        // marker/lista dopiero teraz
-        window.dispatchEvent(new CustomEvent("task-created", { detail: { taskId: newId } }));
-        window.dispatchEvent(new CustomEvent("task-saved", { detail: { taskId: newId } }));
-        if (pendingPhotos.length) {
-          window.dispatchEvent(new CustomEvent("task-photo-added", { detail: { taskId: newId } }));
-        }
-
-        // sprzątamy objectURL
-        pendingPhotos.forEach((p) => URL.revokeObjectURL(p.previewUrl));
-        setPendingPhotos([]);
-
-        onClose();
-      } catch (e: any) {
-        setErr(e?.message || String(e));
-      } finally {
-        setUploading(false);
-        setSaving(false);
-      }
-      return;
-    }
-
-    // EDIT MODE
-    if (!isUuid(taskId)) return setErr("taskId nie jest UUID");
-    if (!isUuid(uploadedBy)) return setErr("changed_by(uploadedBy) nie jest UUID");
-
-    const trimmed = assignedUserId.trim();
-    if (trimmed && !isUuid(trimmed)) return setErr("assigned_user_id musi być UUID albo puste");
+    const trimmedAssigned = assignedUserId.trim();
+    if (trimmedAssigned && !isUuid(trimmedAssigned)) return setErr("assigned_user_id musi być UUID albo puste");
 
     setSaving(true);
     try {
+      // =========================
+      // CREATE
+      // =========================
+      if (isCreate) {
+        const d = createDraft!;
+
+        const r = await fetch("/api/tasks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            project_id: d.project_id,
+            plan_id: d.plan_id,
+            x_norm: d.x_norm,
+            y_norm: d.y_norm,
+            title: trimmedTitle,
+            description: description.trim() === "" ? null : description.trim(),
+            status,
+            created_by: uploadedBy,
+            // backend może ignorować assigned_user_id na POST -> PATCH niżej
+            assigned_user_id: trimmedAssigned ? trimmedAssigned : null,
+          }),
+        });
+
+        const j = await r.json();
+        if (!r.ok || !j?.ok) throw new Error(j?.error?.message || "create failed");
+
+        const newId = j?.data?.id as string | undefined;
+        if (!newId) throw new Error("create ok, ale brak id");
+
+        // ✅ FIX #1: ustaw assigned_user_id po CREATE przez PATCH (żeby działało jak w edit)
+        if (trimmedAssigned) {
+          const rPatch = await fetch("/api/tasks", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              id: newId,
+              changed_by: uploadedBy,
+              assigned_user_id: trimmedAssigned,
+            }),
+          });
+          const jPatch = await rPatch.json().catch(() => null);
+          if (!rPatch.ok || !jPatch?.ok) throw new Error(jPatch?.error?.message || "assigned_user_id patch failed");
+        }
+
+        // 🚀 upload pending zdjęć po utworzeniu taska
+        if (pendingPhotos.length) {
+          setUploading(true);
+          try {
+            const uploaded: TaskPhoto[] = [];
+            for (const p of pendingPhotos) {
+              const ph = await uploadOne(newId, p.file, p.caption);
+              uploaded.push(ph);
+            }
+
+            setPendingPhotos((prev) => {
+              for (const p of prev) {
+                try {
+                  URL.revokeObjectURL(p.previewUrl);
+                } catch {}
+              }
+              return [];
+            });
+
+            setPhotos((prev) => [...uploaded, ...prev]);
+
+            window.dispatchEvent(new CustomEvent("task-photo-added", { detail: { taskId: newId } }));
+          } finally {
+            setUploading(false);
+          }
+        }
+
+        window.dispatchEvent(new CustomEvent("task-created", { detail: { taskId: newId } }));
+
+        // ✅ FIX #2: po ZAPISZ w create — zamknij drawer
+        onClose();
+        return;
+      }
+
+      // =========================
+      // EDIT
+      // =========================
+      if (!taskId) throw new Error("Brak taskId");
+      if (!isUuid(taskId)) throw new Error("taskId nie jest UUID");
+
       const r = await fetch("/api/tasks", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: taskId,
           changed_by: uploadedBy,
-          title: title.trim(),
+          title: trimmedTitle,
           description: description.trim() === "" ? null : description.trim(),
           status,
-          assigned_user_id: trimmed ? trimmed : null,
+          assigned_user_id: trimmedAssigned ? trimmedAssigned : null,
         }),
       });
 
       const j = await r.json();
       if (!r.ok || !j?.ok) throw new Error(j?.error?.message || "save failed");
 
-      window.dispatchEvent(new CustomEvent("task-saved", { detail: { taskId } }));
+      window.dispatchEvent(new CustomEvent("task-saved"));
+
+      // ✅ FIX #2: po ZAPISZ w edit — zamknij drawer
       onClose();
     } catch (e: any) {
       setErr(e?.message || String(e));
     } finally {
       setSaving(false);
     }
-  }
-
-  async function uploadPhotoNow(file: File, pCaption: string | null) {
-    if (!taskId) {
-      setErr("Najpierw utwórz task (Zapisz), albo dodaj zdjęcie do kolejki (to zrobimy automatycznie).");
-      return;
-    }
-
-    setErr(null);
-    if (!isUuid(taskId)) return setErr("taskId nie jest UUID");
-    if (!isUuid(uploadedBy)) return setErr("uploadedBy nie jest UUID");
-
-    setUploading(true);
-    try {
-      const newPhoto = await uploadPhotoToTask(taskId, file, pCaption);
-      setPhotos((prev) => [newPhoto, ...prev]);
-      window.dispatchEvent(new CustomEvent("task-photo-added", { detail: { taskId } }));
-    } catch (e: any) {
-      setErr(e?.message || String(e));
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  function addPendingFile(file: File) {
-    const p: PendingPhoto = {
-      id: uid(),
-      file,
-      caption: caption.trim() === "" ? null : caption.trim(),
-      previewUrl: URL.createObjectURL(file),
-    };
-    setPendingPhotos((prev) => [p, ...prev]);
-    setCaption("");
-  }
-
-  function removePending(id: string) {
-    setPendingPhotos((prev) => {
-      const item = prev.find((x) => x.id === id);
-      if (item) URL.revokeObjectURL(item.previewUrl);
-      return prev.filter((x) => x.id !== id);
-    });
   }
 
   async function removeTask() {
@@ -370,7 +381,7 @@ export default function TaskDrawer({
 
       if (!r.ok || !j?.ok) throw new Error(j?.error?.message || `delete failed (${r.status})`);
 
-      window.dispatchEvent(new CustomEvent("task-deleted", { detail: { taskId } }));
+      window.dispatchEvent(new CustomEvent("task-deleted"));
       onClose();
     } catch (e: any) {
       setErr(e?.message || String(e));
@@ -424,58 +435,64 @@ export default function TaskDrawer({
           }}
         >
           <div style={{ fontSize: 14 }}>{headerTitle}</div>
-          <button
-            onClick={onClose}
-            style={{
-              padding: "6px 10px",
-              borderRadius: 10,
-              border: "1px solid rgba(17,24,39,0.18)",
-              background: "#fff",
-              color: "#111827",
-              cursor: "pointer",
-              fontWeight: 800,
-            }}
-          >
-            ✕
-          </button>
+
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            {!isCreate && !!taskId && (
+              <button
+                onClick={removeTask}
+                style={{
+                  padding: "6px 10px",
+                  borderRadius: 10,
+                  border: "1px solid rgba(185,28,28,0.35)",
+                  background: "rgba(185,28,28,0.08)",
+                  color: "#b91c1c",
+                  cursor: "pointer",
+                  fontWeight: 900,
+                }}
+              >
+                Usuń
+              </button>
+            )}
+
+            <button
+              onClick={onClose}
+              style={{
+                padding: "6px 10px",
+                borderRadius: 10,
+                border: "1px solid rgba(17,24,39,0.18)",
+                background: "#fff",
+                color: "#111827",
+                cursor: "pointer",
+                fontWeight: 900,
+              }}
+            >
+              ✕
+            </button>
+          </div>
         </div>
 
         {/* BODY */}
-        <div style={{ padding: 16, overflow: "auto", display: "grid", gap: 14 }}>
-          {err ? (
-            <div
-              style={{
-                padding: "10px 12px",
-                borderRadius: 12,
-                background: "rgba(185,28,28,0.08)",
-                border: "1px solid rgba(185,28,28,0.18)",
-                color: "#7f1d1d",
-                fontSize: 13,
-                fontWeight: 700,
-              }}
-            >
+        <div style={{ padding: 16, overflow: "auto", display: "grid", gap: 16 }}>
+          {err && (
+            <div style={{ color: "#b91c1c", fontWeight: 700, background: "rgba(185,28,28,0.06)", padding: 10, borderRadius: 12 }}>
               {err}
             </div>
-          ) : null}
+          )}
 
           <label style={labelStyle}>
-            <div>Tytuł</div>
-            <input style={inputStyle} value={title} onChange={(e) => setTitle(e.target.value)} />
+            <span style={{ fontWeight: 800 }}>Tytuł</span>
+            <input value={title} onChange={(e) => setTitle(e.target.value)} style={inputStyle} />
           </label>
 
           <label style={labelStyle}>
-            <div>Opis</div>
-            <textarea
-              style={{ ...inputStyle, minHeight: 90, resize: "vertical" }}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
+            <span style={{ fontWeight: 800 }}>Opis</span>
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)} style={{ ...inputStyle, minHeight: 110, resize: "vertical" }} />
           </label>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <label style={labelStyle}>
-              <div>Status</div>
-              <select style={inputStyle} value={status} onChange={(e) => setStatus(e.target.value as any)}>
+              <span style={{ fontWeight: 800 }}>Status</span>
+              <select value={status} onChange={(e) => setStatus(e.target.value as any)} style={inputStyle}>
                 <option value="OPEN">OPEN</option>
                 <option value="IN_PROGRESS">IN_PROGRESS</option>
                 <option value="DONE_WAITING_APPROVAL">DONE_WAITING_APPROVAL</option>
@@ -485,201 +502,166 @@ export default function TaskDrawer({
             </label>
 
             <label style={labelStyle}>
-              <div>assigned_user_id</div>
-              <input style={inputStyle} value={assignedUserId} onChange={(e) => setAssignedUserId(e.target.value)} />
+              <span style={{ fontWeight: 800 }}>Przydzielony</span>
+              <select value={assignedUserId} onChange={(e) => setAssignedUserId(e.target.value)} style={inputStyle}>
+                <option value="">—</option>
+                {profiles.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.full_name}
+                  </option>
+                ))}
+              </select>
             </label>
           </div>
 
+          {/* ACTIONS */}
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
             <button
               onClick={save}
               disabled={saving || uploading}
               style={{
+                flex: 1,
                 padding: "10px 12px",
                 borderRadius: 12,
-                border: "1px solid rgba(17,24,39,0.18)",
+                border: "1px solid rgba(17,24,39,0.20)",
                 background: "#111827",
                 color: "#fff",
-                cursor: "pointer",
+                cursor: saving || uploading ? "not-allowed" : "pointer",
                 fontWeight: 900,
-                flex: 1,
               }}
             >
-              {saving || uploading ? "Zapisuję…" : isCreateMode ? "Zapisz i utwórz" : "Zapisz"}
+              {saving ? "Zapisuję…" : "Zapisz"}
             </button>
 
             <button
-              onClick={removeTask}
-              disabled={!taskId}
-              title={!taskId ? "Najpierw utwórz task" : "Usuń task"}
+              onClick={onClose}
+              disabled={saving || uploading}
               style={{
                 padding: "10px 12px",
                 borderRadius: 12,
-                border: "1px solid rgba(185,28,28,0.22)",
+                border: "1px solid rgba(17,24,39,0.18)",
                 background: "#fff",
-                color: "#991b1b",
-                cursor: !taskId ? "not-allowed" : "pointer",
+                color: "#111827",
+                cursor: saving || uploading ? "not-allowed" : "pointer",
                 fontWeight: 900,
-                opacity: !taskId ? 0.5 : 1,
               }}
             >
-              Usuń
+              Zamknij
             </button>
           </div>
 
-          <hr style={{ border: "none", borderTop: "1px solid rgba(17,24,39,0.08)" }} />
+          <hr style={{ border: "none", borderTop: "1px solid rgba(17,24,39,0.10)" }} />
 
           {/* PHOTOS */}
           <div style={{ display: "grid", gap: 10 }}>
             <div style={{ fontWeight: 900 }}>Zdjęcia</div>
 
-            <div style={{ display: "grid", gap: 8 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, alignItems: "end" }}>
               <label style={labelStyle}>
-                <div>Podpis (opcjonalnie) (dla kolejnego dodawanego)</div>
-                <input style={inputStyle} value={caption} onChange={(e) => setCaption(e.target.value)} />
+                <span style={{ fontWeight: 800 }}>Podpis (dla następnego)</span>
+                <input value={caption} onChange={(e) => setCaption(e.target.value)} style={inputStyle} />
               </label>
 
-              <label style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
+              <label style={{ ...labelStyle, cursor: uploading ? "not-allowed" : "pointer" }}>
+                <span style={{ fontWeight: 800 }}>Dodaj zdjęcie</span>
                 <input
                   type="file"
                   accept="image/*"
                   disabled={uploading}
-                  onChange={async (e) => {
-                    const input = e.currentTarget;
-                    const f = input.files?.[0];
-                    input.value = "";
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
                     if (!f) return;
+                    e.currentTarget.value = "";
 
-                    // ✅ w create-mode dodajemy do kolejki (bez taskId)
-                    if (!taskId) {
-                      addPendingFile(f);
+                    if (isCreate) {
+                      addPending(f);
                       return;
                     }
 
-                    // ✅ w edit-mode upload od razu
-                    await uploadPhotoNow(f, caption.trim() === "" ? null : caption.trim());
-                    setCaption("");
+                    // EDIT: od razu upload
+                    if (!taskId) return;
+                    setUploading(true);
+                    (async () => {
+                      try {
+                        const ph = await uploadOne(taskId, f, caption.trim() === "" ? null : caption.trim());
+                        setCaption("");
+                        setPhotos((prev) => [ph, ...prev]);
+                        window.dispatchEvent(new CustomEvent("task-photo-added", { detail: { taskId } }));
+                      } catch (e2: any) {
+                        setErr(e2?.message || String(e2));
+                      } finally {
+                        setUploading(false);
+                      }
+                    })();
                   }}
                 />
-                <span style={{ fontSize: 12, opacity: 0.75 }}>
-                  {uploading ? "Wysyłam…" : !taskId ? "Doda do kolejki (zapisze po Zapisz)" : ""}
-                </span>
               </label>
             </div>
 
-            {/* KOLEJKA (dla create-mode) */}
-            {pendingPhotos.length ? (
+            {/* CREATE: pending */}
+            {pendingPhotos.length > 0 && (
               <div style={{ display: "grid", gap: 8 }}>
-                <div style={{ fontSize: 12, fontWeight: 900 }}>
-                  Do zapisania po utworzeniu taska: {pendingPhotos.length}
+                <div style={{ fontSize: 12, opacity: 0.8, fontWeight: 800 }}>
+                  Zdjęcia dodane przed zapisem (zostaną wysłane po „Zapisz”):
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
                   {pendingPhotos.map((p) => (
-                    <div
-                      key={p.id}
-                      style={{
-                        border: "1px solid rgba(17,24,39,0.12)",
-                        borderRadius: 12,
-                        overflow: "hidden",
-                        background: "#fff",
-                      }}
-                    >
+                    <div key={p.id} style={{ position: "relative" }}>
+                      <img
+                        src={p.previewUrl}
+                        alt=""
+                        style={{ width: "100%", height: 92, objectFit: "cover", borderRadius: 12, border: "1px solid rgba(17,24,39,0.10)" }}
+                      />
                       <button
-                        onClick={() => setPreviewUrl(p.previewUrl)}
-                        style={{ border: "none", padding: 0, background: "transparent", cursor: "pointer", width: "100%" }}
+                        onClick={() => removePending(p.id)}
+                        style={{
+                          position: "absolute",
+                          top: 6,
+                          right: 6,
+                          width: 26,
+                          height: 26,
+                          borderRadius: 999,
+                          border: "1px solid rgba(17,24,39,0.25)",
+                          background: "rgba(255,255,255,0.92)",
+                          cursor: "pointer",
+                          fontWeight: 900,
+                        }}
+                        title="Usuń"
                       >
-                        <img
-                          src={p.previewUrl}
-                          alt=""
-                          style={{ width: "100%", height: 90, objectFit: "cover", display: "block" }}
-                        />
+                        ✕
                       </button>
-                      <div style={{ padding: 8, display: "grid", gap: 6 }}>
-                        <div style={{ fontSize: 11, opacity: 0.75, wordBreak: "break-word" }}>
-                          {p.caption ? `📝 ${p.caption}` : "—"}
-                        </div>
-                        <button
-                          onClick={() => removePending(p.id)}
-                          style={{
-                            padding: "6px 8px",
-                            borderRadius: 10,
-                            border: "1px solid rgba(185,28,28,0.22)",
-                            background: "#fff",
-                            color: "#991b1b",
-                            cursor: "pointer",
-                            fontWeight: 900,
-                            fontSize: 12,
-                          }}
-                        >
-                          Usuń z kolejki
-                        </button>
-                      </div>
+                      {p.caption && (
+                        <div style={{ marginTop: 4, fontSize: 11, opacity: 0.85, wordBreak: "break-word" }}>{p.caption}</div>
+                      )}
                     </div>
                   ))}
                 </div>
               </div>
-            ) : null}
+            )}
 
-            {/* ZAPISANE (z backendu) */}
-            {photos.length === 0 ? <div style={{ fontSize: 12, opacity: 0.75 }}>Brak zdjęć.</div> : null}
+            {/* EDIT/CREATE: existing photos list */}
+            {photos.length > 0 && (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+                {photos.map((p) => (
+                  <a key={p.id} href={p.url} target="_blank" rel="noreferrer" style={{ textDecoration: "none" }}>
+                    <img
+                      src={p.url}
+                      alt={p.caption || ""}
+                      style={{ width: "100%", height: 92, objectFit: "cover", borderRadius: 12, border: "1px solid rgba(17,24,39,0.10)" }}
+                      loading="lazy"
+                    />
+                  </a>
+                ))}
+              </div>
+            )}
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 }}>
-              {photos.map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => setPreviewUrl(p.url)}
-                  style={{
-                    border: "1px solid rgba(17,24,39,0.12)",
-                    borderRadius: 12,
-                    padding: 0,
-                    overflow: "hidden",
-                    background: "#fff",
-                    cursor: "pointer",
-                  }}
-                >
-                  <img src={p.url} alt="" style={{ width: "100%", height: 90, objectFit: "cover", display: "block" }} />
-                </button>
-              ))}
-            </div>
+            {photos.length === 0 && pendingPhotos.length === 0 && (
+              <div style={{ fontSize: 12, opacity: 0.75 }}>Brak zdjęć</div>
+            )}
           </div>
         </div>
       </div>
-
-      {/* LIGHTBOX */}
-      {previewUrl ? (
-        <div
-          onClick={() => setPreviewUrl(null)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 10000,
-            background: "rgba(0,0,0,0.65)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 20,
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: "#111827",
-              borderRadius: 16,
-              overflow: "hidden",
-              maxWidth: "min(980px, 96vw)",
-              maxHeight: "min(86vh, 900px)",
-              border: "1px solid rgba(255,255,255,0.12)",
-            }}
-          >
-            <img
-              src={fixStorageUrl(previewUrl)}
-              alt=""
-              style={{ display: "block", maxWidth: "96vw", maxHeight: "86vh", objectFit: "contain" }}
-            />
-          </div>
-        </div>
-      ) : null}
     </>
   );
 }
