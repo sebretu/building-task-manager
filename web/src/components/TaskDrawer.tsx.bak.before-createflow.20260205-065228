@@ -28,13 +28,6 @@ type CreateDraft = {
   y_norm: number;
 };
 
-type PendingPhoto = {
-  id: string;
-  file: File;
-  caption: string | null;
-  previewUrl: string; // objectURL
-};
-
 function isUuid(v: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
 }
@@ -42,8 +35,10 @@ function isUuid(v: string) {
 // ✅ FIX: jeśli backend zwróci URL z 127.0.0.1:54321, to podmień na host strony + protokół strony
 function fixStorageUrl(u: string) {
   if (!u) return u;
+
   const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
   const proto = typeof window !== "undefined" ? window.location.protocol : "http:";
+
   return u.replace("http://127.0.0.1:54321", `${proto}//${host}:54321`);
 }
 
@@ -53,10 +48,6 @@ async function fileToBase64(file: File): Promise<string> {
   const bytes = new Uint8Array(buf);
   for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
   return btoa(binary);
-}
-
-function uid() {
-  return Math.random().toString(16).slice(2) + "-" + Date.now().toString(16);
 }
 
 export default function TaskDrawer({
@@ -70,11 +61,10 @@ export default function TaskDrawer({
   taskId: string | null;
   onClose: () => void;
   uploadedBy: string;
-  createDraft?: CreateDraft | null;
+  createDraft?: CreateDraft | null; // ✅ NOWE: gdy null taskId, to ZAPISZ robi POST i dopiero wtedy tworzy task
 }) {
   const [task, setTask] = useState<TaskRow | null>(null);
   const [photos, setPhotos] = useState<TaskPhoto[]>([]);
-  const [pendingPhotos, setPendingPhotos] = useState<PendingPhoto[]>([]);
   const [err, setErr] = useState<string | null>(null);
 
   const [title, setTitle] = useState("");
@@ -105,7 +95,7 @@ export default function TaskDrawer({
 
       setTask(j1.data);
 
-      // ustawiamy formularz przy wejściu do edycji
+      // ustawiamy formularz tylko przy wejściu w tryb edycji (tu OK)
       setTitle(j1.data.title || "");
       setDescription(j1.data.description || "");
       setStatus(j1.data.status || "OPEN");
@@ -115,20 +105,21 @@ export default function TaskDrawer({
       const j2 = (await r2.json()) as ApiOk<TaskPhoto[]> | ApiErr;
       if (!r2.ok || !j2.ok) throw new Error((j2 as any)?.error?.message || "photos fetch failed");
 
-      setPhotos((j2.data || []).map((p) => ({ ...p, url: fixStorageUrl(p.url) })));
+      const fixed = (j2.data || []).map((p) => ({ ...p, url: fixStorageUrl(p.url) }));
+      setPhotos(fixed);
     } catch (e: any) {
       setErr(e?.message || String(e));
     }
   }
 
-  // Edycja: ładujemy dane tylko gdy mamy taskId
+  // ✅ Edycja: ładujemy dane tylko gdy mamy taskId
   useEffect(() => {
     if (!open || !taskId) return;
     loadAll(taskId).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, taskId]);
 
-  // Tworzenie: resetujemy formularz + kolejkę zdjęć
+  // ✅ Tworzenie: resetujemy formularz po otwarciu create-mode (żeby nie dziedziczyć starych wartości)
   useEffect(() => {
     if (!open) return;
     if (!isCreateMode) return;
@@ -143,22 +134,7 @@ export default function TaskDrawer({
     setAssignedUserId("");
     setCaption("");
     setPreviewUrl(null);
-
-    // czyścimy stare objectURL
-    setPendingPhotos((prev) => {
-      prev.forEach((p) => URL.revokeObjectURL(p.previewUrl));
-      return [];
-    });
   }, [open, isCreateMode]);
-
-  // przy zamknięciu drawer też sprzątaj objectURL (żeby nie ciekło w pamięci)
-  useEffect(() => {
-    if (open) return;
-    setPendingPhotos((prev) => {
-      prev.forEach((p) => URL.revokeObjectURL(p.previewUrl));
-      return [];
-    });
-  }, [open]);
 
   const inputStyle: React.CSSProperties = {
     width: "100%",
@@ -177,9 +153,6 @@ export default function TaskDrawer({
     if (!createDraft) throw new Error("Brak createDraft");
     if (!isUuid(uploadedBy)) throw new Error("created_by(uploadedBy) nie jest UUID (DEV)");
 
-    const trimmed = assignedUserId.trim();
-    if (trimmed && !isUuid(trimmed)) throw new Error("assigned_user_id musi być UUID albo puste");
-
     const r = await fetch("/api/tasks", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -192,7 +165,7 @@ export default function TaskDrawer({
         description: description.trim() === "" ? null : description.trim(),
         status,
         created_by: uploadedBy,
-        assigned_user_id: trimmed ? trimmed : null,
+        assigned_user_id: assignedUserId.trim() === "" ? null : assignedUserId.trim(),
       }),
     });
 
@@ -205,28 +178,6 @@ export default function TaskDrawer({
     return newId;
   }
 
-  async function uploadPhotoToTask(pTaskId: string, file: File, pCaption: string | null) {
-    const base64 = await fileToBase64(file);
-
-    const r = await fetch("/api/task-photos", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        task_id: pTaskId,
-        uploaded_by: uploadedBy,
-        file_name: file.name || "photo.jpg",
-        caption: pCaption,
-        base64,
-      }),
-    });
-
-    const j = await r.json();
-    if (!r.ok || !j?.ok) throw new Error(j?.error?.message || "upload failed");
-
-    const newPhoto: TaskPhoto = { ...j.data, url: fixStorageUrl(j.data.url) };
-    return newPhoto;
-  }
-
   async function save() {
     setErr(null);
 
@@ -237,38 +188,21 @@ export default function TaskDrawer({
         return;
       }
 
+      const trimmed = assignedUserId.trim();
+      if (trimmed && !isUuid(trimmed)) return setErr("assigned_user_id musi być UUID albo puste");
+
       setSaving(true);
-      setUploading(true);
       try {
         const newId = await createTask();
 
-        // upload kolejki zdjęć (jeśli są)
-        if (pendingPhotos.length) {
-          const uploaded: TaskPhoto[] = [];
-          for (const p of pendingPhotos) {
-            const up = await uploadPhotoToTask(newId, p.file, p.caption);
-            uploaded.push(up);
-          }
-          // po create+upload możesz mieć od razu listę
-          setPhotos((prev) => [...uploaded.reverse(), ...prev]);
-        }
-
-        // marker/lista dopiero teraz
+        // 🔔 marker/lista dopiero teraz
         window.dispatchEvent(new CustomEvent("task-created", { detail: { taskId: newId } }));
         window.dispatchEvent(new CustomEvent("task-saved", { detail: { taskId: newId } }));
-        if (pendingPhotos.length) {
-          window.dispatchEvent(new CustomEvent("task-photo-added", { detail: { taskId: newId } }));
-        }
-
-        // sprzątamy objectURL
-        pendingPhotos.forEach((p) => URL.revokeObjectURL(p.previewUrl));
-        setPendingPhotos([]);
 
         onClose();
       } catch (e: any) {
         setErr(e?.message || String(e));
       } finally {
-        setUploading(false);
         setSaving(false);
       }
       return;
@@ -308,9 +242,9 @@ export default function TaskDrawer({
     }
   }
 
-  async function uploadPhotoNow(file: File, pCaption: string | null) {
+  async function uploadPhoto(file: File) {
     if (!taskId) {
-      setErr("Najpierw utwórz task (Zapisz), albo dodaj zdjęcie do kolejki (to zrobimy automatycznie).");
+      setErr("Najpierw kliknij Zapisz (utwórz task), potem dodawaj zdjęcia.");
       return;
     }
 
@@ -320,33 +254,34 @@ export default function TaskDrawer({
 
     setUploading(true);
     try {
-      const newPhoto = await uploadPhotoToTask(taskId, file, pCaption);
+      const base64 = await fileToBase64(file);
+
+      const r = await fetch("/api/task-photos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          task_id: taskId,
+          uploaded_by: uploadedBy,
+          file_name: file.name || "photo.jpg",
+          caption: caption.trim() === "" ? null : caption.trim(),
+          base64,
+        }),
+      });
+
+      const j = await r.json();
+      if (!r.ok || !j?.ok) throw new Error(j?.error?.message || "upload failed");
+
+      setCaption("");
+
+      const newPhoto: TaskPhoto = { ...j.data, url: fixStorageUrl(j.data.url) };
       setPhotos((prev) => [newPhoto, ...prev]);
+
       window.dispatchEvent(new CustomEvent("task-photo-added", { detail: { taskId } }));
     } catch (e: any) {
       setErr(e?.message || String(e));
     } finally {
       setUploading(false);
     }
-  }
-
-  function addPendingFile(file: File) {
-    const p: PendingPhoto = {
-      id: uid(),
-      file,
-      caption: caption.trim() === "" ? null : caption.trim(),
-      previewUrl: URL.createObjectURL(file),
-    };
-    setPendingPhotos((prev) => [p, ...prev]);
-    setCaption("");
-  }
-
-  function removePending(id: string) {
-    setPendingPhotos((prev) => {
-      const item = prev.find((x) => x.id === id);
-      if (item) URL.revokeObjectURL(item.previewUrl);
-      return prev.filter((x) => x.id !== id);
-    });
   }
 
   async function removeTask() {
@@ -485,7 +420,7 @@ export default function TaskDrawer({
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
             <button
               onClick={save}
-              disabled={saving || uploading}
+              disabled={saving}
               style={{
                 padding: "10px 12px",
                 borderRadius: 12,
@@ -497,7 +432,7 @@ export default function TaskDrawer({
                 flex: 1,
               }}
             >
-              {saving || uploading ? "Zapisuję…" : isCreateMode ? "Zapisz i utwórz" : "Zapisz"}
+              {saving ? "Zapisuję…" : isCreateMode ? "Zapisz i utwórz" : "Zapisz"}
             </button>
 
             <button
@@ -525,9 +460,15 @@ export default function TaskDrawer({
           <div style={{ display: "grid", gap: 10 }}>
             <div style={{ fontWeight: 900 }}>Zdjęcia</div>
 
+            {!taskId ? (
+              <div style={{ fontSize: 12, opacity: 0.8 }}>
+                Najpierw kliknij <b>Zapisz i utwórz</b>, żeby można było dodawać zdjęcia.
+              </div>
+            ) : null}
+
             <div style={{ display: "grid", gap: 8 }}>
               <label style={labelStyle}>
-                <div>Podpis (opcjonalnie) (dla kolejnego dodawanego)</div>
+                <div>Podpis (opcjonalnie)</div>
                 <input style={inputStyle} value={caption} onChange={(e) => setCaption(e.target.value)} />
               </label>
 
@@ -535,85 +476,19 @@ export default function TaskDrawer({
                 <input
                   type="file"
                   accept="image/*"
-                  disabled={uploading}
+                  disabled={uploading || !taskId}
                   onChange={async (e) => {
                     const input = e.currentTarget;
                     const f = input.files?.[0];
                     input.value = "";
                     if (!f) return;
-
-                    // ✅ w create-mode dodajemy do kolejki (bez taskId)
-                    if (!taskId) {
-                      addPendingFile(f);
-                      return;
-                    }
-
-                    // ✅ w edit-mode upload od razu
-                    await uploadPhotoNow(f, caption.trim() === "" ? null : caption.trim());
-                    setCaption("");
+                    await uploadPhoto(f);
                   }}
                 />
-                <span style={{ fontSize: 12, opacity: 0.75 }}>
-                  {uploading ? "Wysyłam…" : !taskId ? "Doda do kolejki (zapisze po Zapisz)" : ""}
-                </span>
+                <span style={{ fontSize: 12, opacity: 0.75 }}>{uploading ? "Wysyłam…" : ""}</span>
               </label>
             </div>
 
-            {/* KOLEJKA (dla create-mode) */}
-            {pendingPhotos.length ? (
-              <div style={{ display: "grid", gap: 8 }}>
-                <div style={{ fontSize: 12, fontWeight: 900 }}>
-                  Do zapisania po utworzeniu taska: {pendingPhotos.length}
-                </div>
-
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 }}>
-                  {pendingPhotos.map((p) => (
-                    <div
-                      key={p.id}
-                      style={{
-                        border: "1px solid rgba(17,24,39,0.12)",
-                        borderRadius: 12,
-                        overflow: "hidden",
-                        background: "#fff",
-                      }}
-                    >
-                      <button
-                        onClick={() => setPreviewUrl(p.previewUrl)}
-                        style={{ border: "none", padding: 0, background: "transparent", cursor: "pointer", width: "100%" }}
-                      >
-                        <img
-                          src={p.previewUrl}
-                          alt=""
-                          style={{ width: "100%", height: 90, objectFit: "cover", display: "block" }}
-                        />
-                      </button>
-                      <div style={{ padding: 8, display: "grid", gap: 6 }}>
-                        <div style={{ fontSize: 11, opacity: 0.75, wordBreak: "break-word" }}>
-                          {p.caption ? `📝 ${p.caption}` : "—"}
-                        </div>
-                        <button
-                          onClick={() => removePending(p.id)}
-                          style={{
-                            padding: "6px 8px",
-                            borderRadius: 10,
-                            border: "1px solid rgba(185,28,28,0.22)",
-                            background: "#fff",
-                            color: "#991b1b",
-                            cursor: "pointer",
-                            fontWeight: 900,
-                            fontSize: 12,
-                          }}
-                        >
-                          Usuń z kolejki
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-
-            {/* ZAPISANE (z backendu) */}
             {photos.length === 0 ? <div style={{ fontSize: 12, opacity: 0.75 }}>Brak zdjęć.</div> : null}
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 }}>
