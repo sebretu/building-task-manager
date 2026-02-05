@@ -82,9 +82,6 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
   const [thumbByTask, setThumbByTask] = useState<Record<string, string | null>>({});
   const [drawerTaskId, setDrawerTaskId] = useState<string | null>(null);
 
-  // ✅ CREATE MODE (klik w mapę -> draft; task powstaje dopiero po "Zapisz" w drawer)
-  const [createDraft, setCreateDraft] = useState<any>(null);
-
   const worldPxW = meta.gridW * meta.tileSize;
   const worldPxH = meta.gridH * meta.tileSize;
 
@@ -126,33 +123,23 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
 
   // EVENT z TaskDrawer po uploadzie: odśwież miniaturę + listę tasków
   useEffect(() => {
-    const onPhotoAdded = (e: any) => {
+    const h = (e: any) => {
       const id = e?.detail?.taskId;
       if (!id) return;
-      loadThumb(id).catch(() => {}); // FORCE (po nowym zdjęciu)
+      loadThumb(id).catch(() => {}); // tu ma być FORCE (po nowym zdjęciu)
       loadTasks().catch(() => {});
     };
 
-    const onCreated = (e: any) => {
-      const id = e?.detail?.taskId;
-      if (!id) return;
-      // po utworzeniu taska:
-      setCreateDraft(null);
-      setDrawerTaskId(id);
-      loadTasks().catch(() => {});
-      loadThumb(id).catch(() => {});
-    };
-
-    window.addEventListener("task-photo-added", onPhotoAdded);
+    window.addEventListener("task-photo-added", h);
     window.addEventListener("task-saved", loadTasks as any);
     window.addEventListener("task-deleted", loadTasks as any);
-    window.addEventListener("task-created", onCreated as any);
+    window.addEventListener("task-created", loadTasks as any);
 
     return () => {
-      window.removeEventListener("task-photo-added", onPhotoAdded);
+      window.removeEventListener("task-photo-added", h);
       window.removeEventListener("task-saved", loadTasks as any);
       window.removeEventListener("task-deleted", loadTasks as any);
-      window.removeEventListener("task-created", onCreated as any);
+      window.removeEventListener("task-created", loadTasks as any);
     };
   }, [loadTasks]);
 
@@ -167,16 +154,25 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
           plan_id: planId,
           x_norm: p.x / worldPxW,
           y_norm: p.y / worldPxH,
-          created_by: CREATED_BY,
         };
 
-        // wchodzimy w create-mode
-        setDrawerTaskId(null);
-        setCreateDraft(draft);
+        // @ts-expect-error - TaskDrawer obsłuży createDraft
+        window.dispatchEvent(new CustomEvent("open-create-task", { detail: draft }));
       },
     });
     return null;
   }
+
+  // otwieranie create-drawera przez event
+  const [createDraft, setCreateDraft] = useState<any>(null);
+  useEffect(() => {
+    const h = (e: any) => {
+      setCreateDraft(e?.detail || null);
+      setDrawerTaskId(null);
+    };
+    window.addEventListener("open-create-task", h);
+    return () => window.removeEventListener("open-create-task", h);
+  }, []);
 
   return (
     <>
@@ -275,10 +271,7 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
                       cursor: "pointer",
                       fontWeight: 800,
                     }}
-                    onClick={() => {
-                      setCreateDraft(null);
-                      setDrawerTaskId(t.id);
-                    }}
+                    onClick={() => setDrawerTaskId(t.id)}
                   >
                     Otwórz task
                   </button>
@@ -289,18 +282,7 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
         })}
       </MapContainer>
 
-      {/* ✅ Drawer otwiera się zarówno dla edycji (taskId), jak i create (createDraft) */}
-      <TaskDrawer
-        open={!!drawerTaskId || !!createDraft}
-        taskId={drawerTaskId}
-        uploadedBy={CREATED_BY}
-        // @ts-expect-error - TaskDrawer obsługuje createDraft po Twojej stronie
-        createDraft={createDraft}
-        onClose={() => {
-          setDrawerTaskId(null);
-          setCreateDraft(null);
-        }}
-      />
+      <TaskDrawer open={!!drawerTaskId} taskId={drawerTaskId} uploadedBy={CREATED_BY} onClose={() => setDrawerTaskId(null)} />
     </>
   );
 }
