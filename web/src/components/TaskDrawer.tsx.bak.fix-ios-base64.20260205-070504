@@ -48,20 +48,12 @@ function fixStorageUrl(u: string) {
 }
 
 async function fileToBase64(file: File): Promise<string> {
-  return await new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error("FileReader error"));
-    reader.onload = () => {
-      const result = String(reader.result || "");
-      // result = "data:image/jpeg;base64,AAAA...."
-      const idx = result.indexOf("base64,");
-      if (idx === -1) return reject(new Error("Invalid data URL"));
-      resolve(result.slice(idx + "base64,".length));
-    };
-    reader.readAsDataURL(file);
-  });
+  const buf = await file.arrayBuffer();
+  let binary = "";
+  const bytes = new Uint8Array(buf);
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary);
 }
-
 
 function uid() {
   return Math.random().toString(16).slice(2) + "-" + Date.now().toString(16);

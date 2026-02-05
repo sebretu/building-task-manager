@@ -1,15 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { createClient } from "@supabase/supabase-js";
 
-// ✅ NEW: podnieś limit body (base64 z iPhone robi się ogromne)
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: "25mb",
-    },
-  },
-};
-
 type ApiOk = { ok: true; data: any; meta?: any };
 type ApiErr = { ok: false; error: { code: string; message: string; meta?: any } };
 
@@ -31,11 +22,7 @@ function bad(res: NextApiResponse<ApiOk | ApiErr>, message: string, meta?: any) 
 function supaErr(res: NextApiResponse<ApiOk | ApiErr>, error: any) {
   return res.status(error?.status || 400).json({
     ok: false,
-    error: {
-      code: "SUPABASE",
-      message: error?.message || "supabase error",
-      meta: { code: error?.code, details: error?.details },
-    },
+    error: { code: "SUPABASE", message: error?.message || "supabase error", meta: { code: error?.code, details: error?.details } },
   });
 }
 
@@ -113,9 +100,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
           ? "image/webp"
           : ext === "gif"
             ? "image/gif"
-            : ext === "heic" || ext === "heif" // ✅ NEW: iPhone często daje HEIC/HEIF
-              ? "image/heic"
-              : "image/jpeg";
+            : "image/jpeg";
 
     // Upload do Storage
     const up = await supabase.storage.from(bucket).upload(storage_path, buf, {
@@ -127,11 +112,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     if (up.error) return supaErr(res, up.error);
 
     // Public URL (bucket public)
-    // ===== PUBLIC URL (FIX FOR PROD) =====
-    const PUBLIC_SUPABASE_URL =
-      process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "") || "http://188.245.42.178:54321";
+// ===== PUBLIC URL (FIX FOR PROD) =====
+const PUBLIC_SUPABASE_URL =
+  process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "") ||
+  "http://188.245.42.178:54321";
 
-    const publicUrl = `${PUBLIC_SUPABASE_URL}/storage/v1/object/public/${bucket}/${storage_path}`;
+const publicUrl = `${PUBLIC_SUPABASE_URL}/storage/v1/object/public/${bucket}/${storage_path}`;
 
     if (!publicUrl) return bad(res, "Failed to create public URL");
 
