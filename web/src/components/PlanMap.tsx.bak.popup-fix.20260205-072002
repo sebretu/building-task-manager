@@ -62,13 +62,19 @@ function statusBadge(status?: string) {
 }
 
 // ✅ FIX: podmień dowolny "http://<host>:54321" na "{proto}//{hostname}:54321"
+// (naprawia mixed-content i stare linki z 127.0.0.1)
 function fixStorageUrl(u: string) {
   if (!u) return u;
   if (typeof window === "undefined") return u;
 
   const host = window.location.hostname;
   const proto = window.location.protocol; // "http:" albo "https:"
-  return u.replace(/^http:\/\/[^/]+:54321/i, `${proto}//${host}:54321`);
+
+  // 1) najpierw wymuś host+proto dla storage na porcie 54321
+  //    łapie: http://127.0.0.1:54321, http://188.245.42.178:54321, itp.
+  const replaced = u.replace(/^http:\/\/[^/]+:54321/i, `${proto}//${host}:54321`);
+
+  return replaced;
 }
 
 export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }) {
@@ -115,18 +121,12 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
     setThumbByTask((p) => ({ ...p, [taskId]: fixed }));
   }
 
-  // ✅ żeby nie robić pętli/re-renderów: dociągamy miniaturę tylko jeśli jej jeszcze nie mamy
-  function ensureThumb(taskId: string) {
-    if (Object.prototype.hasOwnProperty.call(thumbByTask, taskId)) return;
-    loadThumb(taskId).catch(() => {});
-  }
-
   // EVENT z TaskDrawer po uploadzie: odśwież miniaturę + listę tasków
   useEffect(() => {
     const h = (e: any) => {
       const id = e?.detail?.taskId;
       if (!id) return;
-      loadThumb(id).catch(() => {}); // tu ma być FORCE (po nowym zdjęciu)
+      loadThumb(id).catch(() => {});
       loadTasks().catch(() => {});
     };
 
@@ -149,6 +149,7 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
         const p = CRS.latLngToPoint(e.latlng, meta.maxZoom);
 
         // 👉 zamiast tworzyć task od razu, otwieramy drawer w trybie CREATE
+        // Task powstanie dopiero po "Zapisz" w drawer.
         const draft = {
           project_id: PROJECT_ID,
           plan_id: planId,
@@ -163,7 +164,7 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
     return null;
   }
 
-  // otwieranie create-drawera przez event
+  // otwieranie create-drawera przez event (bez grzebania dalej w strukturze)
   const [createDraft, setCreateDraft] = useState<any>(null);
   useEffect(() => {
     const h = (e: any) => {
@@ -199,23 +200,29 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
               key={t.id}
               position={ll}
               eventHandlers={{
-                click: () => ensureThumb(t.id),
+                // możesz też ładować thumb od razu po kliknięciu markera
+                click: () => {
+                  if (thumbByTask[t.id] === undefined) loadThumb(t.id).catch(() => {});
+                },
               }}
             >
               <Popup
                 autoPan
                 closeButton
-                // ✅ to rozwiązuje ucinanie bez keepInView (który robił recursion)
-                autoPanPaddingTopLeft={[16, 240]}
+                keepInView
+                // ✅ żeby popup nie był ucięty przez górę/ramkę
+                autoPanPaddingTopLeft={[16, 140]}
                 autoPanPaddingBottomRight={[16, 16]}
+                // ✅ delikatnie w dół
                 offset={[0, 14]}
                 eventHandlers={{
                   popupopen: () => {
-                    ensureThumb(t.id);
+                    loadThumb(t.id).catch(() => {});
                   },
                 }}
               >
-                <div style={{ width: 240, color: "#111827" }}>
+                {/* ✅ key wymusza rerender popup po doładowaniu miniatury */}
+                <div key={`${t.id}-${thumb ?? "none"}`} style={{ width: 240, color: "#111827" }}>
                   {thumb ? (
                     <img
                       src={thumb}
@@ -229,6 +236,7 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
                         display: "block",
                       }}
                       onError={() => {
+                        // jeśli obrazek się nie ładuje, wyzeruj cache (żeby placeholder się pokazał)
                         setThumbByTask((p) => ({ ...p, [t.id]: null }));
                       }}
                     />
@@ -282,6 +290,8 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
         })}
       </MapContainer>
 
+      {/* U Ciebie TaskDrawer prawdopodobnie już obsługuje tryb create przez event open-create-task.
+          Zostawiam wywołanie jak było (minimalnie, bez dokładania propsów). */}
       <TaskDrawer open={!!drawerTaskId} taskId={drawerTaskId} uploadedBy={CREATED_BY} onClose={() => setDrawerTaskId(null)} />
     </>
   );
