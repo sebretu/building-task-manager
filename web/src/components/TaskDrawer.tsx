@@ -468,6 +468,91 @@ export default function TaskDrawer({
             </label>
           </div>
 
+          {/* WORKFLOW BUTTONS */}
+          {!isCreate && (
+            <div style={{ display: "grid", gap: 8 }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: "rgba(17,24,39,0.6)" }}>Akcje workflow</div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {status === "OPEN" && (
+                  <button
+                    onClick={() => setStatus("IN_PROGRESS")}
+                    style={{
+                      padding: "8px 14px",
+                      borderRadius: 10,
+                      border: "1px solid rgba(59,130,246,0.35)",
+                      background: "rgba(59,130,246,0.08)",
+                      color: "#2563eb",
+                      cursor: "pointer",
+                      fontWeight: 800,
+                      fontSize: 13,
+                    }}
+                  >
+                    ▶️ Rozpocznij pracę
+                  </button>
+                )}
+
+                {status === "IN_PROGRESS" && (
+                  <button
+                    onClick={() => setStatus("DONE_WAITING_APPROVAL")}
+                    style={{
+                      padding: "8px 14px",
+                      borderRadius: 10,
+                      border: "1px solid rgba(249,115,22,0.35)",
+                      background: "rgba(249,115,22,0.08)",
+                      color: "#ea580c",
+                      cursor: "pointer",
+                      fontWeight: 800,
+                      fontSize: 13,
+                    }}
+                  >
+                    ✅ Gotowe do akceptacji
+                  </button>
+                )}
+
+                {status === "DONE_WAITING_APPROVAL" && (
+                  <>
+                    <button
+                      onClick={() => setStatus("APPROVED")}
+                      style={{
+                        padding: "8px 14px",
+                        borderRadius: 10,
+                        border: "1px solid rgba(34,197,94,0.35)",
+                        background: "rgba(34,197,94,0.08)",
+                        color: "#16a34a",
+                        cursor: "pointer",
+                        fontWeight: 800,
+                        fontSize: 13,
+                      }}
+                    >
+                      ✔️ Zatwierdź
+                    </button>
+                    <button
+                      onClick={() => setStatus("REJECTED")}
+                      style={{
+                        padding: "8px 14px",
+                        borderRadius: 10,
+                        border: "1px solid rgba(239,68,68,0.35)",
+                        background: "rgba(239,68,68,0.08)",
+                        color: "#dc2626",
+                        cursor: "pointer",
+                        fontWeight: 800,
+                        fontSize: 13,
+                      }}
+                    >
+                      ✖️ Odrzuć
+                    </button>
+                  </>
+                )}
+
+                {(status === "APPROVED" || status === "REJECTED") && (
+                  <div style={{ fontSize: 13, color: "rgba(17,24,39,0.5)", fontStyle: "italic" }}>
+                    Status końcowy: {status === "APPROVED" ? "✅ Zatwierdzony" : "❌ Odrzucony"}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* ACTIONS */}
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
             <button

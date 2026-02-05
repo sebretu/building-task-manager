@@ -51,11 +51,11 @@
   - Click na marker → otworzy TaskDrawer
   - CREATE zadania (click na mapę, dwa razy)
 - **Issues:**
-  - Markery mogą się nie ładować (problem z RLS na GET /api/tasks)
-  - DELETE task ma błąd "Invalid status transition"
+  - ~~Markery mogą się nie ładować (problem z RLS na GET /api/tasks)~~ ✅ FIXED
+  - ~~DELETE task ma błąd "Invalid status transition"~~ ✅ FIXED
 - **TODO:** 
-  - Naprawić lifecycle markera (create → open → close)
-  - Poprawić status transitions
+  - ~~Naprawić lifecycle markera (create → open → close)~~ ✅ DONE
+  - ~~Poprawić status transitions~~ ✅ DONE
 
 #### 6. Lista zadań
 - **Plik:** `src/app/page.tsx`
@@ -70,21 +70,37 @@
 
 #### 7. Szczegóły zadania (TaskDrawer)
 - **Plik:** `src/components/TaskDrawer.tsx`
-- **Status:** Mostly working
+- **Status:** ✅ Working
 - **Features:**
   - Edit: title, description, priority, status, due_date
   - Assign: assigned_user_id (UUID)
   - DELETE task
+  - **Workflow UI:**
+    - Przyciski: "Rozpocznij pracę" (OPEN → IN_PROGRESS)
+    - "Gotowe do akceptacji" (IN_PROGRESS → DONE_WAITING_APPROVAL)
+    - "Zatwierdź" / "Odrzuć" (DONE → APPROVED/REJECTED)
   - **Zdjęcia:**
     - Upload foto do zadania
     - Lista zdjęć
     - Usuwanie zdjęcia
 - **Issues:**
-  - RLS block na INSERT `task_photos` (brak userId / not uploaded_by = auth.uid())
-  - DELETE zadania zwraca "Invalid status transition: OPEN -> REJECTED"
+  - ~~RLS block na INSERT `task_photos` (brak userId / not uploaded_by = auth.uid())~~ ✅ FIXED
+  - ~~DELETE zadania zwraca "Invalid status transition: OPEN -> REJECTED"~~ ✅ FIXED
 - **TODO:**
-  - Poprawić RLS na task_photos
-  - Poprawić delete workflow
+  - ~~Poprawić RLS na task_photos~~ ✅ DONE
+  - ~~Poprawić delete workflow~~ ✅ DONE
+
+#### 8. Workflow akceptacji zadań
+- **Plik:** `src/components/TaskDrawer.tsx`
+- **Status:** ✅ Working
+- **Features:**
+  - Przyciski workflow w TaskDrawer:
+    - OPEN → "Rozpocznij pracę" → IN_PROGRESS
+    - IN_PROGRESS → "Gotowe do akceptacji" → DONE_WAITING_APPROVAL
+    - DONE_WAITING_APPROVAL → "Zatwierdź" (APPROVED) lub "Odrzuć" (REJECTED)
+  - Kolorowane przyciski (niebieski/pomarańczowy/zielony/czerwony)
+  - Status końcowy pokazuje ikony ✅/❌
+- **TODO:** Brak (fully working)
 
 ### ❌ NIEZAIMPLEMENTOWANE
 
@@ -99,14 +115,7 @@
 - Brak ekranu dodawania członków do projektu
 - **TODO:** Stworzyć `/companies`, `/users`, `/projects/{id}/members`
 
-#### 3. Akceptacja / odrzucenie zadań (workflow)
-- Brak UI do zmeny statusu na APPROVED/REJECTED
-- Constraint blokuje delete (bo próbuje OPEN -> REJECTED)
-- **TODO:**
-  - Dodać akcje APPROVE/REJECT w TaskDrawer
-  - Naprawić status transitions
-
-#### 4. Komentarze do zadań
+#### 3. Komentarze do zadań
 - Tabela `task_comments` prawdopodobnie jest w DB
 - Brak UI do wyświetlania/dodawania komentarów
 - **TODO:** Dodać section komentarzy w TaskDrawer
@@ -138,17 +147,18 @@
 
 ### ⚠️ CZĘŚCIOWO DZIAŁAJĄCE
 
-#### 1. RLS Policies
-- Napisane są w SQL, ale:
-  - `task_photos` insert blokuje (uploaded_by musi = auth.uid(), ale userId null w dev)
-  - `storage.objects` select może być zbyt restrykcyjny
-  - `tasks` delete ma constraint na status transitions
-- **TODO:** Rozluźnić RLS dla dev (zrobione w dev_relaxed_rls.sql)
+#### 1. RLS Policies ✅ FIXED
+- ~~Napisane są w SQL, ale:~~
+  - ~~`task_photos` insert blokuje (uploaded_by musi = auth.uid(), ale userId null w dev)~~ ✅ FIXED
+  - ~~`storage.objects` select może być zbyt restrykcyjny~~ ✅ FIXED (relaxed policies)
+  - ~~`tasks` delete ma constraint na status transitions~~ ✅ FIXED (dropped trigger)
+- **DONE:** RLS policies applied, trigger removed, dev & prod working
 
-#### 2. Auth/userId context
-- Server: `createServerSupabaseClient` wymaga Bearer token
-- Dev fallback: przełącznik NODE_ENV !== 'production' + DEV_SUPABASE_USER_ID env
-- **TODO:** Ustawić DEV_SUPABASE_USER_ID i zテست
+#### 2. Auth/userId context ✅ WORKING
+- Server: `createServerSupabaseClient` wymaga Bearer token ✅
+- Phase B: removed DEV fallback, requires real JWT token ✅
+- Client: `apiClient.ts` auto-injects Authorization header ✅
+- **DONE:** Full auth flow working with real Supabase Auth
 
 #### 3. API Routes
 - **Dostępne:**
@@ -176,6 +186,7 @@
 - [ ] Dodać proper logowanie (ekran /auth/login)
 - [x] Przetestować full flow: create plan → view → create task → upload photo → delete task
 - [x] Naprawić status transitions (OPEN → APPROVED/REJECTED)
+- [x] Dodać workflow UI (przyciski OPEN → IN_PROGRESS → DONE → APPROVED/REJECTED)
 
 ### ✅ Checklista testów V1 (manual)
 - [x] Logowanie użytkownika (admin@demo.local / Password123!)
@@ -209,28 +220,39 @@
 
 ## Podsumowanie
 
-**V1 Status: ~60% done**
+**V1 Status: ~90% done** (Phase B complete, workflow UI added)
 
 ### Co działa:
-✅ Auth basic
+✅ Auth + RLS (Phase B: Bearer token required, no service role fallback)
 ✅ Projects
 ✅ Plans listing + upload + viewer
-✅ Tasks listing + create + edit
-✅ Task photos upload
-✅ Markery na mapie
+✅ Tasks listing + create + edit + DELETE
+✅ Task photos upload (RLS fixed)
+✅ Markery na mapie (full lifecycle)
+✅ Server-side auth helper (lib/supabaseServer.ts)
+✅ Client-side API wrapper (lib/apiClient.ts)
+✅ Workflow UI: przyciski OPEN → IN_PROGRESS → DONE → APPROVED/REJECTED
 
 ### Co nie działa:
-❌ Task delete (status transition error)
-❌ Photo upload (RLS block)
-❌ Workflow approval
-❌ User management
+❌ User management ekrany
 ❌ PWA offline
 ❌ i18n
+❌ Komentarze
+❌ Historia zmian UI
 
-### Co trzeba teraz:
-1. Naprawić RLS dla dev (run dev_relaxed_rls.sql w Supabase)
-2. Ustawić DEV_SUPABASE_USER_ID
-3. Zrestart dev server
-4. Przetestować delete task (powinno działać po RLS fix)
-5. Testowanie full flow
+### Co zrobiliśmy (Phase B complete + Workflow UI):
+1. ✅ Naprawiono RLS (policies applied, trigger removed)
+2. ✅ Usunięto DEV fallback (wymaga prawdziwego JWT)
+3. ✅ Zaimplementowano server helper (createServerSupabaseClient)
+4. ✅ Zaimplementowano client helper (apiClient.ts)
+5. ✅ Naprawiono delete task (używa DELETE endpoint)
+6. ✅ Przetestowano full flow - wszystko działa
+7. ✅ Dodano workflow UI buttons (OPEN → IN_PROGRESS → DONE → APPROVED/REJECTED)
+
+### Co dalej (Priority dla MVP):
+1. 🔶 Zarządzanie użytkownikami (lista, dodawanie do projektów)
+2. ~~🔶 Workflow UI: przyciski APPROVE/REJECT w TaskDrawer~~ ✅ DONE
+3. 🔶 Komentarze do zadań (UI + endpoints)
+4. ⭐ PWA offline support (nice to have)
+5. ⭐ i18n multi-language (nice to have)
 
