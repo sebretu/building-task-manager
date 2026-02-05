@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { createClient } from "@supabase/supabase-js";
+import { createServerSupabaseClient, getUserIdFromRequest } from "@/lib/supabaseServer";
 
 // ✅ NEW: podnieś limit body (base64 z iPhone robi się ogromne)
 export const config = {
@@ -40,15 +40,14 @@ function supaErr(res: NextApiResponse<ApiOk | ApiErr>, error: any) {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse<ApiOk | ApiErr>) {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-  const service = process.env.SUPABASE_SERVICE_ROLE_KEY || null;
+  let supabase;
+  let userId: string | null = null;
 
-  // DEV/MVP: service role omija RLS.
-  // Docelowo: przechodzimy na sesję usera (auth.uid()) i polityki same zadziałają.
-  const supabase = createClient(url, service || anon, {
-    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-  });
+  try {
+    ({ client: supabase, userId } = createServerSupabaseClient(req));
+  } catch (e: any) {
+    return res.status(401).json({ ok: false, error: { code: "AUTH_INVALID", message: "Missing Bearer token" } });
+  }
 
   // ------------------------
   // GET /api/task-photos?taskId=...
@@ -67,21 +66,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     return res.status(200).json({ ok: true, data: data ?? [] });
   }
 
-  // ------------------------
   // POST /api/task-photos
-  // body: { task_id, uploaded_by, file_name, caption?, base64 }
-  // ------------------------
+  // body: { task_id, file_name, caption?, base64 }
   if (req.method === "POST") {
     const body = readJsonBody(req);
 
     const task_id = String(body?.task_id || "").trim();
-    const uploaded_by = String(body?.uploaded_by || "").trim(); // DEV; docelowo auth.uid()
+    const uploaded_by = userId; // auth.uid() z JWT
     const file_name = String(body?.file_name || "").trim() || "photo.jpg";
     const caption = body?.caption == null ? null : String(body.caption);
     const base64 = String(body?.base64 || "").trim();
 
     if (!task_id) return bad(res, "Missing task_id");
-    if (!uploaded_by) return bad(res, "Missing uploaded_by (DEV)");
+    if (!uploaded_by) return bad(res, "Cannot determine user from token");
     if (!base64) return bad(res, "Missing base64");
 
     // base64 może przyjść jako data:image/...;base64,....

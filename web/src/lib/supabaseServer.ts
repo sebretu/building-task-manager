@@ -1,0 +1,89 @@
+import { createClient } from "@supabase/supabase-js";
+import type { NextApiRequest } from "next";
+import type { Database } from "@repo/supabase";
+
+/**
+ * Extract Bearer token from Authorization header
+ */
+export function getBearerToken(req: NextApiRequest | Request): string | null {
+  const auth =
+    req instanceof Request
+      ? req.headers.get("authorization") || ""
+      : (req.headers.authorization || "");
+
+  if (!auth.toLowerCase().startsWith("bearer ")) return null;
+  return auth.slice(7).trim() || null;
+}
+
+/**
+ * Extract JWT from Authorization header
+ */
+export function getAuthToken(req: NextApiRequest | Request): string | null {
+  return getBearerToken(req);
+}
+
+/**
+ * Create authenticated Supabase client:
+ * - Uses Bearer token from Authorization header (user session)
+ * - Falls back to service role only in DEV mode
+ * - For FAZA B: remove fallback, make token required always
+ */
+export function createServerSupabaseClient(
+  req: NextApiRequest | Request,
+  options?: { requireAuth?: boolean }
+): { client: ReturnType<typeof createClient<Database>>; userId: string | null } {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+  const token = getAuthToken(req);
+
+  // By default require auth (FAZA B). Only if caller passes { requireAuth: false } allow anonymous.
+  if (!token && options?.requireAuth !== false) {
+    throw new Error("AUTH_REQUIRED");
+  }
+
+  const client = createClient<Database>(url, anonKey, {
+    global: token ? { headers: { Authorization: `Bearer ${token}` } } : undefined,
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  });
+
+  // Decode userId from JWT if present
+  let userId: string | null = null;
+  if (token) {
+    try {
+      const parts = token.split(".");
+      if (parts.length === 3) {
+        const decoded = JSON.parse(Buffer.from(parts[1], "base64").toString());
+        userId = decoded.sub || null;
+      }
+    } catch {
+      // Nie udało się decode, userId pozostaje null
+    }
+  }
+
+  return { client, userId };
+}
+
+/**
+ * Helper: get userId from request
+ */
+export function getUserIdFromRequest(req: NextApiRequest | Request): string | null {
+  const token = getBearerToken(req);
+  if (!token) return null;
+
+  try {
+    const parts = token.split(".");
+    if (parts.length === 3) {
+      const decoded = JSON.parse(Buffer.from(parts[1], "base64").toString());
+      return decoded.sub || null;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}

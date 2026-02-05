@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { supabase } from "@/lib/supabase";
+import { apiGet, getToken } from "@/lib/apiClient";
 
 type Project = { id: string; name: string };
 
@@ -27,17 +27,7 @@ type Plan = {
   image_height: number | null;
 };
 
-async function getToken(): Promise<string | null> {
-  const { data } = await supabase.auth.getSession();
-  return data.session?.access_token ?? null;
-}
-
-async function apiGet<T>(path: string, token: string): Promise<T> {
-  const r = await fetch(path, { headers: token ? { Authorization: `Bearer ` } : undefined });
-  const j = await r.json();
-  if (!j.ok) throw new Error(j?.error?.message || "api error");
-  return j.data as T;
-}
+// use `getToken` and `apiGet` from lib/apiClient
 
 export default function PlansPage() {
   const [projects, setProjects] = useState<Project[]>([]);

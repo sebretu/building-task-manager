@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { apiGet } from "@/lib/apiClient";
 import { supabase } from "@/lib/supabase";
 
 type Project = { id: string; name: string };
@@ -12,30 +13,6 @@ type Task = {
   priority: string;
   due_date: string | null;
 };
-
-function looksLikeJwt(t: string | null | undefined) {
-  if (!t) return false;
-  const parts = t.split(".");
-  return parts.length === 3 && parts.every((p) => p.length > 0);
-}
-
-async function getToken(): Promise<string | null> {
-  const { data } = await supabase.auth.getSession();
-  const tok = data.session?.access_token ?? null;
-  // jeśli to nie JWT, traktuj jak brak tokenu
-  return looksLikeJwt(tok) ? tok : null;
-}
-
-async function apiGet<T>(path: string, token?: string | null): Promise<T> {
-  const headers: Record<string, string> = {};
-  if (looksLikeJwt(token || null)) headers.Authorization = `Bearer ${token}`;
-
-  const r = await fetch(path, { headers: Object.keys(headers).length ? headers : undefined });
-  const j = await r.json();
-
-  if (!j.ok) throw new Error(j?.error?.message || "api error");
-  return j.data as T;
-}
 
 export default function Home() {
   const [email, setEmail] = useState("admin@demo.local");
@@ -53,10 +30,7 @@ export default function Home() {
   async function loadAll() {
     setErr(null);
 
-    // token jest opcjonalny (backend i tak ma service role fallback)
-    const token = await getToken();
-
-    const ps = await apiGet<Project[]>("/api/projects", token);
+    const ps = await apiGet<Project[]>("/api/projects");
     setProjects(ps);
 
     const pid = projectId || ps[0]?.id;
@@ -67,8 +41,7 @@ export default function Home() {
     const qQ = qDebounced ? `&q=${encodeURIComponent(qDebounced)}` : "";
 
     const ts = await apiGet<Task[]>(
-      `/api/tasks?projectId=${encodeURIComponent(pid)}&limit=${limit}&offset=${offset}${statusQ}${qQ}`,
-      token
+      `/api/tasks?projectId=${encodeURIComponent(pid)}&limit=${limit}&offset=${offset}${statusQ}${qQ}`
     );
     setTasks(ts);
   }

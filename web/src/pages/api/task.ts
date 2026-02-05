@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { createClient } from "@supabase/supabase-js";
+import { createServerSupabaseClient } from "@/lib/supabaseServer";
 
 type ApiOk = { ok: true; data: any };
 type ApiErr = { ok: false; error: { code: string; message: string; meta?: any } };
@@ -9,14 +9,12 @@ function isUuid(v: string) {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse<ApiOk | ApiErr>) {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-  const service = process.env.SUPABASE_SERVICE_ROLE_KEY || null;
-
-  // DELETE MUSI iść service-role (żeby nie walczyć z workflow triggerem i RLS)
-  const supabase = createClient(url, service || anon, {
-    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-  });
+  let supabase;
+  try {
+    ({ client: supabase } = createServerSupabaseClient(req));
+  } catch (e: any) {
+    return res.status(401).json({ ok: false, error: { code: "AUTH_INVALID", message: "Missing Bearer token" } });
+  }
 
   const id = typeof req.query.id === "string" ? req.query.id.trim() : "";
   if (!id || !isUuid(id)) {

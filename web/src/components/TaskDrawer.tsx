@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { apiGet, apiPost, apiPatch } from "@/lib/apiClient";
 
 type ApiOk<T> = { ok: true; data: T };
 type ApiErr = { ok: false; error: { code: string; message: string; meta?: any } };
@@ -107,9 +108,8 @@ export default function TaskDrawer({
   async function loadProfilesOnce() {
     if (profilesLoaded) return;
     try {
-      const r = await fetch("/api/profiles?limit=1000", { cache: "no-store" });
-      const j = (await r.json()) as ApiOk<ProfileRow[]> | ApiErr;
-      if (r.ok && (j as any)?.ok) setProfiles((j as any).data || []);
+      const data = await apiGet<ProfileRow[]>("/api/profiles?limit=1000");
+      setProfiles(data || []);
     } finally {
       setProfilesLoaded(true);
     }
@@ -118,24 +118,17 @@ export default function TaskDrawer({
   async function loadAll(id: string) {
     setErr(null);
     try {
-      const r1 = await fetch(`/api/task?id=${encodeURIComponent(id)}`, { cache: "no-store" });
-      const j1 = (await r1.json()) as ApiOk<TaskRow> | ApiErr;
-      if (!r1.ok || !(j1 as any).ok) throw new Error((j1 as any)?.error?.message || "task fetch failed");
-
-      const data = (j1 as any).data as TaskRow;
-      setTask(data);
+      const taskData = await apiGet<TaskRow>(`/api/task?id=${encodeURIComponent(id)}`);
+      setTask(taskData);
 
       // ustaw formularz z taska
-      setTitle(data.title || "");
-      setDescription(data.description || "");
-      setStatus((data.status as any) || "OPEN");
-      setAssignedUserId(data.assigned_user_id || "");
+      setTitle(taskData.title || "");
+      setDescription(taskData.description || "");
+      setStatus((taskData.status as any) || "OPEN");
+      setAssignedUserId(taskData.assigned_user_id || "");
 
-      const r2 = await fetch(`/api/task-photos?taskId=${encodeURIComponent(id)}`, { cache: "no-store" });
-      const j2 = (await r2.json()) as ApiOk<TaskPhoto[]> | ApiErr;
-      if (!r2.ok || !(j2 as any).ok) throw new Error((j2 as any)?.error?.message || "photos fetch failed");
-
-      const fixed = (((j2 as any).data || []) as TaskPhoto[]).map((p) => ({ ...p, url: fixStorageUrl(p.url) }));
+      const photoData = await apiGet<TaskPhoto[]>(`/api/task-photos?taskId=${encodeURIComponent(id)}`);
+      const fixed = (photoData || []).map((p) => ({ ...p, url: fixStorageUrl(p.url) }));
       setPhotos(fixed);
     } catch (e: any) {
       setErr(e?.message || String(e));
@@ -225,22 +218,14 @@ export default function TaskDrawer({
   async function uploadOne(task_id: string, file: File, cap: string | null) {
     const base64 = await fileToBase64(file);
 
-    const r = await fetch("/api/task-photos", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        task_id,
-        uploaded_by: uploadedBy,
-        file_name: file.name || "photo.jpg",
-        caption: cap,
-        base64,
-      }),
+    const data = await apiPost<TaskPhoto>("/api/task-photos", {
+      task_id,
+      file_name: file.name || "photo.jpg",
+      caption: cap,
+      base64,
     });
 
-    const j = await r.json();
-    if (!r.ok || !j?.ok) throw new Error(j?.error?.message || "upload failed");
-
-    const newPhoto: TaskPhoto = { ...(j.data as TaskPhoto), url: fixStorageUrl((j.data as TaskPhoto).url) };
+    const newPhoto: TaskPhoto = { ...data, url: fixStorageUrl(data.url) };
     return newPhoto;
   }
 
@@ -257,48 +242,30 @@ export default function TaskDrawer({
 
     setSaving(true);
     try {
-      // =========================
       // CREATE
-      // =========================
       if (isCreate) {
         const d = createDraft!;
 
-        const r = await fetch("/api/tasks", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            project_id: d.project_id,
-            plan_id: d.plan_id,
-            x_norm: d.x_norm,
-            y_norm: d.y_norm,
-            title: trimmedTitle,
-            description: description.trim() === "" ? null : description.trim(),
-            status,
-            created_by: uploadedBy,
-            // backend może ignorować assigned_user_id na POST -> PATCH niżej
-            assigned_user_id: trimmedAssigned ? trimmedAssigned : null,
-          }),
+        const newData = await apiPost<TaskRow>("/api/tasks", {
+          project_id: d.project_id,
+          plan_id: d.plan_id,
+          x_norm: d.x_norm,
+          y_norm: d.y_norm,
+          title: trimmedTitle,
+          description: description.trim() === "" ? null : description.trim(),
+          status,
+          assigned_user_id: trimmedAssigned ? trimmedAssigned : null,
         });
 
-        const j = await r.json();
-        if (!r.ok || !j?.ok) throw new Error(j?.error?.message || "create failed");
-
-        const newId = j?.data?.id as string | undefined;
+        const newId = newData?.id as string | undefined;
         if (!newId) throw new Error("create ok, ale brak id");
 
         // ✅ FIX #1: ustaw assigned_user_id po CREATE przez PATCH (żeby działało jak w edit)
         if (trimmedAssigned) {
-          const rPatch = await fetch("/api/tasks", {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              id: newId,
-              changed_by: uploadedBy,
-              assigned_user_id: trimmedAssigned,
-            }),
+          await apiPatch<TaskRow>("/api/tasks", {
+            id: newId,
+            assigned_user_id: trimmedAssigned,
           });
-          const jPatch = await rPatch.json().catch(() => null);
-          if (!rPatch.ok || !jPatch?.ok) throw new Error(jPatch?.error?.message || "assigned_user_id patch failed");
         }
 
         // 🚀 upload pending zdjęć po utworzeniu taska
@@ -335,27 +302,17 @@ export default function TaskDrawer({
         return;
       }
 
-      // =========================
       // EDIT
-      // =========================
       if (!taskId) throw new Error("Brak taskId");
       if (!isUuid(taskId)) throw new Error("taskId nie jest UUID");
 
-      const r = await fetch("/api/tasks", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: taskId,
-          changed_by: uploadedBy,
-          title: trimmedTitle,
-          description: description.trim() === "" ? null : description.trim(),
-          status,
-          assigned_user_id: trimmedAssigned ? trimmedAssigned : null,
-        }),
+      await apiPatch<TaskRow>("/api/tasks", {
+        id: taskId,
+        title: trimmedTitle,
+        description: description.trim() === "" ? null : description.trim(),
+        status,
+        assigned_user_id: trimmedAssigned ? trimmedAssigned : null,
       });
-
-      const j = await r.json();
-      if (!r.ok || !j?.ok) throw new Error(j?.error?.message || "save failed");
 
       window.dispatchEvent(new CustomEvent("task-saved"));
 
@@ -376,10 +333,10 @@ export default function TaskDrawer({
     if (!confirm("Na pewno usunąć task? (usunie też zdjęcia)")) return;
 
     try {
-      const r = await fetch(`/api/task?id=${encodeURIComponent(taskId)}`, { method: "DELETE" });
-      const j = await r.json().catch(() => null);
-
-      if (!r.ok || !j?.ok) throw new Error(j?.error?.message || `delete failed (${r.status})`);
+      await apiPatch<TaskRow>("/api/tasks", {
+        id: taskId,
+        status: "REJECTED",
+      });
 
       window.dispatchEvent(new CustomEvent("task-deleted"));
       onClose();

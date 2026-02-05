@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { createClient } from "@supabase/supabase-js";
+import { createServerSupabaseClient, getUserIdFromRequest } from "@/lib/supabaseServer";
 
 type ApiOk = { ok: true; data: any; meta?: any };
 type ApiErr = { ok: false; error: { code: string; message: string; meta?: any } };
@@ -25,13 +25,14 @@ function isUuid(v: string) {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse<ApiOk | ApiErr>) {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-  const service = process.env.SUPABASE_SERVICE_ROLE_KEY || null;
+  let supabase;
+  let userId: string | null = null;
 
-  const supabase = createClient(url, service || anon, {
-    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-  });
+  try {
+    ({ client: supabase, userId } = createServerSupabaseClient(req));
+  } catch (e: any) {
+    return res.status(401).json({ ok: false, error: { code: 'AUTH_INVALID', message: 'Missing Bearer token' } });
+  }
 
   // ------------------------
   // GET /api/tasks (list)
@@ -118,12 +119,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       return;
     }
 
-    // DEV: podajemy created_by z body (docelowo auth.uid())
-    const created_by = body?.created_by ? String(body.created_by).trim() : "";
-    if (!created_by || !isUuid(created_by)) {
-      res.status(400).json({
+    // created_by = auth.uid() z JWT
+    const created_by = userId;
+    if (!created_by) {
+      res.status(401).json({
         ok: false,
-        error: { code: "BAD_REQUEST", message: "Missing/invalid created_by (uuid) (DEV)" },
+        error: { code: "AUTH_INVALID", message: "Cannot determine user from token" },
       });
       return;
     }
@@ -158,9 +159,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     return;
   }
 
-  // ------------------------
-  // PATCH /api/tasks (update)  (DEV: changed_by w body)
-  // ------------------------
+  // PATCH /api/tasks (update)
   if (req.method === "PATCH") {
     const body = readJsonBody(req);
 
@@ -173,11 +172,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       return;
     }
 
-    const changed_by = String(body?.changed_by || "").trim();
-    if (!changed_by || !isUuid(changed_by)) {
-      res.status(400).json({
+    // changed_by = auth.uid() z JWT
+    const changed_by = userId;
+    if (!changed_by) {
+      res.status(401).json({
         ok: false,
-        error: { code: "BAD_REQUEST", message: "Missing/invalid changed_by (uuid) (DEV)" },
+        error: { code: "AUTH_INVALID", message: "Cannot determine user from token" },
       });
       return;
     }
