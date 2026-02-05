@@ -63,6 +63,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       .order("created_at", { ascending: false });
 
     if (error) return supaErr(res, error);
+    // In development, rewrite public URLs that point to localhost so the
+    // browser can reach them via the developer-facing host.
+    if (process.env.NODE_ENV !== "production" && Array.isArray(data)) {
+      const devHost = process.env.DEV_SUPABASE_HOST || "188.245.42.178";
+      const devPort = process.env.DEV_SUPABASE_PORT || "54321";
+      const mapped = data.map((row: any) => {
+        try {
+          if (!row || !row.url) return row;
+          const u = new URL(row.url);
+          if (["localhost", "127.0.0.1", "0.0.0.0"].includes(u.hostname)) {
+            u.hostname = devHost;
+            u.port = devPort;
+            row.url = u.toString().replace(/\/$/, "");
+          }
+        } catch (e) {
+          // ignore parse errors
+        }
+        return row;
+      });
+      return res.status(200).json({ ok: true, data: mapped ?? [] });
+    }
+
     return res.status(200).json({ ok: true, data: data ?? [] });
   }
 
@@ -130,10 +152,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     let PUBLIC_SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "") || "http://188.245.42.178:54321";
 
     if (process.env.NODE_ENV !== "production") {
-      // If env points to localhost, rewrite host to the known dev host
-      // so browser clients (which can't reach the server's 127.0.0.1:54321)
-      // can fetch the object. This is a development-only convenience.
-      PUBLIC_SUPABASE_URL = PUBLIC_SUPABASE_URL.replace(/localhost|127\.0\.0\.1/, "188.245.42.178");
+      const devHost = process.env.DEV_SUPABASE_HOST || "188.245.42.178";
+      const devPort = process.env.DEV_SUPABASE_PORT || undefined;
+      try {
+        const u = new URL(PUBLIC_SUPABASE_URL);
+        if (["localhost", "127.0.0.1", "0.0.0.0"].includes(u.hostname)) {
+          u.hostname = devHost;
+          if (devPort) u.port = devPort;
+          // remove trailing slash
+          PUBLIC_SUPABASE_URL = u.toString().replace(/\/$/, "");
+        }
+      } catch (e) {
+        // If URL parse fails, fallback to simple replacement
+        PUBLIC_SUPABASE_URL = PUBLIC_SUPABASE_URL.replace(/localhost|127\.0\.0\.1|0\.0\.0\.0/, devHost);
+      }
     }
 
     const publicUrl = `${PUBLIC_SUPABASE_URL}/storage/v1/object/public/${bucket}/${storage_path}`;
