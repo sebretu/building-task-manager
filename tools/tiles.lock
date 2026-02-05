@@ -1,5 +1,5 @@
-# tiles lock (sha256) - generated on 2026-02-05T14:55:30Z
+# tiles lock (sha256) - generated on 2026-02-05T20:54:17Z
 30752a74e9fa317029edd82ce4eaffe20fa3a494b07f0341e29440bd7c5c712a  web/scripts/generate-tiles.mjs
 34477d998c7ecb14fb1e21dbb63c3e208b2c7b55fe3d33dc875d1df09c3df733  web/src/components/PlanViewer.tsx
-6c3883310a4567a98a85c9febf0a18311e7594291d8ce1d3ae678d1123c29383  web/src/app/api/tiles/[planId]/[z]/[x]/[y].png/route.ts
-e7035ebb54f34b84590d0eebac336ce4e04bc76bb0d574606433458bfff40904  web/src/components/PlanMap.tsx
+d27b4f52bd857b35357b67690ff0ac3e5c2f1b53a214b7362cf9f4dcca73d64f  web/src/app/api/tiles/[planId]/[z]/[x]/[y].png/route.ts
+d6a03822eb46039640beb4866aefdb35713e457675052dd3666dc73473fb7554  web/src/components/PlanMap.tsx

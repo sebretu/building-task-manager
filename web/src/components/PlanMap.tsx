@@ -200,8 +200,6 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
 
   return (
     <>
-      const MapContainerAny: any = MapContainer;
-
       <MapContainerAny
         crs={CRS}
         center={center}

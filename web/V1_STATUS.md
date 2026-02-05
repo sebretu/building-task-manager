@@ -172,10 +172,24 @@
 ### 📋 NASTĘPNE KROKI DO V1 LAUNCH
 
 #### Priority 1 (Niezbędne)
-- [ ] Naprawić RLS na `task_photos` i `tasks.status` transitions
+- [x] Naprawić RLS na `task_photos` i `tasks.status` transitions
 - [ ] Dodać proper logowanie (ekran /auth/login)
-- [ ] Przetestować full flow: create plan → view → create task → upload photo → delete task
-- [ ] Naprawić status transitions (OPEN → APPROVED/REJECTED)
+- [x] Przetestować full flow: create plan → view → create task → upload photo → delete task
+- [x] Naprawić status transitions (OPEN → APPROVED/REJECTED)
+
+### ✅ Checklista testów V1 (manual)
+- [x] Logowanie użytkownika (admin@demo.local / Password123!)
+- [x] Wyświetlanie listy projektów
+- [x] Wyświetlanie listy planów
+- [x] Upload PDF planu
+- [x] Viewer planu z markerami
+- [x] Tworzenie nowego taska na planie
+- [x] Edycja taska (title, status, assign user)
+- [x] Upload zdjęcia do taska
+- [x] Usuwanie taska
+- [x] Przypisywanie usera do taska
+- [x] Przeglądanie zdjęć taska
+- [x] Przeglądanie szczegółów taska
 
 #### Priority 2 (Dla MVP)
 - [ ] Zarządzanie użytkownikami (assign to task)

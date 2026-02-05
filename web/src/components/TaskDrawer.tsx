@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { apiGet, apiPost, apiPatch } from "@/lib/apiClient";
+import { apiGet, apiPost, apiPatch, apiDelete } from "@/lib/apiClient";
 
 type ApiOk<T> = { ok: true; data: T };
 type ApiErr = { ok: false; error: { code: string; message: string; meta?: any } };
@@ -333,10 +333,7 @@ export default function TaskDrawer({
     if (!confirm("Na pewno usunąć task? (usunie też zdjęcia)")) return;
 
     try {
-      await apiPatch<TaskRow>("/api/tasks", {
-        id: taskId,
-        status: "REJECTED",
-      });
+      await apiDelete(`/api/task?id=${taskId}`);
 
       window.dispatchEvent(new CustomEvent("task-deleted"));
       onClose();
