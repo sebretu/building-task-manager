@@ -206,9 +206,9 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
                 autoPan
                 closeButton
                 // ✅ to rozwiązuje ucinanie bez keepInView (który robił recursion)
-                autoPanPaddingTopLeft={[16, 220]}
+                autoPanPaddingTopLeft={[16, 240]}
                 autoPanPaddingBottomRight={[16, 16]}
-                offset={[0, 30]}
+                offset={[0, 14]}
                 eventHandlers={{
                   popupopen: () => {
                     ensureThumb(t.id);
