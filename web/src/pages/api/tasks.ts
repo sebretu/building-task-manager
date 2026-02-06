@@ -49,6 +49,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     const offset = Math.max(asInt(req.query.offset, 0) || 0, 0);
     const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
     const status = typeof req.query.status === "string" ? req.query.status.trim() : "";
+    const priority = typeof req.query.priority === "string" ? req.query.priority.trim() : "";
+    const assignedUserId = typeof req.query.assigned_user_id === "string" ? req.query.assigned_user_id.trim() : "";
+    const dueFrom = typeof req.query.due_from === "string" ? req.query.due_from.trim() : "";
+    const dueTo = typeof req.query.due_to === "string" ? req.query.due_to.trim() : "";
+    const sort = typeof req.query.sort === "string" ? req.query.sort.trim() : "";
 
     let query = supabase
       .from("tasks")
@@ -59,7 +64,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
 
     if (planId) query = query.eq("plan_id", planId);
     if (status) query = query.eq("status", status as any);
+    if (priority) query = query.eq("priority", priority as any);
+    if (assignedUserId) query = query.eq("assigned_user_id", assignedUserId);
+    if (dueFrom) query = query.gte("due_date", dueFrom);
+    if (dueTo) query = query.lte("due_date", dueTo);
     if (q) query = query.or(`title.ilike.%${q}%,description.ilike.%${q}%`);
+
+    if (sort === "due_asc") {
+      query = query.order("due_date", { ascending: true, nullsFirst: false });
+    } else if (sort === "due_desc") {
+      query = query.order("due_date", { ascending: false, nullsFirst: false });
+    } else if (sort === "priority_desc") {
+      query = query.order("priority", { ascending: false });
+    }
 
     const { data, error } = await query;
 

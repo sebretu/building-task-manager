@@ -108,12 +108,7 @@
 
 ### ❌ NIEZAIMPLEMENTOWANE
 
-#### 1. Historia zmian (audit log)
-- Tabela `task_history` prawdopodobnie jest w DB
-- Brak UI do wyświetlania historii
-- **TODO:** Dodać timeline w TaskDrawer
-
-#### 2. Database schema (niekompletny)
+#### 1. Database schema (niekompletny)
 - Są: projects, tasks, task_photos, task_comments?, task_history?
 - Brak migrationów (Supabase migrations)
 - **TODO:** Zweryfikować schema w Supabase
@@ -145,13 +140,13 @@
   - `POST /api/task-comments` ✅
   - `GET /api/task-photos` ✅
   - `POST /api/task-photos` ✅
+  - `GET /api/task-history` ✅
   - `GET /api/plans` ✅
   - `POST /api/plans/upload` ✅
   - `GET /api/plans/pdf` ✅
 - **Brakujące:**
   - Companies endpoints (CRUD)
   - Users endpoints (CRUD)
-  - Task history endpoints
   - Project members endpoints
 
 ### 📋 NASTĘPNE KROKI DO V1 LAUNCH
@@ -187,7 +182,7 @@
 - ~~[x] Komentarze do zadań~~ ✅ DONE
 - ~~[x] PWA offline~~ ✅ DONE
 - ~~[x] i18n multi-language~~ ✅ DONE
-- [ ] Historia zmian
+- [x] Historia zmian ✅ DONE
 - [ ] Search / advanced filters
 - [ ] Kanban board view
 
@@ -213,11 +208,11 @@
 ✅ i18n rozszerzone o SK
 ✅ Markery na mapie (full lifecycle)
 ✅ Widok `/task/[id]` z mapą w tle i pojedynczym markerem
+✅ Historia zmian w TaskDrawer
 ✅ Server-side auth helper (lib/supabaseServer.ts)
 ✅ Client-side API wrapper (lib/apiClient.ts)
 
 ### Co nie działa:
-❌ Historia zmian UI (zamiast tego mamy created_at/updated_at w DB)
 ❌ Advanced search/filters
 ❌ Kanban board view
 
@@ -236,10 +231,8 @@
 12. ✅ Dodano i18n framework (translations, context, language switcher)
 
 ### Następne kroki (V1.1+):
-1. Historia zmian/audit log UI
-2. Advanced search/filters
-3. Kanban board view
-4. Email notifications
-5. File attachments (not just photos)
-6. Team collaboration features
+1. Advanced search/filters
+2. Kanban board view
+3. Email notifications
+
 

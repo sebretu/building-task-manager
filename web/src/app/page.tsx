@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiGet } from "@/lib/apiClient";
@@ -14,8 +14,9 @@ type Task = {
   id: string;
   title: string;
   status: string;
-  priority: string;
+  priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
   due_date: string | null;
+  assigned_user_id?: string | null;
 };
 
 type User = {
@@ -23,14 +24,27 @@ type User = {
   email: string;
   full_name: string;
 };
+type Profile = {
+  id: string;
+  full_name: string;
+  email?: string;
+};
 
 export default function Home() {
   const router = useRouter();
+  const [priorityFilter, setPriorityFilter] = useState<string | null>(null);
+  const [assignedFilter, setAssignedFilter] = useState("");
+  const [dueFrom, setDueFrom] = useState("");
+  const [dueTo, setDueTo] = useState("");
+  const [sortBy, setSortBy] = useState("");
   const { t } = useLanguage();
   const [user, setUser] = useState<User | null>(null);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [profilesLoaded, setProfilesLoaded] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectId, setProjectId] = useState("");
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
   const [q, setQ] = useState("");
   const [qDebounced, setQDebounced] = useState("");
   const [limit, setLimit] = useState(10);
@@ -38,6 +52,14 @@ export default function Home() {
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [sessionLoaded, setSessionLoaded] = useState(false);
+
+  const profileById = useMemo(() => {
+    const map: Record<string, Profile> = {};
+    for (const p of profiles) map[p.id] = p;
+    return map;
+  }, [profiles]);
+
+  const kanbanColumns = ["OPEN", "IN_PROGRESS", "DONE_WAITING_APPROVAL", "APPROVED", "REJECTED"] as const;
 
   // Check session on mount
   useEffect(() => {
@@ -87,14 +109,20 @@ export default function Home() {
       setProjectId(pid);
 
       const statusQ = statusFilter ? `&status=${statusFilter}` : "";
+      const priorityQ = priorityFilter ? `&priority=${priorityFilter}` : "";
+      const assignedQ = assignedFilter ? `&assigned_user_id=${encodeURIComponent(assignedFilter)}` : "";
+      const dueFromQ = dueFrom ? `&due_from=${encodeURIComponent(dueFrom)}` : "";
+      const dueToQ = dueTo ? `&due_to=${encodeURIComponent(dueTo)}` : "";
+      const sortQ = sortBy ? `&sort=${encodeURIComponent(sortBy)}` : "";
       const qQ = qDebounced ? `&q=${encodeURIComponent(qDebounced)}` : "";
 
       const ts = await apiGet<Task[]>(
-        `/api/tasks?projectId=${encodeURIComponent(pid)}&limit=${limit}&offset=${offset}${statusQ}${qQ}`
+        `/api/tasks?projectId=${encodeURIComponent(pid)}&limit=${limit}&offset=${offset}${statusQ}${priorityQ}${assignedQ}${dueFromQ}${dueToQ}${sortQ}${qQ}`
       );
       setTasks(ts);
-    } catch (e: any) {
-      setErr(String(e?.message || e));
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : String(e);
+      setErr(message);
     }
   }
 
@@ -102,7 +130,14 @@ export default function Home() {
     if (!sessionLoaded) return;
     loadAll().catch((e) => setErr(String(e?.message || e)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [limit, offset, statusFilter, projectId, qDebounced, sessionLoaded]);
+  }, [limit, offset, statusFilter, priorityFilter, assignedFilter, dueFrom, dueTo, sortBy, projectId, qDebounced, sessionLoaded]);
+
+  useEffect(() => {
+    if (!sessionLoaded || profilesLoaded) return;
+    apiGet<Profile[]>("/api/profiles?limit=1000")
+      .then((data) => setProfiles(data || []))
+      .finally(() => setProfilesLoaded(true));
+  }, [sessionLoaded, profilesLoaded]);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -208,6 +243,115 @@ export default function Home() {
         ))}
       </div>
 
+      <div style={{ marginBottom: 12, display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
+        <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          {t("home", "filterPriority")}:
+          <select
+            value={priorityFilter || ""}
+            onChange={(e) => {
+              setPriorityFilter(e.target.value || null);
+              setOffset(0);
+            }}
+          >
+            <option value="">{t("taskStatus", "ALL")}</option>
+            <option value="LOW">{t("taskPriority", "LOW")}</option>
+            <option value="MEDIUM">{t("taskPriority", "MEDIUM")}</option>
+            <option value="HIGH">{t("taskPriority", "HIGH")}</option>
+            <option value="URGENT">{t("taskPriority", "URGENT")}</option>
+          </select>
+        </label>
+
+        <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          {t("home", "filterAssignee")}:
+          <select
+            value={assignedFilter}
+            onChange={(e) => {
+              setAssignedFilter(e.target.value);
+              setOffset(0);
+            }}
+          >
+            <option value="">{t("taskStatus", "ALL")}</option>
+            {profiles.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.full_name || p.email || p.id.slice(0, 8)}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          {t("home", "dueFrom")}:
+          <input
+            type="date"
+            value={dueFrom}
+            onChange={(e) => {
+              setDueFrom(e.target.value);
+              setOffset(0);
+            }}
+          />
+        </label>
+
+        <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          {t("home", "dueTo")}:
+          <input
+            type="date"
+            value={dueTo}
+            onChange={(e) => {
+              setDueTo(e.target.value);
+              setOffset(0);
+            }}
+          />
+        </label>
+
+        <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          {t("home", "sortBy")}:
+          <select
+            value={sortBy}
+            onChange={(e) => {
+              setSortBy(e.target.value);
+              setOffset(0);
+            }}
+          >
+            <option value="">{t("home", "sortNewest")}</option>
+            <option value="due_asc">{t("home", "sortDueSoon")}</option>
+            <option value="due_desc">{t("home", "sortDueLatest")}</option>
+            <option value="priority_desc">{t("home", "sortPriority")}</option>
+          </select>
+        </label>
+      </div>
+
+      <div style={{ marginBottom: 12, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+        <span style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}>{t("home", "viewMode")}:</span>
+        <button
+          onClick={() => setViewMode("list")}
+          style={{
+            padding: "6px 10px",
+            borderRadius: 8,
+            border: "1px solid rgba(17,24,39,0.15)",
+            background: viewMode === "list" ? "#111827" : "#fff",
+            color: viewMode === "list" ? "#fff" : "#111827",
+            cursor: "pointer",
+            fontWeight: 700,
+          }}
+        >
+          {t("home", "viewList")}
+        </button>
+        <button
+          onClick={() => setViewMode("kanban")}
+          style={{
+            padding: "6px 10px",
+            borderRadius: 8,
+            border: "1px solid rgba(17,24,39,0.15)",
+            background: viewMode === "kanban" ? "#111827" : "#fff",
+            color: viewMode === "kanban" ? "#fff" : "#111827",
+            cursor: "pointer",
+            fontWeight: 700,
+          }}
+        >
+          {t("home", "viewKanban")}
+        </button>
+      </div>
+
       <div style={{ marginBottom: 12 }}>
         <button
           onClick={() => setOffset((o) => Math.max(0, o - limit))}
@@ -235,15 +379,66 @@ export default function Home() {
         </label>
       </div>
 
-      <ul>
-        {tasks.map((task) => (
-          <li key={task.id}>
-            <Link href={`/task/${task.id}`} style={{ textDecoration: "none", color: "inherit" }}>
-              [{t("taskStatus", task.status, task.status)}] {task.title}
-            </Link>
-          </li>
-        ))}
-      </ul>
+      {viewMode === "list" ? (
+        <ul>
+          {tasks.map((task) => (
+            <li key={task.id}>
+              <Link href={`/task/${task.id}`} style={{ textDecoration: "none", color: "inherit" }}>
+                [{t("taskStatus", task.status, task.status)}] {task.title}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+          {kanbanColumns.map((status) => {
+            const items = tasks.filter((t) => t.status === status);
+            return (
+              <div key={status} style={{ background: "#f9fafb", border: "1px solid rgba(17,24,39,0.08)", borderRadius: 12, padding: 10 }}>
+                <div style={{ fontWeight: 800, fontSize: 12, marginBottom: 8, color: "#111827" }}>
+                  {t("taskStatus", status)} ({items.length})
+                </div>
+                <div style={{ display: "grid", gap: 8 }}>
+                  {items.length === 0 && (
+                    <div style={{ fontSize: 12, opacity: 0.6 }}>{t("home", "noTasks")}</div>
+                  )}
+                  {items.map((task) => {
+                    const assignee = task.assigned_user_id ? profileById[task.assigned_user_id] : undefined;
+                    const dueLabel = task.due_date ? new Date(task.due_date).toLocaleDateString() : "—";
+                    return (
+                      <Link
+                        key={task.id}
+                        href={`/task/${task.id}`}
+                        style={{
+                          textDecoration: "none",
+                          color: "inherit",
+                          background: "#fff",
+                          border: "1px solid rgba(17,24,39,0.10)",
+                          borderRadius: 10,
+                          padding: 10,
+                          display: "grid",
+                          gap: 6,
+                        }}
+                      >
+                        <div style={{ fontWeight: 800, fontSize: 13 }}>{task.title}</div>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", fontSize: 11, color: "#374151" }}>
+                          <span style={{ padding: "2px 6px", borderRadius: 999, background: "rgba(17,24,39,0.06)", fontWeight: 700 }}>
+                            {t("taskPriority", task.priority, task.priority)}
+                          </span>
+                          <span>{t("taskDrawer", "dueDate")}: {dueLabel}</span>
+                        </div>
+                        <div style={{ fontSize: 11, color: "#6b7280" }}>
+                          {t("taskDrawer", "assignedUser")}: {assignee?.full_name || assignee?.email || "—"}
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
       </main>
     </>
   );

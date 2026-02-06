@@ -42,6 +42,16 @@ type TaskComment = {
   created_at: string;
 };
 
+type TaskHistoryRow = {
+  id: string;
+  task_id: string;
+  changed_by: string | null;
+  action?: string | null;
+  summary?: string | null;
+  meta?: any;
+  created_at: string;
+};
+
 type PlanRow = {
   id: string;
   project_id: string;
@@ -110,6 +120,7 @@ export default function TaskDrawer({
   const [plan, setPlan] = useState<PlanRow | null>(null);
   const [photos, setPhotos] = useState<TaskPhoto[]>([]);
   const [comments, setComments] = useState<TaskComment[]>([]);
+  const [history, setHistory] = useState<TaskHistoryRow[]>([]);
   const [pendingPhotos, setPendingPhotos] = useState<PendingPhoto[]>([]);
   const [err, setErr] = useState<string | null>(null);
 
@@ -184,6 +195,9 @@ export default function TaskDrawer({
 
       const commentData = await apiGet<TaskComment[]>(`/api/task-comments?taskId=${encodeURIComponent(id)}`);
       setComments(commentData || []);
+
+      const historyData = await apiGet<TaskHistoryRow[]>(`/api/task-history?taskId=${encodeURIComponent(id)}`);
+      setHistory(historyData || []);
     } catch (e: any) {
       setErr(e?.message || String(e));
     }
@@ -209,6 +223,7 @@ export default function TaskDrawer({
       setTask(null);
       setPhotos([]);
       setComments([]);
+      setHistory([]);
       setNewComment("");
       setErr(null);
       setTitle(t("taskDrawer", "newTask"));
@@ -984,6 +999,49 @@ export default function TaskDrawer({
 
                 {comments.length === 0 && (
                   <div style={{ fontSize: 12, opacity: 0.75 }}>{t("taskDrawer", "noComments")}</div>
+                )}
+              </div>
+
+              <hr style={{ border: "none", borderTop: "1px solid rgba(17,24,39,0.10)" }} />
+
+              <div style={{ display: "grid", gap: 10 }}>
+                <div style={{ fontSize: 14, fontWeight: 800 }}>{t("taskDrawer", "history")}</div>
+
+                {history.length > 0 ? (
+                  <div style={{ display: "grid", gap: 8, maxHeight: 260, overflowY: "auto" }}>
+                    {history.map((h) => {
+                      const actor = profiles.find((p) => p.id === h.changed_by);
+                      const actorName = actor?.full_name || (h.changed_by ? h.changed_by.slice(0, 8) : "—");
+                      const timestamp = new Date(h.created_at).toLocaleString(localeByLang[language] || "en-US", {
+                        year: "numeric",
+                        month: "2-digit",
+                        day: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      });
+                      const action = h.action || h.summary || t("taskDrawer", "historyUpdate");
+
+                      return (
+                        <div
+                          key={h.id}
+                          style={{
+                            padding: 10,
+                            borderRadius: 10,
+                            border: "1px solid rgba(17,24,39,0.10)",
+                            background: "rgba(17,24,39,0.02)",
+                          }}
+                        >
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                            <div style={{ fontWeight: 800, fontSize: 12 }}>{actorName}</div>
+                            <div style={{ fontSize: 11, opacity: 0.6 }}>{timestamp}</div>
+                          </div>
+                          <div style={{ fontSize: 13, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{action}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 12, opacity: 0.75 }}>{t("taskDrawer", "noHistory")}</div>
                 )}
               </div>
             </>
