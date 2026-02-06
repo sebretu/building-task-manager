@@ -7,11 +7,11 @@
 ### ✅ GOTOWE
 
 #### 1. Logowanie
-- **Plik:** `src/app/page.tsx` (form email/password)
+- **Plik:** `src/app/auth/login/page.tsx`
 - **Status:** Working
 - **API:** Supabase Auth (email/password)
 - **Dev:** Hasło hardcoded `admin@demo.local / Password123!`
-- **TODO:** Stwórz proper auth flow UI
+- **TODO:** Brak
 
 #### 2. Lista projektów
 - **Plik:** `src/app/page.tsx`
@@ -45,13 +45,14 @@
 
 #### 5. Viewer planu + markery
 - **Plik:** `src/components/PlanMap.tsx` (Map viewer)
-- **Status:** Partially working
+- **Status:** ✅ Working
 - **Features:**
   - Leaflet mapa z kafelkami
   - Zoom/pan
   - Markery jako overlay
   - Click na marker → otworzy TaskDrawer
   - CREATE zadania (click na mapę, dwa razy)
+  - Widok `/task/[id]`: mapa w tle, tylko jeden marker
 - **Issues:**
   - ~~Markery mogą się nie ładować (problem z RLS na GET /api/tasks)~~ ✅ FIXED
   - ~~DELETE task ma błąd "Invalid status transition"~~ ✅ FIXED
@@ -77,6 +78,7 @@
   - Edit: title, description, priority, status, due_date
   - Assign: assigned_user_id (UUID)
   - DELETE task
+  - Podgląd planu z pinem + link do pełnej mapy
   - **Workflow UI:**
     - Przyciski: "Rozpocznij pracę" (OPEN → IN_PROGRESS)
     - "Gotowe do akceptacji" (IN_PROGRESS → DONE_WAITING_APPROVAL)
@@ -106,43 +108,12 @@
 
 ### ❌ NIEZAIMPLEMENTOWANE
 
-#### 1. Ekran logowania (proper)
-- Brak dedykowanego ekranu `/auth` lub `/login`
-- Email/password form jest na głównej stronie
-- **TODO:** Stworzyć `/auth/login` ze stylizacją
-
-#### 2. Zarządzanie firmami i użytkownikami
-- Brak ekranu do przeglądania firm
-- Brak ekranu do przeglądania użytkowników
-- Brak ekranu dodawania członków do projektu
-- **TODO:** Stworzyć `/companies`, `/users`, `/projects/{id}/members`
-
-#### 3. Komentarze do zadań
-- Tabela `task_comments` prawdopodobnie jest w DB
-- Brak UI do wyświetlania/dodawania komentarów
-- **TODO:** Dodać section komentarzy w TaskDrawer
-
-#### 5. Historia zmian (audit log)
+#### 1. Historia zmian (audit log)
 - Tabela `task_history` prawdopodobnie jest w DB
 - Brak UI do wyświetlania historii
 - **TODO:** Dodać timeline w TaskDrawer
 
-#### 6. PWA features
-- Brak manifest.json konfiguracji
-- Brak service worker
-- Brak offline sync
-- Brak caching strategii
-- **TODO:** 
-  - Dodać `manifest.json` i `service-worker.ts`
-  - Implementować offline queue (outbox pattern)
-  - Cache API/IDB
-
-#### 7. I18n (multi-language)
-- Setup i18next jest w strukturze (`@repo/i18n`)
-- Brak translations stosowania w UI
-- **TODO:** Dodać `<Trans>` i nagłówki dla PL/DE/EN
-
-#### 8. Database schema (niekompletny)
+#### 2. Database schema (niekompletny)
 - Są: projects, tasks, task_photos, task_comments?, task_history?
 - Brak migrationów (Supabase migrations)
 - **TODO:** Zweryfikować schema w Supabase
@@ -168,16 +139,18 @@
   - `GET /api/tasks` ✅
   - `POST /api/tasks` ✅
   - `PATCH /api/tasks` ✅
+  - `DELETE /api/task` ✅
+  - `GET /api/task` ✅
+  - `GET /api/task-comments` ✅
+  - `POST /api/task-comments` ✅
   - `GET /api/task-photos` ✅
   - `POST /api/task-photos` ✅
   - `GET /api/plans` ✅
   - `POST /api/plans/upload` ✅
   - `GET /api/plans/pdf` ✅
 - **Brakujące:**
-  - `DELETE /api/tasks` ? (może jest ale nie testowany)
   - Companies endpoints (CRUD)
   - Users endpoints (CRUD)
-  - Task comments endpoints
   - Task history endpoints
   - Project members endpoints
 
@@ -185,7 +158,7 @@
 
 #### Priority 1 (Niezbędne)
 - [x] Naprawić RLS na `task_photos` i `tasks.status` transitions
-- [ ] Dodać proper logowanie (ekran /auth/login)
+- [x] Dodać proper logowanie (ekran /auth/login)
 - [x] Przetestować full flow: create plan → view → create task → upload photo → delete task
 - [x] Naprawić status transitions (OPEN → APPROVED/REJECTED)
 - [x] Dodać workflow UI (przyciski OPEN → IN_PROGRESS → DONE → APPROVED/REJECTED)
@@ -237,7 +210,9 @@
 ✅ Company management (/companies page with member assignment)
 ✅ PWA offline support (service worker + install prompts)
 ✅ i18n framework (PL/DE/EN with language switcher, auto-detect)
+✅ i18n rozszerzone o SK
 ✅ Markery na mapie (full lifecycle)
+✅ Widok `/task/[id]` z mapą w tle i pojedynczym markerem
 ✅ Server-side auth helper (lib/supabaseServer.ts)
 ✅ Client-side API wrapper (lib/apiClient.ts)
 

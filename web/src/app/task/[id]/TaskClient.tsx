@@ -83,7 +83,13 @@ export default function TaskClient({ id }: { id: string }) {
     <div style={{ position: "fixed", inset: 0, background: "#0b0f1a" }}>
       {planId ? (
         <div style={{ position: "absolute", inset: 0 }}>
-          <PlanViewer planId={planId} fullHeight={true} focusPoint={focusPoint} focusTaskId={okId} />
+          <PlanViewer
+            planId={planId}
+            fullHeight={true}
+            focusPoint={focusPoint}
+            focusTaskId={okId}
+            allowCreate={false}
+          />
         </div>
       ) : (
         <div style={{ padding: 16, color: "#e5e7eb", fontFamily: "system-ui" }}>

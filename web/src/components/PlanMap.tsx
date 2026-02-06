@@ -82,12 +82,14 @@ export default function PlanMap({
   fullHeight = false,
   focusPoint,
   focusTaskId,
+  allowCreate = true,
 }: {
   planId: string;
   meta: Meta;
   fullHeight?: boolean;
   focusPoint?: { x_norm: number; y_norm: number } | null;
   focusTaskId?: string | null;
+  allowCreate?: boolean;
 }) {
   const PROJECT_ID = "55555555-5555-5555-5555-555555555555";
   const CREATED_BY = "44444444-4444-4444-4444-444444444444";
@@ -244,8 +246,7 @@ export default function PlanMap({
       >
         <TileLayer url={`/api/tiles/${planId}/{z}/{x}/{y}.png`} />
 
-        {/* ✅ to było brakujące */}
-        <ClickToCreate />
+        {allowCreate && <ClickToCreate />}
 
         <FocusOnTask target={focusLatLng} />
 

@@ -35,11 +35,13 @@ export default function PlanViewer({
   fullHeight = false,
   focusPoint,
   focusTaskId,
+  allowCreate,
 }: {
   planId: string;
   fullHeight?: boolean;
   focusPoint?: { x_norm: number; y_norm: number } | null;
   focusTaskId?: string | null;
+  allowCreate?: boolean;
 }) {
   const [meta, setMeta] = useState<Meta | null>(null);
   const [metaStatus, setMetaStatus] = useState<
@@ -185,6 +187,7 @@ export default function PlanViewer({
       fullHeight={fullHeight}
       focusPoint={focusPoint}
       focusTaskId={focusTaskId}
+      allowCreate={allowCreate}
     />
   );
 }

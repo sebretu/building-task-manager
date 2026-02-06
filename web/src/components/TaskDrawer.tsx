@@ -12,6 +12,8 @@ type TaskRow = {
   title: string;
   description: string | null;
   status: "OPEN" | "IN_PROGRESS" | "DONE_WAITING_APPROVAL" | "APPROVED" | "REJECTED";
+  priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+  due_date: string | null;
   assigned_user_id: string | null;
   plan_id?: string;
   x_norm?: number | null;
@@ -102,7 +104,7 @@ export default function TaskDrawer({
   showOverlay?: boolean;
 }) {
   const isCreate = !!createDraft && !taskId;
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
 
   const [task, setTask] = useState<TaskRow | null>(null);
   const [plan, setPlan] = useState<PlanRow | null>(null);
@@ -114,6 +116,8 @@ export default function TaskDrawer({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState<TaskRow["status"]>("OPEN");
+  const [priority, setPriority] = useState<TaskRow["priority"]>("MEDIUM");
+  const [dueDate, setDueDate] = useState("");
   const [assignedUserId, setAssignedUserId] = useState("");
 
   const [caption, setCaption] = useState(""); // caption dla kolejnego dodawanego pliku
@@ -125,6 +129,12 @@ export default function TaskDrawer({
   const [profiles, setProfiles] = useState<ProfileRow[]>([]);
   const [profilesLoaded, setProfilesLoaded] = useState(false);
   const [tileStatus, setTileStatus] = useState<"unknown" | "ok" | "error">("unknown");
+  const localeByLang: Record<string, string> = {
+    en: "en-US",
+    pl: "pl-PL",
+    de: "de-DE",
+    sk: "sk-SK",
+  };
 
   const canShow = open && (!!taskId || !!createDraft);
 
@@ -154,6 +164,8 @@ export default function TaskDrawer({
       setTitle(taskData.title || "");
       setDescription(taskData.description || "");
       setStatus((taskData.status as any) || "OPEN");
+      setPriority((taskData.priority as any) || "MEDIUM");
+      setDueDate(taskData.due_date || "");
       setAssignedUserId(taskData.assigned_user_id || "");
 
       // Load plan if we have plan_id
@@ -202,6 +214,8 @@ export default function TaskDrawer({
       setTitle(t("taskDrawer", "newTask"));
       setDescription("");
       setStatus("OPEN");
+      setPriority("MEDIUM");
+      setDueDate("");
       setAssignedUserId("");
       setCaption("");
       // pendingPhotos zostawiamy — user może dodać zdjęcia przed zapisem
@@ -280,13 +294,13 @@ export default function TaskDrawer({
   async function save() {
     setErr(null);
 
-    if (!isUuid(uploadedBy)) return setErr("uploadedBy(changed_by) nie jest UUID");
+    if (!isUuid(uploadedBy)) return setErr(t("taskDrawer", "errorInvalidUploadedBy"));
 
     const trimmedTitle = title.trim();
-    if (!trimmedTitle) return setErr("Tytuł jest wymagany");
+    if (!trimmedTitle) return setErr(t("taskDrawer", "errorTitleRequired"));
 
     const trimmedAssigned = assignedUserId.trim();
-    if (trimmedAssigned && !isUuid(trimmedAssigned)) return setErr("assigned_user_id musi być UUID albo puste");
+    if (trimmedAssigned && !isUuid(trimmedAssigned)) return setErr(t("taskDrawer", "errorAssignedUser"));
 
     setSaving(true);
     try {
@@ -302,11 +316,13 @@ export default function TaskDrawer({
           title: trimmedTitle,
           description: description.trim() === "" ? null : description.trim(),
           status,
+          priority,
+          due_date: dueDate.trim() === "" ? null : dueDate.trim(),
           assigned_user_id: trimmedAssigned ? trimmedAssigned : null,
         });
 
         const newId = newData?.id as string | undefined;
-        if (!newId) throw new Error("create ok, ale brak id");
+        if (!newId) throw new Error(t("taskDrawer", "errorCreateMissingId"));
 
         // ✅ FIX #1: ustaw assigned_user_id po CREATE przez PATCH (żeby działało jak w edit)
         if (trimmedAssigned) {
@@ -351,14 +367,16 @@ export default function TaskDrawer({
       }
 
       // EDIT
-      if (!taskId) throw new Error("Brak taskId");
-      if (!isUuid(taskId)) throw new Error("taskId nie jest UUID");
+      if (!taskId) throw new Error(t("taskDrawer", "errorMissingTaskId"));
+      if (!isUuid(taskId)) throw new Error(t("taskDrawer", "errorInvalidTaskId"));
 
       await apiPatch<TaskRow>("/api/tasks", {
         id: taskId,
         title: trimmedTitle,
         description: description.trim() === "" ? null : description.trim(),
         status,
+        priority,
+        due_date: dueDate.trim() === "" ? null : dueDate.trim(),
         assigned_user_id: trimmedAssigned ? trimmedAssigned : null,
       });
 
@@ -376,9 +394,9 @@ export default function TaskDrawer({
   async function removeTask() {
     if (!taskId) return;
     setErr(null);
-    if (!isUuid(taskId)) return setErr("taskId nie jest UUID");
+    if (!isUuid(taskId)) return setErr(t("taskDrawer", "errorInvalidTaskId"));
 
-    if (!confirm("Na pewno usunąć task? (usunie też zdjęcia)")) return;
+    if (!confirm(t("taskDrawer", "confirmDelete"))) return;
 
     try {
       await apiDelete(`/api/task?id=${taskId}`);
@@ -536,11 +554,33 @@ export default function TaskDrawer({
             </label>
           </div>
 
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <label style={labelStyle}>
+              <span style={{ fontWeight: 800 }}>{t("taskDrawer", "priority")}</span>
+              <select value={priority} onChange={(e) => setPriority(e.target.value as any)} style={inputStyle}>
+                <option value="LOW">{t("taskPriority", "LOW")}</option>
+                <option value="MEDIUM">{t("taskPriority", "MEDIUM")}</option>
+                <option value="HIGH">{t("taskPriority", "HIGH")}</option>
+                <option value="URGENT">{t("taskPriority", "URGENT")}</option>
+              </select>
+            </label>
+
+            <label style={labelStyle}>
+              <span style={{ fontWeight: 800 }}>{t("taskDrawer", "dueDate")}</span>
+              <input
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                style={inputStyle}
+              />
+            </label>
+          </div>
+
           {/* PLAN MAP PREVIEW */}
           {!isCreate && plan && task?.x_norm !== undefined && task?.y_norm !== undefined && (
             <div style={{ display: "grid", gap: 8 }}>
               <div style={{ fontSize: 12, fontWeight: 800, color: "rgba(17,24,39,0.6)" }}>
-                📍 {plan.name} (Piętr: {plan.floor})
+                📍 {plan.name} ({t("taskDrawer", "planFloor")}: {plan.floor})
               </div>
               <div
                 style={{
@@ -625,7 +665,7 @@ export default function TaskDrawer({
                   fontWeight: 800,
                 }}
               >
-                🗺️ Otwórz pełną mapę
+                🗺️ {t("taskDrawer", "openFullMap")}
               </a>
             </div>
           )}
@@ -708,7 +748,7 @@ export default function TaskDrawer({
 
                 {(status === "APPROVED" || status === "REJECTED") && (
                   <div style={{ fontSize: 13, color: "rgba(17,24,39,0.5)", fontStyle: "italic" }}>
-                    Status końcowy: {status === "APPROVED" ? "✅ Zatwierdzony" : "❌ Odrzucony"}
+                    {t("taskDrawer", "finalStatus")}: {status === "APPROVED" ? t("taskDrawer", "approvedStatus") : t("taskDrawer", "rejectedStatus")}
                   </div>
                 )}
               </div>
@@ -731,7 +771,7 @@ export default function TaskDrawer({
                 fontWeight: 900,
               }}
             >
-              {saving ? "Zapisuję…" : "Zapisz"}
+              {saving ? t("taskDrawer", "saving") : t("common", "save")}
             </button>
 
             <button
@@ -747,7 +787,7 @@ export default function TaskDrawer({
                 fontWeight: 900,
               }}
             >
-              Zamknij
+              {t("taskDrawer", "close")}
             </button>
           </div>
 
@@ -759,12 +799,12 @@ export default function TaskDrawer({
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, alignItems: "end" }}>
               <label style={labelStyle}>
-                <span style={{ fontWeight: 800 }}>Podpis (dla następnego)</span>
+                <span style={{ fontWeight: 800 }}>{t("taskDrawer", "captionLabel")}</span>
                 <input value={caption} onChange={(e) => setCaption(e.target.value)} style={inputStyle} />
               </label>
 
               <label style={{ ...labelStyle, cursor: uploading ? "not-allowed" : "pointer" }}>
-                <span style={{ fontWeight: 800 }}>Dodaj zdjęcie</span>
+                <span style={{ fontWeight: 800 }}>{t("taskDrawer", "addPhoto")}</span>
                 <input
                   type="file"
                   accept="image/*"
@@ -803,7 +843,7 @@ export default function TaskDrawer({
             {pendingPhotos.length > 0 && (
               <div style={{ display: "grid", gap: 8 }}>
                 <div style={{ fontSize: 12, opacity: 0.8, fontWeight: 800 }}>
-                  Zdjęcia dodane przed zapisem (zostaną wysłane po „Zapisz”):
+                  {t("taskDrawer", "pendingPhotos")}
                 </div>
 
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
@@ -828,7 +868,7 @@ export default function TaskDrawer({
                           cursor: "pointer",
                           fontWeight: 900,
                         }}
-                        title="Usuń"
+                        title={t("common", "delete")}
                       >
                         ✕
                       </button>
@@ -913,7 +953,7 @@ export default function TaskDrawer({
                     {comments.map((c) => {
                       const profile = profiles.find((p) => p.id === c.user_id);
                       const userName = profile?.full_name || c.user_id.slice(0, 8);
-                      const timestamp = new Date(c.created_at).toLocaleString("pl-PL", {
+                      const timestamp = new Date(c.created_at).toLocaleString(localeByLang[language] || "en-US", {
                         year: "numeric",
                         month: "2-digit",
                         day: "2-digit",
