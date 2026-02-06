@@ -31,13 +31,18 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const setLanguage = (lang: Language) => {
+    console.log("[LanguageContext] Setting language to:", lang);
     setLanguageState(lang);
     localStorage.setItem("language", lang);
+    console.log("[LanguageContext] Language saved to localStorage:", localStorage.getItem("language"));
   };
 
   const t = (namespace: keyof typeof translations["en"], key: string, defaultValue?: string): string => {
+    if (!mounted) return defaultValue || key;
     const ns = translations[language][namespace]  as any;
-    return ns?.[key] ?? defaultValue ?? key;
+    const result = ns?.[key] ?? defaultValue ?? key;
+    // console.log(`[t] ${namespace}.${key} (${language}) =>`, result);
+    return result;
   };
 
   return (

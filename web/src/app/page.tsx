@@ -214,13 +214,13 @@ export default function Home() {
           disabled={offset === 0}
           style={{ marginRight: 8 }}
         >
-          Prev
+          {t("home", "prev")}
         </button>
         <button onClick={() => setOffset((o) => o + limit)} style={{ marginRight: 8 }}>
-          Next
+          {t("home", "next")}
         </button>
         <label style={{ marginLeft: 12 }}>
-          Limit:{" "}
+          {t("home", "limit")}:{" "}
           <input
             type="number"
             value={limit}

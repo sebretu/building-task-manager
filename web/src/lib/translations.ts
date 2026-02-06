@@ -42,6 +42,9 @@ export const translations = {
       tasksFound: "tasks found",
       pagination: "Page {page} of {pages}",
       userGreeting: "User",
+      prev: "Prev",
+      next: "Next",
+      limit: "Limit",
     },
     taskDrawer: {
       newTask: "New task",
@@ -156,6 +159,9 @@ export const translations = {
       tasksFound: "zadań znaleziono",
       pagination: "Strona {page} z {pages}",
       userGreeting: "Użytkownik",
+      prev: "Poprzednia",
+      next: "Następna",
+      limit: "Limit",
     },
     taskDrawer: {
       newTask: "Nowy task",
@@ -270,6 +276,9 @@ export const translations = {
       tasksFound: "Aufgaben gefunden",
       pagination: "Seite {page} von {pages}",
       userGreeting: "Benutzer",
+      prev: "Zurück",
+      next: "Weiter",
+      limit: "Limit",
     },
     taskDrawer: {
       newTask: "Neue Aufgabe",
@@ -384,6 +393,9 @@ export const translations = {
       tasksFound: "úloh nájdených",
       pagination: "Strana {page} z {pages}",
       userGreeting: "Používateľ",
+      prev: "Predchádzajúca",
+      next: "Ďalšia",
+      limit: "Limit",
     },
     taskDrawer: {
       newTask: "Nová úloha",
