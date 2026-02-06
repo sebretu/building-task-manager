@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiGet } from "@/lib/apiClient";
 import { supabase } from "@/lib/supabase";
+import { PWAInstallBanner } from "@/components/PWAInstallBanner";
 
 type Project = { id: string; name: string };
 type Task = {
@@ -113,7 +114,9 @@ export default function Home() {
   }
 
   return (
-    <main style={{ padding: 24 }}>
+    <>
+      <PWAInstallBanner />
+      <main style={{ padding: 24 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
         <div>
           <h1 style={{ margin: 0 }}>Tasks</h1>
@@ -252,6 +255,7 @@ export default function Home() {
           </li>
         ))}
       </ul>
-    </main>
+      </main>
+    </>
   );
 }

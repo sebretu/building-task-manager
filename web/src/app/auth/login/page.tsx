@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { PWAInstallBanner } from "@/components/PWAInstallBanner";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -42,16 +43,18 @@ export default function LoginPage() {
   }
 
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        minHeight: "100vh",
-        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-        fontFamily: "system-ui, -apple-system, sans-serif",
-      }}
-    >
+    <>
+      <PWAInstallBanner />
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: "100vh",
+          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+          fontFamily: "system-ui, -apple-system, sans-serif",
+        }}
+      >
       <div
         style={{
           background: "white",
@@ -220,6 +223,7 @@ export default function LoginPage() {
           Password: <code>Password123!</code>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
