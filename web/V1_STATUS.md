@@ -1,4 +1,6 @@
-# V1 Status Report — 2026-02-05
+# V1 Status Report — 2026-02-06
+
+## 🎉 PROJECT STATUS: ✅ 100% COMPLETE (MVP READY)
 
 ## Ekrany V1 — Status implementacji
 
@@ -203,16 +205,16 @@
 - [x] Przeglądanie szczegółów taska
 
 #### Priority 2 (Dla MVP)
-- [ ] Zarządzanie użytkownikami (assign to task)
-- [ ] Task details: zdjęcia + basic info
-- [ ] Ekran listing company members
-- [ ] Workflow: OPEN → IN_PROGRESS → DONE_WAITING_APPROVAL → APPROVED/REJECTED
+- [x] Zarządzanie użytkownikami (assign to task) ✅ DONE
+- [x] Task details: zdjęcia + basic info ✅ DONE
+- [x] Ekran listing company members ✅ DONE
+- [x] Workflow: OPEN → IN_PROGRESS → DONE_WAITING_APPROVAL → APPROVED/REJECTED ✅ DONE
 
 #### Priority 3 (Nice to have, V1+)
-- ~~[ ] Komentarze do zadań~~ ✅ DONE
+- ~~[x] Komentarze do zadań~~ ✅ DONE
+- ~~[x] PWA offline~~ ✅ DONE
+- ~~[x] i18n multi-language~~ ✅ DONE
 - [ ] Historia zmian
-- [ ] PWA offline
-- [ ] i18n multi-language
 - [ ] Search / advanced filters
 - [ ] Kanban board view
 
@@ -220,27 +222,31 @@
 
 ## Podsumowanie
 
-**V1 Status: ~95% done** (Phase B complete, workflow UI + comments added)
+**V1 Status: ✅ 100% COMPLETE - MVP READY FOR LAUNCH**
 
 ### Co działa:
 ✅ Auth + RLS (Phase B: Bearer token required, no service role fallback)
-✅ Projects
-✅ Plans listing + upload + viewer
+✅ Login page with proper auth UI and logout
+✅ Projects listing
+✅ Plans listing + upload + viewer (Leaflet map with tiles)
 ✅ Tasks listing + create + edit + DELETE
-✅ Task photos upload (RLS fixed)
-✅ Task comments (API endpoint + UI in TaskDrawer)
+✅ Task photos upload (RLS secured)
+✅ Task comments (API endpoint + UI)
+✅ Task workflow (OPEN → IN_PROGRESS → DONE_WAITING_APPROVAL → APPROVED/REJECTED)
+✅ User management (/users page with invite modal)
+✅ Company management (/companies page with member assignment)
+✅ PWA offline support (service worker + install prompts)
+✅ i18n framework (PL/DE/EN with language switcher, auto-detect)
 ✅ Markery na mapie (full lifecycle)
 ✅ Server-side auth helper (lib/supabaseServer.ts)
 ✅ Client-side API wrapper (lib/apiClient.ts)
-✅ Workflow UI: przyciski OPEN → IN_PROGRESS → DONE → APPROVED/REJECTED
 
 ### Co nie działa:
-❌ User management ekrany
-❌ PWA offline
-❌ i18n
-❌ Historia zmian UI
+❌ Historia zmian UI (zamiast tego mamy created_at/updated_at w DB)
+❌ Advanced search/filters
+❌ Kanban board view
 
-### Co zrobiliśmy (Phase B complete + Workflow UI + Comments):
+### Co zrobiliśmy (Phase A + Phase B + All 4 Tasks):
 1. ✅ Naprawiono RLS (policies applied, trigger removed)
 2. ✅ Usunięto DEV fallback (wymaga prawdziwego JWT)
 3. ✅ Zaimplementowano server helper (createServerSupabaseClient)
@@ -249,11 +255,16 @@
 6. ✅ Przetestowano full flow - wszystko działa
 7. ✅ Dodano workflow UI buttons (OPEN → IN_PROGRESS → DONE → APPROVED/REJECTED)
 8. ✅ Dodano task comments (API endpoint + RLS policies + UI)
+9. ✅ Stworzono ekrany zarządzania użytkownikami (/users, /companies)
+10. ✅ Stworzono proper auth flow (/auth/login z session check i logout)
+11. ✅ Dodano PWA offline support (service worker, manifest, install prompts)
+12. ✅ Dodano i18n framework (translations, context, language switcher)
 
-### Co dalej (Priority dla MVP):
-1. � **Zarządzanie użytkownikami** (lista, dodawanie do projektów, assign) - MVP blocker
-2. ~~🔶 Workflow UI: przyciski APPROVE/REJECT w TaskDrawer~~ ✅ DONE
-3. ~~🔶 Komentarze do zadań (UI + endpoints)~~ ✅ DONE
-4. ⭐ PWA offline support (nice to have)
-5. ⭐ i18n multi-language (nice to have)
+### Następne kroki (V1.1+):
+1. Historia zmian/audit log UI
+2. Advanced search/filters
+3. Kanban board view
+4. Email notifications
+5. File attachments (not just photos)
+6. Team collaboration features
 
