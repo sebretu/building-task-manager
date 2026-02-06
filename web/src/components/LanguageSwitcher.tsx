@@ -1,6 +1,7 @@
 "use client";
 
 import { useLanguage } from "@/contexts/LanguageContext";
+import { Language } from "@/lib/translations";
 
 export function LanguageSwitcher() {
   const { language, setLanguage } = useLanguage();
@@ -12,7 +13,7 @@ export function LanguageSwitcher() {
       </label>
       <select
         value={language}
-        onChange={(e) => setLanguage(e.target.value as "en" | "pl" | "de")}
+        onChange={(e) => setLanguage(e.target.value as Language)}
         style={{
           padding: "6px 10px",
           border: "1px solid #ccc",
@@ -26,6 +27,7 @@ export function LanguageSwitcher() {
         <option value="en">English</option>
         <option value="pl">Polski</option>
         <option value="de">Deutsch</option>
+        <option value="sk">Slovenčina</option>
       </select>
     </div>
   );

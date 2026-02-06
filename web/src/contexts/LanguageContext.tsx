@@ -18,12 +18,12 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   // Load saved language preference from localStorage
   useEffect(() => {
     const savedLanguage = localStorage.getItem("language") as Language | null;
-    if (savedLanguage && (savedLanguage === "en" || savedLanguage === "pl" || savedLanguage === "de")) {
+    if (savedLanguage && (savedLanguage === "en" || savedLanguage === "pl" || savedLanguage === "de" || savedLanguage === "sk")) {
       setLanguageState(savedLanguage);
     } else {
       // Auto-detect browser language
       const browserLang = navigator.language.split("-")[0] as Language;
-      if (browserLang === "pl" || browserLang === "de") {
+      if (browserLang === "pl" || browserLang === "de" || browserLang === "sk") {
         setLanguageState(browserLang);
       }
     }
