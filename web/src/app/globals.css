@@ -10,7 +10,6 @@
   --home-card: #f8fbff;
   --home-line: rgba(12, 35, 64, 0.18);
   --home-soft: rgba(12, 35, 64, 0.08);
-}
 
 @media (prefers-color-scheme: dark) {
   :root {
@@ -57,6 +56,48 @@ a {
 .home-hero {
   background: linear-gradient(135deg, #dfe9f6 0%, #f3f7ff 50%, #dfe8f4 100%);
   border-bottom: 1px solid var(--home-line);
+  position: relative;
+  overflow: hidden;
+}
+
+.home-hero-bg-logo {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 540px;
+  max-width: 48vw;
+  height: auto;
+  opacity: 0.32;
+  z-index: 0;
+  pointer-events: none;
+  user-select: none;
+  filter: drop-shadow(0 2px 12px rgba(0,0,0,0.10));
+}
+
+.home-hero-content, .home-hero-text, .home-hero-media {
+  position: relative;
+  z-index: 2;
+}
+
+.home-hero-content {
+  padding-top: 120px;
+}
+
+.home-logo-img {
+  height: 64px;
+  width: auto;
+  margin-right: 18px;
+  object-fit: contain;
+  display: block;
+  filter: drop-shadow(0 2px 8px rgba(0,0,0,0.10));
+}
+
+.home-logo {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  z-index: 2;
+}
 }
 
 .home-topbar {

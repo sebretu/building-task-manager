@@ -304,14 +304,9 @@ export default function Home() {
     <>
       <PWAInstallBanner />
       <div className="home-hero">
+        <img src="/logo-uploaded.png" alt="Logo background" className="home-hero-bg-logo" aria-hidden="true" />
         <header className="home-topbar">
-          <div className="home-logo">
-            <span className="home-logo-mark" />
-            <div>
-              <div className="home-logo-title">InspectHero</div>
-              <div className="home-logo-sub">Facility Task Control</div>
-            </div>
-          </div>
+          {/* Logo and text removed as requested */}
           <nav className="home-nav">
             <Link href="/" className="home-nav-link">
               {t("nav", "tasks")}
@@ -335,7 +330,7 @@ export default function Home() {
         </header>
 
         <section className="home-hero-content">
-          <div className="home-hero-text">
+          <div className="home-hero-text" style={{ marginTop: 120 }}>
             <div className="home-hero-kicker">{t("home", "heroKicker")}</div>
             <h1 className="home-hero-title">{t("home", "heroTitle")}</h1>
             <p className="home-hero-subtitle">{t("home", "heroSubtitle")}</p>
@@ -352,18 +347,7 @@ export default function Home() {
               <span>{user.full_name || user.email}</span>
             </div>
           </div>
-          <div className="home-hero-media">
-            <div className="home-hero-panel">
-              <div className="home-hero-panel-title">{t("home", "heroPanelTitle")}</div>
-              <div className="home-hero-panel-body">{t("home", "heroPanelBody")}</div>
-              <div className="home-hero-panel-tags">
-                <span>{t("home", "heroTagPlanning")}</span>
-                <span>{t("home", "heroTagSafety")}</span>
-                <span>{t("home", "heroTagEfficiency")}</span>
-              </div>
-            </div>
-            <div className="home-hero-grid" />
-          </div>
+          {/* home-hero-media and panel removed as requested */}
         </section>
       </div>
 
