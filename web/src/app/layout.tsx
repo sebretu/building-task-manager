@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+
 import { Geist, Geist_Mono } from "next/font/google";
 import { LanguageProvider } from "@/contexts/LanguageContext";
+import UnifiedLayout from "@/components/UnifiedLayout";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -46,7 +48,7 @@ export default function RootLayout({
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <LanguageProvider>
-          {children}
+          <UnifiedLayout>{children}</UnifiedLayout>
         </LanguageProvider>
       </body>
     </html>
