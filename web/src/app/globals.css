@@ -607,12 +607,21 @@ a {
   display: flex;
   gap: 12px;
   align-items: center;
+  justify-content: space-between;
   padding: 10px 12px;
   border-radius: 12px;
   border: 1px solid var(--home-line);
   background: #fff;
   color: inherit;
   text-decoration: none;
+}
+
+.home-task-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
 }
 
 .home-task-pill {
@@ -625,6 +634,64 @@ a {
 
 .home-task-title {
   font-weight: 700;
+  color: var(--home-ink);
+}
+
+.home-task-media {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.home-task-media-item {
+  display: grid;
+  gap: 4px;
+  justify-items: center;
+}
+
+.home-task-thumb {
+  width: 72px;
+  height: 48px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid var(--home-line);
+  background: #fff;
+}
+
+.home-task-placeholder {
+  width: 72px;
+  height: 48px;
+  border-radius: 8px;
+  border: 1px dashed var(--home-line);
+  background: #f1f5fb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--home-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.home-task-media-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--home-muted);
+}
+
+@media (max-width: 720px) {
+  .home-task-link {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .home-task-media {
+    width: 100%;
+    justify-content: flex-start;
+  }
 }
 
 .home-kanban {

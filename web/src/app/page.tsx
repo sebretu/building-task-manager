@@ -17,6 +17,18 @@ type Task = {
   priority: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
   due_date: string | null;
   assigned_user_id?: string | null;
+  plan_id?: string | null;
+  x_norm?: number | null;
+  y_norm?: number | null;
+};
+
+type PlanMeta = {
+  tileSize: number;
+  minZoom: number;
+  maxZoom: number;
+  gridW: number;
+  gridH: number;
+  limits?: Record<string, { maxX: number; maxY: number }>;
 };
 
 type User = {
@@ -58,6 +70,8 @@ export default function Home() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectId, setProjectId] = useState("");
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [thumbByTask, setThumbByTask] = useState<Record<string, string | null>>({});
+  const [metaByPlan, setMetaByPlan] = useState<Record<string, PlanMeta | null>>({});
   const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
   const [q, setQ] = useState("");
   const [qDebounced, setQDebounced] = useState("");
@@ -74,6 +88,33 @@ export default function Home() {
   }, [profiles]);
 
   const kanbanColumns = ["OPEN", "IN_PROGRESS", "DONE_WAITING_APPROVAL", "APPROVED", "REJECTED"] as const;
+
+  function fixStorageUrl(u: string) {
+    if (!u) return u;
+    if (typeof window === "undefined") return u;
+
+    const host = window.location.hostname;
+    const proto = window.location.protocol;
+    return u.replace(/^http:\/\/[^/]+:54321/i, `${proto}//${host}:54321`);
+  }
+
+  async function loadThumb(taskId: string) {
+    const r = await fetch(`/api/task-photos?taskId=${encodeURIComponent(taskId)}`, { cache: "no-store" });
+    const j = await r.json().catch(() => null);
+    const raw = j?.ok && j.data && j.data.length ? j.data[0].url : null;
+    const fixed = raw ? fixStorageUrl(raw) : null;
+    setThumbByTask((prev) => ({ ...prev, [taskId]: fixed }));
+  }
+
+  async function loadPlanMeta(planId: string) {
+    const r = await fetch(`/api/tiles/${encodeURIComponent(planId)}/meta`, { cache: "no-store" });
+    if (!r.ok) {
+      setMetaByPlan((prev) => ({ ...prev, [planId]: null }));
+      return;
+    }
+    const meta = (await r.json()) as PlanMeta;
+    setMetaByPlan((prev) => ({ ...prev, [planId]: meta }));
+  }
 
   // Check session on mount
   useEffect(() => {
@@ -183,6 +224,44 @@ export default function Home() {
     }, 300);
     return () => clearTimeout(t);
   }, [q]);
+
+  useEffect(() => {
+    tasks.forEach((task) => {
+      if (!Object.prototype.hasOwnProperty.call(thumbByTask, task.id)) {
+        loadThumb(task.id).catch(() => {});
+      }
+    });
+
+    const planIds = new Set(
+      tasks
+        .map((task) => task.plan_id)
+        .filter((id): id is string => typeof id === "string" && id.length > 0)
+    );
+
+    planIds.forEach((planId) => {
+      if (!Object.prototype.hasOwnProperty.call(metaByPlan, planId)) {
+        loadPlanMeta(planId).catch(() => {});
+      }
+    });
+  }, [tasks, thumbByTask, metaByPlan]);
+
+  function getTileUrl(task: Task) {
+    if (!task.plan_id) return null;
+    const meta = metaByPlan[task.plan_id];
+    if (!meta) return null;
+
+    const xNorm = typeof task.x_norm === "number" ? task.x_norm : Number(task.x_norm);
+    const yNorm = typeof task.y_norm === "number" ? task.y_norm : Number(task.y_norm);
+    if (!Number.isFinite(xNorm) || !Number.isFinite(yNorm)) return null;
+
+    const zoomKey = String(meta.maxZoom);
+    const maxX = meta.limits?.[zoomKey]?.maxX ?? meta.gridW - 1;
+    const maxY = meta.limits?.[zoomKey]?.maxY ?? meta.gridH - 1;
+    const x = Math.min(Math.max(0, Math.floor(xNorm * meta.gridW)), maxX);
+    const y = Math.min(Math.max(0, Math.floor(yNorm * meta.gridH)), maxY);
+
+    return `/api/tiles/${task.plan_id}/${meta.maxZoom}/${x}/${y}.png`;
+  }
 
   if (!sessionLoaded || !user) {
     return <div style={{ padding: 24 }}>{t("common", "loading")}</div>;
@@ -516,14 +595,39 @@ export default function Home() {
 
           {viewMode === "list" ? (
             <ul className="home-task-list">
-              {tasks.map((task) => (
-                <li key={task.id}>
-                  <Link href={`/task/${task.id}`} className="home-task-link">
-                    <span className="home-task-pill">{t("taskStatus", task.status, task.status)}</span>
-                    <span className="home-task-title">{task.title}</span>
-                  </Link>
-                </li>
-              ))}
+              {tasks.map((task) => {
+                const thumb = thumbByTask[task.id];
+                const tileUrl = getTileUrl(task);
+
+                return (
+                  <li key={task.id}>
+                    <Link href={`/task/${task.id}`} className="home-task-link">
+                      <div className="home-task-info">
+                        <span className="home-task-pill">{t("taskStatus", task.status, task.status)}</span>
+                        <span className="home-task-title">{task.title}</span>
+                      </div>
+                      <div className="home-task-media">
+                        <div className="home-task-media-item">
+                          {thumb ? (
+                            <img src={thumb} alt={t("home", "photoLabel")} className="home-task-thumb" />
+                          ) : (
+                            <div className="home-task-placeholder">{t("home", "noPhoto")}</div>
+                          )}
+                          <span className="home-task-media-label">{t("home", "photoLabel")}</span>
+                        </div>
+                        <div className="home-task-media-item">
+                          {tileUrl ? (
+                            <img src={tileUrl} alt={t("home", "mapLabel")} className="home-task-thumb" />
+                          ) : (
+                            <div className="home-task-placeholder">{t("home", "noTile")}</div>
+                          )}
+                          <span className="home-task-media-label">{t("home", "mapLabel")}</span>
+                        </div>
+                      </div>
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           ) : (
             <div className="home-kanban">
