@@ -575,7 +575,30 @@ export default function TaskDrawer({
                     color: "white",
                     fontSize: 12,
                     fontWeight: 800,
-                  }}\n                >\n                  📌\n                </div>\n              </div>\n              <a\n                href={`/plan/${plan.id}`}\n                style={{\n                  display: "inline-block",\n                  padding: "6px 12px\",\n                  background: \"#667eea\",\n                  color: \"white\",\n                  borderRadius: 8,\n                  textDecoration: \"none\",\n                  fontSize: 12,\n                  fontWeight: 800,\n                }}\n              >\n                🗺️ Otwórz pełną mapę\n              </a>\n            </div>\n          )}\n\n          {/* WORKFLOW BUTTONS */}
+                  }}
+                >
+                  📌
+                </div>
+              </div>
+              <a
+                href={`/plan/${plan.id}`}
+                style={{
+                  display: "inline-block",
+                  padding: "6px 12px",
+                  background: "#667eea",
+                  color: "white",
+                  borderRadius: 8,
+                  textDecoration: "none",
+                  fontSize: 12,
+                  fontWeight: 800,
+                }}
+              >
+                🗺️ Otwórz pełną mapę
+              </a>
+            </div>
+          )}
+
+          {/* WORKFLOW BUTTONS */}
           {!isCreate && (
             <div style={{ display: "grid", gap: 8 }}>
               <div style={{ fontSize: 12, fontWeight: 800, color: "rgba(17,24,39,0.6)" }}>{t("taskDrawer", "workflowActions")}</div>
