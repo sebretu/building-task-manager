@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { apiGet } from "@/lib/apiClient";
 import { supabase } from "@/lib/supabase";
 import { PWAInstallBanner } from "@/components/PWAInstallBanner";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 type Project = { id: string; name: string };
 type Task = {
@@ -24,6 +26,7 @@ type User = {
 
 export default function Home() {
   const router = useRouter();
+  const { t } = useLanguage();
   const [user, setUser] = useState<User | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectId, setProjectId] = useState("");
@@ -110,7 +113,7 @@ export default function Home() {
   }, [q]);
 
   if (!sessionLoaded || !user) {
-    return <div style={{ padding: 24 }}>Loading...</div>;
+    return <div style={{ padding: 24 }}>{t("common", "loading")}</div>;
   }
 
   return (
@@ -119,37 +122,40 @@ export default function Home() {
       <main style={{ padding: 24 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
         <div>
-          <h1 style={{ margin: 0 }}>Tasks</h1>
+          <h1 style={{ margin: 0 }}>{t("home", "title")}</h1>
           <p style={{ margin: "8px 0 0 0", color: "#666", fontSize: "14px" }}>
             👤 {user.full_name || user.email}
           </p>
         </div>
-        <button
-          onClick={handleLogout}
-          style={{
-            padding: "10px 16px",
-            background: "#dc3545",
-            color: "white",
-            border: "none",
-            borderRadius: "4px",
-            cursor: "pointer",
-            fontWeight: "bold",
-            fontSize: "14px",
-          }}
-        >
-          🚪 Wyloguj
-        </button>
+        <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+          <LanguageSwitcher />
+          <button
+            onClick={handleLogout}
+            style={{
+              padding: "10px 16px",
+              background: "#dc3545",
+              color: "white",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
+              fontWeight: "bold",
+              fontSize: "14px",
+            }}
+          >
+            🚪 {t("common", "logout")}
+          </button>
+        </div>
       </div>
 
       <div style={{ marginBottom: 12, display: "flex", gap: "20px" }}>
         <Link href="/plans" style={{ textDecoration: "none" }}>
-          → Plans
+          → {t("nav", "plans")}
         </Link>
         <Link href="/users" style={{ textDecoration: "none" }}>
-          → Users
+          → {t("nav", "users")}
         </Link>
         <Link href="/companies" style={{ textDecoration: "none" }}>
-          → Companies
+          → {t("nav", "companies")}
         </Link>
       </div>
 
@@ -161,7 +167,7 @@ export default function Home() {
 
       <div style={{ marginBottom: 12 }}>
         <label>
-          Project:{" "}
+          {t("home", "selectProject")}:{" "}
           <select
             value={projectId}
             onChange={(e) => {
@@ -182,26 +188,9 @@ export default function Home() {
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search…"
+          placeholder={t("home", "search")}
           style={{ width: 280 }}
         />
-      </div>
-
-      <div style={{ marginBottom: 12 }}>
-        <input value={email} onChange={(e) => setEmail(e.target.value)} />
-        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-        <button
-          onClick={async () => {
-            try {
-              await supabase.auth.signInWithPassword({ email, password });
-              await loadAll();
-            } catch (e: any) {
-              setErr(String(e?.message || e));
-            }
-          }}
-        >
-          Sign in
-        </button>
       </div>
 
       <div style={{ marginBottom: 12 }}>

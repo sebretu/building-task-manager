@@ -68,6 +68,10 @@ export default function LoginPage() {
           maxWidth: "400px",
         }}
       >
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "20px" }}>
+          <LanguageSwitcher />
+        </div>
+
         <h1
           style={{
             textAlign: "center",
@@ -76,7 +80,7 @@ export default function LoginPage() {
             fontSize: "28px",
           }}
         >
-          🔓 Logowanie
+          🔓 {t("auth", "title")}
         </h1>
 
         <p
@@ -87,7 +91,7 @@ export default function LoginPage() {
             fontSize: "14px",
           }}
         >
-          Task Manager v1.0
+          {t("auth", "subtitle")}
         </p>
 
         {error && (
@@ -117,7 +121,7 @@ export default function LoginPage() {
                 fontSize: "14px",
               }}
             >
-              📧 Email
+              {t("auth", "demoEmail")}
             </label>
             <input
               type="email"
@@ -148,7 +152,7 @@ export default function LoginPage() {
                 fontSize: "14px",
               }}
             >
-              🔐 Hasło
+              {t("auth", "demoPassword")}
             </label>
             <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
               <input
@@ -183,7 +187,7 @@ export default function LoginPage() {
                   opacity: loading ? 0.5 : 1,
                 }}
               >
-                {showPassword ? "👁️" : "👁️‍🗨️"}
+                {showPassword ? t("auth", "showPassword") : t("auth", "hidePassword")}
               </button>
             </div>
           </div>
@@ -204,7 +208,7 @@ export default function LoginPage() {
               transition: "background 0.3s",
             }}
           >
-            {loading ? "⏳ Logowanie..." : "✅ Zaloguj się"}
+            {loading ? t("auth", "loggingIn") : t("auth", "loginButton")}
           </button>
         </form>
 
