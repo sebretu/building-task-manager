@@ -236,10 +236,10 @@ export default function Home() {
       </div>
 
       <ul>
-        {tasks.map((t) => (
-          <li key={t.id}>
-            <Link href={`/task/${t.id}`} style={{ textDecoration: "none", color: "inherit" }}>
-              [{t("taskStatus", t.status, t.status)}] {t.title}
+        {tasks.map((task) => (
+          <li key={task.id}>
+            <Link href={`/task/${task.id}`} style={{ textDecoration: "none", color: "inherit" }}>
+              [{t("taskStatus", task.status, task.status)}] {task.title}
             </Link>
           </li>
         ))}
