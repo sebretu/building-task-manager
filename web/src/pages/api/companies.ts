@@ -18,16 +18,16 @@ export default async function handler(
       if (error) {
         return res.status(400).json({ ok: false, error });
       }
-
-      return res.status(200).json(data || []);
+      return res.status(200).json({ ok: true, data: data || [] });
     }
 
-    return res.status(405).json({ error: "Method not allowed" });
+    return res.status(405).json({ ok: false, error: "Method not allowed" });
   } catch (err) {
     console.error("Error in /api/companies:", err);
     return res
       .status(500)
       .json({
+        ok: false,
         error: "Internal server error",
         message: err instanceof Error ? err.message : String(err),
       });
