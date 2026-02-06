@@ -203,7 +203,7 @@ export default function Home() {
             }}
             style={{ marginRight: 8, fontWeight: statusFilter === s ? "bold" : "normal" }}
           >
-            {s ?? "ALL"}
+            {s ? t("taskStatus", s) : t("taskStatus", "ALL")}
           </button>
         ))}
       </div>
@@ -239,7 +239,7 @@ export default function Home() {
         {tasks.map((t) => (
           <li key={t.id}>
             <Link href={`/task/${t.id}`} style={{ textDecoration: "none", color: "inherit" }}>
-              [{t.status}] {t.title}
+              [{t("taskStatus", t.status, t.status)}] {t.title}
             </Link>
           </li>
         ))}

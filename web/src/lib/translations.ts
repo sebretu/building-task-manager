@@ -98,6 +98,20 @@ export const translations = {
       installPrompt: "📱 Install the app to use it offline",
       installButton: "Install",
     },
+    taskStatus: {
+      OPEN: "Open",
+      IN_PROGRESS: "In Progress",
+      DONE_WAITING_APPROVAL: "Waiting Approval",
+      APPROVED: "Approved",
+      REJECTED: "Rejected",
+      ALL: "All",
+    },
+    taskPriority: {
+      LOW: "Low",
+      MEDIUM: "Medium",
+      HIGH: "High",
+      URGENT: "Urgent",
+    },
   },
   pl: {
     common: {
@@ -197,6 +211,20 @@ export const translations = {
       offline: "📴 Jesteś offline - niektóre funkcje mogą być niedostępne",
       installPrompt: "📱 Zainstaluj aplikację, aby używać offline",
       installButton: "Zainstaluj",
+    },
+    taskStatus: {
+      OPEN: "Otwarte",
+      IN_PROGRESS: "W trakcie",
+      DONE_WAITING_APPROVAL: "Czeka na akceptację",
+      APPROVED: "Zatwierdzone",
+      REJECTED: "Odrzucone",
+      ALL: "Wszystkie",
+    },
+    taskPriority: {
+      LOW: "Niski",
+      MEDIUM: "Średni",
+      HIGH: "Wysoki",
+      URGENT: "Pilne",
     },
   },
   de: {
@@ -298,6 +326,20 @@ export const translations = {
       installPrompt: "📱 Installieren Sie die App, um sie offline zu verwenden",
       installButton: "Installieren",
     },
+    taskStatus: {
+      OPEN: "Offen",
+      IN_PROGRESS: "In Bearbeitung",
+      DONE_WAITING_APPROVAL: "Wartet auf Genehmigung",
+      APPROVED: "Genehmigt",
+      REJECTED: "Abgelehnt",
+      ALL: "Alle",
+    },
+    taskPriority: {
+      LOW: "Niedrig",
+      MEDIUM: "Mittel",
+      HIGH: "Hoch",
+      URGENT: "Dringend",
+    },
   },
   sk: {
     common: {
@@ -397,6 +439,20 @@ export const translations = {
       offline: "📴 Ste offline - niektoré funkcie nemusia byť dostupné",
       installPrompt: "📱 Nainštalujte aplikáciu, aby ste ju mohli používať offline",
       installButton: "Nainštalovať",
+    },
+    taskStatus: {
+      OPEN: "Otvorené",
+      IN_PROGRESS: "Prebieha",
+      DONE_WAITING_APPROVAL: "Čaká na schválenie",
+      APPROVED: "Schválené",
+      REJECTED: "Odmietnuté",
+      ALL: "Všetky",
+    },
+    taskPriority: {
+      LOW: "Nízka",
+      MEDIUM: "Stredná",
+      HIGH: "Vysoká",
+      URGENT: "Urgentné",
     },
   },
 };
