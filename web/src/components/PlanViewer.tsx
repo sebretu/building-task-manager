@@ -30,7 +30,17 @@ const PlanMap = dynamic(() => import("./PlanMap"), {
   ),
 });
 
-export default function PlanViewer({ planId }: { planId: string }) {
+export default function PlanViewer({
+  planId,
+  fullHeight = false,
+  focusPoint,
+  focusTaskId,
+}: {
+  planId: string;
+  fullHeight?: boolean;
+  focusPoint?: { x_norm: number; y_norm: number } | null;
+  focusTaskId?: string | null;
+}) {
   const [meta, setMeta] = useState<Meta | null>(null);
   const [metaStatus, setMetaStatus] = useState<
     "LOADING" | "PROCESSING" | "READY" | "ERROR"
@@ -97,12 +107,15 @@ export default function PlanViewer({ planId }: { planId: string }) {
   // ------------------------------------------------------------------
   // 1) META JESZCZE NIE MA → POKAZUJ PDF (ZERO LEAFLET, ZERO SSR PROBLEMÓW)
   // ------------------------------------------------------------------
+  const viewerHeight = fullHeight ? "100vh" : "calc(100vh - 120px)";
+  const pdfHeight = fullHeight ? "calc(100vh - 72px)" : "60vh";
+
   if (metaStatus === "LOADING" || metaStatus === "PROCESSING") {
     return (
       <div
         style={{
           width: "100%",
-          height: "calc(100vh - 120px)",
+          height: viewerHeight,
           display: "grid",
           gridTemplateRows: "auto 1fr",
         }}
@@ -151,7 +164,7 @@ export default function PlanViewer({ planId }: { planId: string }) {
         <div style={{ color: "crimson", fontWeight: 700 }}>Błąd</div>
         <div style={{ marginTop: 6, fontFamily: "monospace" }}>{metaErr}</div>
 
-        <div style={{ marginTop: 12, height: "60vh" }}>
+        <div style={{ marginTop: 12, height: pdfHeight }}>
           <iframe
             title="Plan PDF"
             src={`/api/plans/pdf?id=${encodeURIComponent(planId)}#view=FitH`}
@@ -165,5 +178,13 @@ export default function PlanViewer({ planId }: { planId: string }) {
   // -----------------------
   // 3) READY → LEAFLET
   // -----------------------
-  return <PlanMap planId={planId} meta={meta!} />;
+  return (
+    <PlanMap
+      planId={planId}
+      meta={meta!}
+      fullHeight={fullHeight}
+      focusPoint={focusPoint}
+      focusTaskId={focusTaskId}
+    />
+  );
 }

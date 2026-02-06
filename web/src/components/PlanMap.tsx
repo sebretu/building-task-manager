@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import TaskDrawer from "./TaskDrawer";
@@ -76,7 +76,19 @@ function fixStorageUrl(u: string) {
   return u.replace(/^http:\/\/[^/]+:54321/i, `${proto}//${host}:54321`);
 }
 
-export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }) {
+export default function PlanMap({
+  planId,
+  meta,
+  fullHeight = false,
+  focusPoint,
+  focusTaskId,
+}: {
+  planId: string;
+  meta: Meta;
+  fullHeight?: boolean;
+  focusPoint?: { x_norm: number; y_norm: number } | null;
+  focusTaskId?: string | null;
+}) {
   const PROJECT_ID = "55555555-5555-5555-5555-555555555555";
   const CREATED_BY = "44444444-4444-4444-4444-444444444444";
   const START_ZOOM = 2;
@@ -101,6 +113,11 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
   }, [worldPxW, worldPxH, meta.maxZoom]);
 
   const center = bounds.getCenter();
+  const focusLatLng = useMemo(() => {
+    if (!focusPoint) return null;
+    const p = L.point(focusPoint.x_norm * worldPxW, focusPoint.y_norm * worldPxH);
+    return CRS.pointToLatLng(p, meta.maxZoom);
+  }, [focusPoint, worldPxW, worldPxH, meta.maxZoom]);
 
   const MapContainerAny: any = MapContainer;
 
@@ -198,25 +215,43 @@ export default function PlanMap({ planId, meta }: { planId: string; meta: Meta }
     };
   }, [loadTasks]);
 
+  const mapHeight = fullHeight ? "100vh" : "calc(100vh - 120px)";
+
+  function FocusOnTask({ target }: { target: L.LatLng | null }) {
+    const map = useMap();
+    const focusZoom = Math.min(meta.maxZoom, Math.max(meta.minZoom, START_ZOOM + 1));
+
+    useEffect(() => {
+      if (!target) return;
+      map.setView(target, focusZoom, { animate: true });
+    }, [map, target, focusZoom]);
+
+    return null;
+  }
+
   return (
     <>
       <MapContainerAny
         crs={CRS}
-        center={center}
+        center={focusLatLng || center}
         zoom={Math.max(meta.minZoom, Math.min(meta.maxZoom, START_ZOOM))}
         minZoom={meta.minZoom}
         maxZoom={meta.maxZoom}
         bounds={bounds}
         maxBounds={bounds}
         maxBoundsViscosity={1.0}
-        style={{ height: "calc(100vh - 120px)", background: "#fff" }}
+        style={{ height: mapHeight, background: "#fff" }}
       >
         <TileLayer url={`/api/tiles/${planId}/{z}/{x}/{y}.png`} />
 
         {/* ✅ to było brakujące */}
         <ClickToCreate />
 
-        {tasks.map((t) => {
+        <FocusOnTask target={focusLatLng} />
+
+        {tasks
+          .filter((t) => (!focusTaskId ? true : t.id === focusTaskId))
+          .map((t) => {
           const ll = CRS.pointToLatLng(L.point(t.x_norm * worldPxW, t.y_norm * worldPxH), meta.maxZoom);
           const thumb = thumbByTask[t.id];
 

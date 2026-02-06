@@ -1,8 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import TaskDrawer from "@/components/TaskDrawer";
+import PlanViewer from "@/components/PlanViewer";
+import { apiGet } from "@/lib/apiClient";
 
 function isUuid(v: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
@@ -10,6 +12,9 @@ function isUuid(v: string) {
 
 export default function TaskClient({ id }: { id: string }) {
   const router = useRouter();
+  const [planId, setPlanId] = useState<string | null>(null);
+  const [planError, setPlanError] = useState<string | null>(null);
+  const [focusPoint, setFocusPoint] = useState<{ x_norm: number; y_norm: number } | null>(null);
 
   const okId = useMemo(() => (typeof id === "string" ? id.trim() : ""), [id]);
 
@@ -45,12 +50,54 @@ export default function TaskClient({ id }: { id: string }) {
     );
   }
 
+  useEffect(() => {
+    let alive = true;
+
+    async function loadPlan() {
+      if (!okId || !isUuid(okId)) return;
+
+      try {
+        const task = await apiGet<{ plan_id?: string | null; x_norm?: number | null; y_norm?: number | null }>(
+          `/api/task?id=${encodeURIComponent(okId)}`
+        );
+        if (!alive) return;
+        setPlanId(task?.plan_id || null);
+        if (typeof task?.x_norm === "number" && typeof task?.y_norm === "number") {
+          setFocusPoint({ x_norm: task.x_norm, y_norm: task.y_norm });
+        } else {
+          setFocusPoint(null);
+        }
+      } catch (e: any) {
+        if (!alive) return;
+        setPlanError(e?.message || String(e));
+      }
+    }
+
+    loadPlan();
+    return () => {
+      alive = false;
+    };
+  }, [okId]);
+
   return (
-    <TaskDrawer
-      open={true}
-      taskId={okId}
-      uploadedBy={UPLOADED_BY}
-      onClose={() => router.back()}
-    />
+    <div style={{ position: "fixed", inset: 0, background: "#0b0f1a" }}>
+      {planId ? (
+        <div style={{ position: "absolute", inset: 0 }}>
+          <PlanViewer planId={planId} fullHeight={true} focusPoint={focusPoint} focusTaskId={okId} />
+        </div>
+      ) : (
+        <div style={{ padding: 16, color: "#e5e7eb", fontFamily: "system-ui" }}>
+          {planError ? "Nie moge zaladowac planu." : "Plan nie jest przypisany do taska."}
+        </div>
+      )}
+
+      <TaskDrawer
+        open={true}
+        taskId={okId}
+        uploadedBy={UPLOADED_BY}
+        onClose={() => router.back()}
+        showOverlay={false}
+      />
+    </div>
   );
 }

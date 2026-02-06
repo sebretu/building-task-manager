@@ -85,6 +85,7 @@ export default function TaskDrawer({
   onClose,
   uploadedBy,
   createDraft,
+  showOverlay = true,
 }: {
   open: boolean;
   taskId: string | null;
@@ -98,6 +99,7 @@ export default function TaskDrawer({
     y_norm: number;
     created_by?: string;
   } | null;
+  showOverlay?: boolean;
 }) {
   const isCreate = !!createDraft && !taskId;
   const { t } = useLanguage();
@@ -122,6 +124,7 @@ export default function TaskDrawer({
   // ⭐ lista profili do dropdown
   const [profiles, setProfiles] = useState<ProfileRow[]>([]);
   const [profilesLoaded, setProfilesLoaded] = useState(false);
+  const [tileStatus, setTileStatus] = useState<"unknown" | "ok" | "error">("unknown");
 
   const canShow = open && (!!taskId || !!createDraft);
 
@@ -217,6 +220,10 @@ export default function TaskDrawer({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    setTileStatus("unknown");
+  }, [plan?.id]);
 
   const inputStyle: React.CSSProperties = {
     width: "100%",
@@ -406,15 +413,17 @@ export default function TaskDrawer({
   return (
     <>
       {/* overlay */}
-      <div
-        onClick={onClose}
-        style={{
-          position: "fixed",
-          inset: 0,
-          background: "rgba(0,0,0,0.45)",
-          zIndex: 9998,
-        }}
-      />
+      {showOverlay && (
+        <div
+          onClick={onClose}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.45)",
+            zIndex: 9998,
+          }}
+        />
+      )}
 
       {/* CARD */}
       <div
@@ -545,17 +554,39 @@ export default function TaskDrawer({
                 }}
               >
                 {/* Tile background */}
-                <div
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    width: "100%",
-                    height: "100%",
-                    background: `url(/tiles/${plan.id}/0/0/0.png) no-repeat center / cover`,
-                    opacity: 0.3,
-                  }}
-                />
+                {tileStatus !== "error" && (
+                  <img
+                    alt=""
+                    src={`/tiles/${plan.id}/0/0/0.png`}
+                    onLoad={() => setTileStatus("ok")}
+                    onError={() => setTileStatus("error")}
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                      opacity: 0.35,
+                    }}
+                  />
+                )}
+
+                {tileStatus === "error" && (
+                  <iframe
+                    title="Plan PDF preview"
+                    src={`/api/plans/pdf?id=${encodeURIComponent(plan.id)}#view=FitH`}
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: "100%",
+                      height: "100%",
+                      border: 0,
+                      opacity: 0.7,
+                    }}
+                  />
+                )}
                 {/* Task marker */}
                 <div
                   style={{
@@ -575,6 +606,7 @@ export default function TaskDrawer({
                     color: "white",
                     fontSize: 12,
                     fontWeight: 800,
+                    zIndex: 2,
                   }}
                 >
                   📌
