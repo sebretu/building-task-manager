@@ -651,10 +651,7 @@ export default function Home() {
         </section>
       </main>
       <footer className="home-footer">
-        <div>
-          InspectHero GmbH · Heinrich-Hertz-Str. 22a · 40699 Erkrath
-        </div>
-        <div>info@inspecthero.pl · +49 211 210 233 00</div>
+        {/* Footer content removed as requested */}
       </footer>
     </>
   );
