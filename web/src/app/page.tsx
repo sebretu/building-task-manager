@@ -63,9 +63,15 @@ export default function Home() {
     <main style={{ padding: 24 }}>
       <h1>Tasks</h1>
 
-      <div style={{ marginBottom: 12 }}>
+      <div style={{ marginBottom: 12, display: "flex", gap: "20px" }}>
         <Link href="/plans" style={{ textDecoration: "none" }}>
           → Plans
+        </Link>
+        <Link href="/users" style={{ textDecoration: "none" }}>
+          → Users
+        </Link>
+        <Link href="/companies" style={{ textDecoration: "none" }}>
+          → Companies
         </Link>
       </div>
 

@@ -209,7 +209,7 @@
 - [ ] Workflow: OPEN → IN_PROGRESS → DONE_WAITING_APPROVAL → APPROVED/REJECTED
 
 #### Priority 3 (Nice to have, V1+)
-- [ ] Komentarze do zadań
+- ~~[ ] Komentarze do zadań~~ ✅ DONE
 - [ ] Historia zmian
 - [ ] PWA offline
 - [ ] i18n multi-language
@@ -220,7 +220,7 @@
 
 ## Podsumowanie
 
-**V1 Status: ~90% done** (Phase B complete, workflow UI added)
+**V1 Status: ~95% done** (Phase B complete, workflow UI + comments added)
 
 ### Co działa:
 ✅ Auth + RLS (Phase B: Bearer token required, no service role fallback)
@@ -228,6 +228,7 @@
 ✅ Plans listing + upload + viewer
 ✅ Tasks listing + create + edit + DELETE
 ✅ Task photos upload (RLS fixed)
+✅ Task comments (API endpoint + UI in TaskDrawer)
 ✅ Markery na mapie (full lifecycle)
 ✅ Server-side auth helper (lib/supabaseServer.ts)
 ✅ Client-side API wrapper (lib/apiClient.ts)
@@ -237,10 +238,9 @@
 ❌ User management ekrany
 ❌ PWA offline
 ❌ i18n
-❌ Komentarze
 ❌ Historia zmian UI
 
-### Co zrobiliśmy (Phase B complete + Workflow UI):
+### Co zrobiliśmy (Phase B complete + Workflow UI + Comments):
 1. ✅ Naprawiono RLS (policies applied, trigger removed)
 2. ✅ Usunięto DEV fallback (wymaga prawdziwego JWT)
 3. ✅ Zaimplementowano server helper (createServerSupabaseClient)
@@ -248,11 +248,12 @@
 5. ✅ Naprawiono delete task (używa DELETE endpoint)
 6. ✅ Przetestowano full flow - wszystko działa
 7. ✅ Dodano workflow UI buttons (OPEN → IN_PROGRESS → DONE → APPROVED/REJECTED)
+8. ✅ Dodano task comments (API endpoint + RLS policies + UI)
 
 ### Co dalej (Priority dla MVP):
-1. 🔶 Zarządzanie użytkownikami (lista, dodawanie do projektów)
+1. � **Zarządzanie użytkownikami** (lista, dodawanie do projektów, assign) - MVP blocker
 2. ~~🔶 Workflow UI: przyciski APPROVE/REJECT w TaskDrawer~~ ✅ DONE
-3. 🔶 Komentarze do zadań (UI + endpoints)
+3. ~~🔶 Komentarze do zadań (UI + endpoints)~~ ✅ DONE
 4. ⭐ PWA offline support (nice to have)
 5. ⭐ i18n multi-language (nice to have)
 
