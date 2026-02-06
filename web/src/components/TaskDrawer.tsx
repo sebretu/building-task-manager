@@ -12,7 +12,7 @@ type TaskRow = {
   title: string;
   description: string | null;
   status: "OPEN" | "IN_PROGRESS" | "DONE_WAITING_APPROVAL" | "APPROVED" | "REJECTED";
-  priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+  priority: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
   due_date: string | null;
   assigned_user_id: string | null;
   plan_id?: string;
@@ -576,7 +576,7 @@ export default function TaskDrawer({
                 <option value="LOW">{t("taskPriority", "LOW")}</option>
                 <option value="MEDIUM">{t("taskPriority", "MEDIUM")}</option>
                 <option value="HIGH">{t("taskPriority", "HIGH")}</option>
-                <option value="URGENT">{t("taskPriority", "URGENT")}</option>
+                <option value="CRITICAL">{t("taskPriority", "CRITICAL")}</option>
               </select>
             </label>
 

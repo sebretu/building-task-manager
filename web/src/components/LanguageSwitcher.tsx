@@ -7,28 +7,24 @@ export function LanguageSwitcher() {
   const { language, setLanguage } = useLanguage();
 
   return (
-    <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-      <label style={{ fontSize: "12px", color: "#666", fontWeight: "500" }}>
+    <div className="lang-switcher">
+      <span className="lang-icon" aria-hidden="true">
         🌐
-      </label>
+      </span>
       <select
+        className="lang-select"
         value={language}
         onChange={(e) => setLanguage(e.target.value as Language)}
-        style={{
-          padding: "6px 10px",
-          border: "1px solid #ccc",
-          borderRadius: "4px",
-          background: "white",
-          cursor: "pointer",
-          fontSize: "12px",
-          fontWeight: "500",
-        }}
+        aria-label="Language"
       >
         <option value="en">English</option>
         <option value="pl">Polski</option>
         <option value="de">Deutsch</option>
         <option value="sk">Slovenčina</option>
       </select>
+      <span className="lang-caret" aria-hidden="true">
+        ▾
+      </span>
     </div>
   );
 }

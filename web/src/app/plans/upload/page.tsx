@@ -1,10 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function PlansUploadPage() {
   const router = useRouter();
+  const { t } = useLanguage();
 
   const [projectId, setProjectId] = useState("55555555-5555-5555-5555-555555555555");
   const [floorId, setFloorId] = useState("77777777-7777-7777-7777-777777777777");
@@ -29,6 +34,12 @@ export default function PlansUploadPage() {
   }, [file]);
 
   const canSubmit = useMemo(() => !!file && !!projectId && !!floorId && !!version, [file, projectId, floorId, version]);
+
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    router.push("/auth/login");
+    router.refresh();
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -69,77 +80,131 @@ export default function PlansUploadPage() {
   }
 
   return (
-    <div style={{ padding: 16, maxWidth: 1100 }}>
-      <h1 style={{ fontSize: 20, fontWeight: 800, marginBottom: 12 }}>Upload planu (PDF)</h1>
-
-      <div style={{ display: "grid", gap: 14, gridTemplateColumns: "420px 1fr", alignItems: "start" }}>
-        {/* LEWA: formularz */}
-        <form onSubmit={onSubmit} style={{ display: "grid", gap: 12, padding: 12, border: "1px solid #eee", borderRadius: 10 }}>
-          <label style={{ display: "grid", gap: 6 }}>
-            <span>Project ID</span>
-            <input value={projectId} onChange={(e) => setProjectId(e.target.value)} style={{ padding: 8 }} />
-          </label>
-
-          <label style={{ display: "grid", gap: 6 }}>
-            <span>Floor ID</span>
-            <input value={floorId} onChange={(e) => setFloorId(e.target.value)} style={{ padding: 8 }} />
-          </label>
-
-          <label style={{ display: "grid", gap: 6 }}>
-            <span>Version</span>
-            <input
-              type="number"
-              value={version}
-              onChange={(e) => setVersion(parseInt(e.target.value || "0", 10))}
-              style={{ padding: 8 }}
-              min={1}
-            />
-          </label>
-
-          <label style={{ display: "grid", gap: 6 }}>
-            <span>Plik PDF</span>
-            <input
-              type="file"
-              accept="application/pdf"
-              onChange={(e) => setFile(e.target.files?.[0] || null)}
-            />
-          </label>
-
-          <button
-            type="submit"
-            disabled={!canSubmit || busy}
-            style={{
-              padding: "10px 12px",
-              cursor: busy ? "default" : "pointer",
-              opacity: !canSubmit || busy ? 0.6 : 1,
-            }}
-          >
-            {busy ? "Wysyłam..." : "Wyślij"}
-          </button>
-
-          {err && <div style={{ color: "crimson" }}>❌ {err}</div>}
-          {ok && <div style={{ color: "green" }}>✅ {ok}</div>}
-
-          <div style={{ fontSize: 12, opacity: 0.7 }}>
-            Tip: version musi być unikalny per (floor_id, version). Jak chcesz “nadpisywać”, zrobimy tryb update/upsert w backendzie.
-          </div>
-        </form>
-
-        {/* PRAWA: podgląd PDF przed uploadem */}
-        <div style={{ border: "1px solid #eee", borderRadius: 10, overflow: "hidden", minHeight: 520 }}>
-          {!localPdfUrl ? (
-            <div style={{ padding: 16, opacity: 0.7 }}>
-              Wybierz plik PDF — tu pokaże się podgląd przed uploadem.
+    <>
+      <div className="home-hero upload-hero">
+        <header className="home-topbar">
+          <div className="home-logo">
+            <span className="home-logo-mark" />
+            <div>
+              <div className="home-logo-title">InspectHero</div>
+              <div className="home-logo-sub">Facility Task Control</div>
             </div>
-          ) : (
-            <iframe
-              src={localPdfUrl}
-              style={{ width: "100%", height: 720, border: 0, background: "#f3f3f3" }}
-              title="PDF preview"
-            />
-          )}
-        </div>
+          </div>
+          <nav className="home-nav">
+            <Link href="/" className="home-nav-link">
+              {t("nav", "tasks")}
+            </Link>
+            <Link href="/plans" className="home-nav-link">
+              {t("nav", "plans")}
+            </Link>
+            <Link href="/users" className="home-nav-link">
+              {t("nav", "users")}
+            </Link>
+            <Link href="/companies" className="home-nav-link">
+              {t("nav", "companies")}
+            </Link>
+          </nav>
+          <div className="home-topbar-actions">
+            <LanguageSwitcher />
+            <button className="home-logout" onClick={handleLogout}>
+              {t("common", "logout")}
+            </button>
+          </div>
+        </header>
+
+        <section className="home-hero-content upload-hero-content">
+          <div className="home-hero-text">
+            <div className="home-hero-kicker">Upload</div>
+            <h1 className="home-hero-title">Upload planu (PDF)</h1>
+            <p className="home-hero-subtitle">
+              Dodaj nowy PDF, przypisz do projektu i piętra, a my wygenerujemy kafelki w tle.
+            </p>
+            <div className="home-hero-actions">
+              <Link href="/plans" className="home-hero-secondary">
+                Wróć do planów
+              </Link>
+            </div>
+          </div>
+          <div className="home-hero-media upload-hero-media">
+            <div className="home-hero-panel">
+              <div className="home-hero-panel-title">Gotowy do wysyłki</div>
+              <div className="home-hero-panel-body">
+                Uzupełnij dane i wybierz PDF, aby rozpocząć import.
+              </div>
+              <div className="upload-hero-tags">
+                <span>PDF</span>
+                <span>Tiles</span>
+                <span>Auto-redirect</span>
+              </div>
+            </div>
+            <div className="home-hero-grid" />
+          </div>
+        </section>
       </div>
-    </div>
+
+      <main className="home-main upload-main">
+        <section className="home-task-panel upload-panel">
+          <div className="home-section-header">
+            <h2>Nowy plan</h2>
+            <p>Wypełnij formularz i sprawdź podgląd PDF przed uploadem.</p>
+          </div>
+
+          <div className="upload-grid">
+            <form onSubmit={onSubmit} className="upload-form">
+              <label className="upload-field">
+                <span>Project ID</span>
+                <input value={projectId} onChange={(e) => setProjectId(e.target.value)} />
+              </label>
+
+              <label className="upload-field">
+                <span>Floor ID</span>
+                <input value={floorId} onChange={(e) => setFloorId(e.target.value)} />
+              </label>
+
+              <label className="upload-field">
+                <span>Version</span>
+                <input
+                  type="number"
+                  value={version}
+                  onChange={(e) => setVersion(parseInt(e.target.value || "0", 10))}
+                  min={1}
+                />
+              </label>
+
+              <label className="upload-field">
+                <span>Plik PDF</span>
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  onChange={(e) => setFile(e.target.files?.[0] || null)}
+                />
+              </label>
+
+              <button type="submit" disabled={!canSubmit || busy} className="upload-submit">
+                {busy ? "Wysyłam..." : "Wyślij"}
+              </button>
+
+              {err && <div className="upload-error">❌ {err}</div>}
+              {ok && <div className="upload-ok">✅ {ok}</div>}
+
+              <div className="upload-tip">
+                Tip: version musi być unikalny per (floor_id, version). Jak chcesz “nadpisywać”,
+                zrobimy tryb update/upsert w backendzie.
+              </div>
+            </form>
+
+            <div className="upload-preview">
+              {!localPdfUrl ? (
+                <div className="upload-empty">
+                  Wybierz plik PDF — tu pokaże się podgląd przed uploadem.
+                </div>
+              ) : (
+                <iframe src={localPdfUrl} title="PDF preview" />
+              )}
+            </div>
+          </div>
+        </section>
+      </main>
+    </>
   );
 }

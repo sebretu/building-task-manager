@@ -183,8 +183,9 @@
 - ~~[x] PWA offline~~ ✅ DONE
 - ~~[x] i18n multi-language~~ ✅ DONE
 - [x] Historia zmian ✅ DONE
-- [ ] Search / advanced filters
-- [ ] Kanban board view
+- [x] Search / advanced filters ✅ DONE
+- [x] Kanban board view ✅ DONE
+- [x] Email notifications ✅ DONE
 
 ---
 
@@ -209,12 +210,13 @@
 ✅ Markery na mapie (full lifecycle)
 ✅ Widok `/task/[id]` z mapą w tle i pojedynczym markerem
 ✅ Historia zmian w TaskDrawer
+✅ Email notifications (Edge Function + Resend)
 ✅ Server-side auth helper (lib/supabaseServer.ts)
 ✅ Client-side API wrapper (lib/apiClient.ts)
 
 ### Co nie działa:
-❌ Advanced search/filters
-❌ Kanban board view
+✅ Advanced search/filters
+✅ Kanban board view
 
 ### Co zrobiliśmy (Phase A + Phase B + All 4 Tasks):
 1. ✅ Naprawiono RLS (policies applied, trigger removed)
@@ -231,8 +233,6 @@
 12. ✅ Dodano i18n framework (translations, context, language switcher)
 
 ### Następne kroki (V1.1+):
-1. Advanced search/filters
-2. Kanban board view
-3. Email notifications
+1. (puste)
 
 
