@@ -4,6 +4,12 @@ import { createServerSupabaseClient, getUserIdFromRequest } from "@/lib/supabase
 type ApiOk = { ok: true; data: any; meta?: any };
 type ApiErr = { ok: false; error: { code: string; message: string; meta?: any } };
 
+type NotificationSettings = {
+  notify_on_create: boolean;
+  notify_on_status: boolean;
+  notify_on_assign: boolean;
+};
+
 function asInt(v: any, def: number) {
   const n = Number(v);
   return Number.isFinite(n) ? Math.max(0, Math.trunc(n)) : def;
@@ -22,6 +28,41 @@ function readJsonBody(req: NextApiRequest): any {
 
 function isUuid(v: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+}
+
+const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
+  notify_on_create: true,
+  notify_on_status: true,
+  notify_on_assign: true,
+};
+
+function getFunctionsBaseUrl() {
+  if (process.env.SUPABASE_FUNCTIONS_URL) return process.env.SUPABASE_FUNCTIONS_URL;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  return supabaseUrl ? `${supabaseUrl}/functions/v1` : "";
+}
+
+async function sendNotificationEmail(input: { to: string; subject: string; html: string }) {
+  const baseUrl = getFunctionsBaseUrl();
+  if (!baseUrl) return;
+
+  const authToken = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || "";
+  if (!authToken) return;
+
+  await fetch(`${baseUrl}/notify-task`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${authToken}`,
+    },
+    body: JSON.stringify(input),
+  });
+}
+
+async function loadNotificationSettings(supabase: any, userId: string | null): Promise<NotificationSettings> {
+  if (!userId) return DEFAULT_NOTIFICATION_SETTINGS;
+  const { data } = await supabase.from("profiles").select("notification_settings").eq("id", userId).single();
+  return (data as any)?.notification_settings || DEFAULT_NOTIFICATION_SETTINGS;
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse<ApiOk | ApiErr>) {
@@ -172,6 +213,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       return;
     }
 
+    if (data?.assigned_user_id) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("email, notification_settings")
+        .eq("id", data.assigned_user_id)
+        .single();
+
+      const settings = (profile as any)?.notification_settings || DEFAULT_NOTIFICATION_SETTINGS;
+      if (profile?.email && settings.notify_on_create) {
+        await sendNotificationEmail({
+          to: profile.email,
+          subject: "New task assigned",
+          html: `<p>You have a new task: <b>${data.title}</b></p>`,
+        });
+      }
+    }
+
     res.status(200).json({ ok: true, data });
     return;
   }
@@ -210,6 +268,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     if (body.assigned_company_id !== undefined) patch.assigned_company_id = body.assigned_company_id || "";
 
     try {
+      const { data: prevTask } = await supabase
+        .from("tasks")
+        .select("status, assigned_user_id, title")
+        .eq("id", id)
+        .single();
+
       const { data, error } = await (supabase as any).rpc("update_task_api", {
         p_id: id,
         p_changed_by: changed_by,
@@ -217,6 +281,41 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       });
 
       if (error) throw error;
+
+      const { data: nextTask } = await supabase
+        .from("tasks")
+        .select("status, assigned_user_id, title")
+        .eq("id", id)
+        .single();
+
+      const statusChanged = prevTask?.status && nextTask?.status && prevTask.status !== nextTask.status;
+      const assignedChanged = prevTask?.assigned_user_id !== nextTask?.assigned_user_id;
+
+      if (nextTask?.assigned_user_id) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("email, notification_settings")
+          .eq("id", nextTask.assigned_user_id)
+          .single();
+
+        const settings = (profile as any)?.notification_settings || DEFAULT_NOTIFICATION_SETTINGS;
+
+        if (profile?.email && assignedChanged && settings.notify_on_assign) {
+          await sendNotificationEmail({
+            to: profile.email,
+            subject: "Task assigned",
+            html: `<p>You have been assigned: <b>${nextTask.title}</b></p>`,
+          });
+        }
+
+        if (profile?.email && statusChanged && settings.notify_on_status) {
+          await sendNotificationEmail({
+            to: profile.email,
+            subject: "Task status changed",
+            html: `<p>Status updated for <b>${nextTask.title}</b>: ${prevTask?.status} → ${nextTask.status}</p>`,
+          });
+        }
+      }
 
       res.status(200).json({ ok: true, data });
       return;

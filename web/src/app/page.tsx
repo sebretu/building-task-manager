@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { apiGet } from "@/lib/apiClient";
+import { apiGet, apiPost } from "@/lib/apiClient";
 import { supabase } from "@/lib/supabase";
 import { PWAInstallBanner } from "@/components/PWAInstallBanner";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -30,6 +30,12 @@ type Profile = {
   email?: string;
 };
 
+type NotificationSettings = {
+  notify_on_create: boolean;
+  notify_on_status: boolean;
+  notify_on_assign: boolean;
+};
+
 export default function Home() {
   const router = useRouter();
   const [priorityFilter, setPriorityFilter] = useState<string | null>(null);
@@ -41,6 +47,14 @@ export default function Home() {
   const [user, setUser] = useState<User | null>(null);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [profilesLoaded, setProfilesLoaded] = useState(false);
+  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
+    notify_on_create: true,
+    notify_on_status: true,
+    notify_on_assign: true,
+  });
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectId, setProjectId] = useState("");
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -140,6 +154,29 @@ export default function Home() {
   }, [sessionLoaded, profilesLoaded]);
 
   useEffect(() => {
+    if (!sessionLoaded || settingsLoaded) return;
+    apiGet<NotificationSettings>("/api/notification-settings")
+      .then((data) => {
+        if (data) setNotificationSettings(data);
+      })
+      .catch(() => {})
+      .finally(() => setSettingsLoaded(true));
+  }, [sessionLoaded, settingsLoaded]);
+
+  async function saveNotificationSettings(next: NotificationSettings) {
+    setSettingsSaving(true);
+    setSettingsError(null);
+    try {
+      await apiPost<NotificationSettings>("/api/notification-settings", next);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : String(e);
+      setSettingsError(message);
+    } finally {
+      setSettingsSaving(false);
+    }
+  }
+
+  useEffect(() => {
     const t = setTimeout(() => {
       setQDebounced(q);
       setOffset(0);
@@ -192,6 +229,54 @@ export default function Home() {
         <Link href="/companies" style={{ textDecoration: "none" }}>
           → {t("nav", "companies")}
         </Link>
+      </div>
+
+      <div style={{ marginBottom: 12, padding: 12, border: "1px solid rgba(17,24,39,0.10)", borderRadius: 10, background: "#fff" }}>
+        <div style={{ fontWeight: 800, marginBottom: 6 }}>{t("home", "notifications")}</div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
+          <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <input
+              type="checkbox"
+              checked={notificationSettings.notify_on_create}
+              onChange={(e) => {
+                const next = { ...notificationSettings, notify_on_create: e.target.checked };
+                setNotificationSettings(next);
+                saveNotificationSettings(next).catch(() => {});
+              }}
+            />
+            {t("home", "notifyOnCreate")}
+          </label>
+          <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <input
+              type="checkbox"
+              checked={notificationSettings.notify_on_status}
+              onChange={(e) => {
+                const next = { ...notificationSettings, notify_on_status: e.target.checked };
+                setNotificationSettings(next);
+                saveNotificationSettings(next).catch(() => {});
+              }}
+            />
+            {t("home", "notifyOnStatus")}
+          </label>
+          <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <input
+              type="checkbox"
+              checked={notificationSettings.notify_on_assign}
+              onChange={(e) => {
+                const next = { ...notificationSettings, notify_on_assign: e.target.checked };
+                setNotificationSettings(next);
+                saveNotificationSettings(next).catch(() => {});
+              }}
+            />
+            {t("home", "notifyOnAssign")}
+          </label>
+          {settingsSaving && (
+            <span style={{ fontSize: 12, opacity: 0.7 }}>{t("home", "savingSettings")}</span>
+          )}
+          {settingsError && (
+            <span style={{ fontSize: 12, color: "crimson" }}>{settingsError}</span>
+          )}
+        </div>
       </div>
 
       {err && (
