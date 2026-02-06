@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { apiGet, apiPost, apiPatch, apiDelete } from "@/lib/apiClient";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 type ApiOk<T> = { ok: true; data: T };
 type ApiErr = { ok: false; error: { code: string; message: string; meta?: any } };
@@ -86,6 +87,7 @@ export default function TaskDrawer({
   } | null;
 }) {
   const isCreate = !!createDraft && !taskId;
+  const { t } = useLanguage();
 
   const [task, setTask] = useState<TaskRow | null>(null);
   const [photos, setPhotos] = useState<TaskPhoto[]>([]);
@@ -110,10 +112,10 @@ export default function TaskDrawer({
   const canShow = open && (!!taskId || !!createDraft);
 
   const headerTitle = useMemo(() => {
-    if (isCreate) return "Nowy task";
-    if (!taskId) return "Task";
-    return task?.title ? `Task: ${task.title}` : `Task: ${taskId}`;
-  }, [isCreate, taskId, task?.title]);
+    if (isCreate) return t("taskDrawer", "newTask");
+    if (!taskId) return t("home", "title");
+    return task?.title ? `${t("home", "title")}: ${task.title}` : `${t("home", "title")}: ${taskId}`;
+  }, [isCreate, taskId, task?.title, t]);
 
   async function loadProfilesOnce() {
     if (profilesLoaded) return;
@@ -170,7 +172,7 @@ export default function TaskDrawer({
       setComments([]);
       setNewComment("");
       setErr(null);
-      setTitle("Nowy task");
+      setTitle(t("taskDrawer", "newTask"));
       setDescription("");
       setStatus("OPEN");
       setAssignedUserId("");
@@ -437,7 +439,7 @@ export default function TaskDrawer({
                   fontWeight: 900,
                 }}
               >
-                Usuń
+                {t("common", "delete")}
               </button>
             )}
 
@@ -467,29 +469,29 @@ export default function TaskDrawer({
           )}
 
           <label style={labelStyle}>
-            <span style={{ fontWeight: 800 }}>Tytuł</span>
+            <span style={{ fontWeight: 800 }}>{t("taskDrawer", "title")}</span>
             <input value={title} onChange={(e) => setTitle(e.target.value)} style={inputStyle} />
           </label>
 
           <label style={labelStyle}>
-            <span style={{ fontWeight: 800 }}>Opis</span>
+            <span style={{ fontWeight: 800 }}>{t("taskDrawer", "description")}</span>
             <textarea value={description} onChange={(e) => setDescription(e.target.value)} style={{ ...inputStyle, minHeight: 110, resize: "vertical" }} />
           </label>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <label style={labelStyle}>
-              <span style={{ fontWeight: 800 }}>Status</span>
+              <span style={{ fontWeight: 800 }}>{t("taskDrawer", "status")}</span>
               <select value={status} onChange={(e) => setStatus(e.target.value as any)} style={inputStyle}>
-                <option value="OPEN">OPEN</option>
-                <option value="IN_PROGRESS">IN_PROGRESS</option>
-                <option value="DONE_WAITING_APPROVAL">DONE_WAITING_APPROVAL</option>
-                <option value="APPROVED">APPROVED</option>
-                <option value="REJECTED">REJECTED</option>
+                <option value="OPEN">{t("taskStatus", "OPEN")}</option>
+                <option value="IN_PROGRESS">{t("taskStatus", "IN_PROGRESS")}</option>
+                <option value="DONE_WAITING_APPROVAL">{t("taskStatus", "DONE_WAITING_APPROVAL")}</option>
+                <option value="APPROVED">{t("taskStatus", "APPROVED")}</option>
+                <option value="REJECTED">{t("taskStatus", "REJECTED")}</option>
               </select>
             </label>
 
             <label style={labelStyle}>
-              <span style={{ fontWeight: 800 }}>Przydzielony</span>
+              <span style={{ fontWeight: 800 }}>{t("taskDrawer", "assignedUser")}</span>
               <select value={assignedUserId} onChange={(e) => setAssignedUserId(e.target.value)} style={inputStyle}>
                 <option value="">—</option>
                 {profiles.map((p) => (
@@ -504,7 +506,7 @@ export default function TaskDrawer({
           {/* WORKFLOW BUTTONS */}
           {!isCreate && (
             <div style={{ display: "grid", gap: 8 }}>
-              <div style={{ fontSize: 12, fontWeight: 800, color: "rgba(17,24,39,0.6)" }}>Akcje workflow</div>
+              <div style={{ fontSize: 12, fontWeight: 800, color: "rgba(17,24,39,0.6)" }}>{t("taskDrawer", "workflowActions")}</div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 {status === "OPEN" && (
                   <button
@@ -520,7 +522,7 @@ export default function TaskDrawer({
                       fontSize: 13,
                     }}
                   >
-                    ▶️ Rozpocznij pracę
+                    {t("taskDrawer", "startWork")}
                   </button>
                 )}
 
@@ -538,7 +540,7 @@ export default function TaskDrawer({
                       fontSize: 13,
                     }}
                   >
-                    ✅ Gotowe do akceptacji
+                    {t("taskDrawer", "markDone")}
                   </button>
                 )}
 
@@ -557,7 +559,7 @@ export default function TaskDrawer({
                         fontSize: 13,
                       }}
                     >
-                      ✔️ Zatwierdź
+                      {t("taskDrawer", "approve")}
                     </button>
                     <button
                       onClick={() => setStatus("REJECTED")}
@@ -572,7 +574,7 @@ export default function TaskDrawer({
                         fontSize: 13,
                       }}
                     >
-                      ✖️ Odrzuć
+                      {t("taskDrawer", "reject")}
                     </button>
                   </>
                 )}
@@ -626,7 +628,7 @@ export default function TaskDrawer({
 
           {/* PHOTOS */}
           <div style={{ display: "grid", gap: 10 }}>
-            <div style={{ fontWeight: 900 }}>Zdjęcia</div>
+            <div style={{ fontWeight: 900 }}>{t("taskDrawer", "photos")}</div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, alignItems: "end" }}>
               <label style={labelStyle}>
@@ -729,7 +731,7 @@ export default function TaskDrawer({
             )}
 
             {photos.length === 0 && pendingPhotos.length === 0 && (
-              <div style={{ fontSize: 12, opacity: 0.75 }}>Brak zdjęć</div>
+              <div style={{ fontSize: 12, opacity: 0.75 }}>{t("taskDrawer", "photos")}: 0</div>
             )}
           </div>
 
@@ -739,14 +741,14 @@ export default function TaskDrawer({
               <hr style={{ border: "none", borderTop: "1px solid rgba(17,24,39,0.10)" }} />
               
               <div style={{ display: "grid", gap: 10 }}>
-                <div style={{ fontSize: 14, fontWeight: 800 }}>Komentarze ({comments.length})</div>
+                <div style={{ fontSize: 14, fontWeight: 800 }}>{t("taskDrawer", "comments")} ({comments.length})</div>
 
                 {/* Add comment input */}
                 <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
                   <textarea
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
-                    placeholder="Dodaj komentarz..."
+                    placeholder={t("taskDrawer", "addComment")}
                     style={{
                       ...inputStyle,
                       minHeight: 60,
@@ -774,7 +776,7 @@ export default function TaskDrawer({
                       whiteSpace: "nowrap",
                     }}
                   >
-                    Dodaj
+                    {t("common", "save")}
                   </button>
                 </div>
 
@@ -814,7 +816,7 @@ export default function TaskDrawer({
                 )}
 
                 {comments.length === 0 && (
-                  <div style={{ fontSize: 12, opacity: 0.75 }}>Brak komentarzy</div>
+                  <div style={{ fontSize: 12, opacity: 0.75 }}>{t("taskDrawer", "noComments")}</div>
                 )}
               </div>
             </>
