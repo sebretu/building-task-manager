@@ -7,6 +7,8 @@ import { apiGet, getToken } from "@/lib/apiClient";
 import { supabase } from "@/lib/supabase";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useLanguage } from "@/contexts/LanguageContext";
+import PlanThumbnail from "@/components/PlanThumbnail";
+import PlanCompositeThumbnail from "@/components/PlanCompositeThumbnail";
 
 type Project = { id: string; name: string };
 
@@ -188,18 +190,18 @@ export default function PlansPage() {
               <div className="plans-card-title">Current plans</div>
               {plans.length === 0 && <div className="plans-empty">No current plans</div>}
               {plans.length > 0 && (
-                <ul className="plans-list">
+                <div style={{ display: "flex", flexDirection: "row", flexWrap: "wrap", gap: 24 }}>
                   {plans.map((p) => (
-                    <li key={p.id}>
-                      <span className="plans-pill">{p.status}</span>
-                      <span>v{p.version}</span>
-                      <span className="plans-muted">floor {p.floor_id.slice(0, 8)}</span>
-                      <Link href={`/plan/${p.id}`} className="plans-link">
+                    <div key={p.id} style={{ border: "1px solid #ddd", borderRadius: 12, padding: 18, width: 520, display: "flex", flexDirection: "column", alignItems: "center", background: "#fff", boxShadow: "0 2px 12px #0001", marginBottom: 24 }}>
+                      <PlanCompositeThumbnail planId={p.id} size={480} alt={`Plan ${p.id}`} />
+                      <div style={{ marginTop: 14, fontWeight: 600, fontSize: 18 }}>v{p.version} <span style={{ color: "#888", fontWeight: 400 }}>({p.status})</span></div>
+                      <div style={{ fontSize: 15, color: "#666", marginBottom: 6 }}>Floor: {p.floor_id.slice(0, 8)}</div>
+                      <Link href={`/plan/${p.id}`} className="plans-link" style={{ marginTop: 10, fontSize: 16, color: "#1976d2", textDecoration: "underline" }}>
                         Open viewer
                       </Link>
-                    </li>
+                    </div>
                   ))}
-                </ul>
+                </div>
               )}
             </div>
           </div>
