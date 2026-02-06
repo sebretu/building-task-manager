@@ -13,6 +13,9 @@ type TaskRow = {
   description: string | null;
   status: "OPEN" | "IN_PROGRESS" | "DONE_WAITING_APPROVAL" | "APPROVED" | "REJECTED";
   assigned_user_id: string | null;
+  plan_id?: string;
+  x_norm?: number | null;
+  y_norm?: number | null;
 };
 
 type TaskPhoto = {
@@ -34,6 +37,16 @@ type TaskComment = {
   task_id: string;
   user_id: string;
   comment: string;
+  created_at: string;
+};
+
+type PlanRow = {
+  id: string;
+  project_id: string;
+  name: string;
+  floor: string;
+  version: number;
+  pdf_url: string | null;
   created_at: string;
 };
 
@@ -90,6 +103,7 @@ export default function TaskDrawer({
   const { t } = useLanguage();
 
   const [task, setTask] = useState<TaskRow | null>(null);
+  const [plan, setPlan] = useState<PlanRow | null>(null);
   const [photos, setPhotos] = useState<TaskPhoto[]>([]);
   const [comments, setComments] = useState<TaskComment[]>([]);
   const [pendingPhotos, setPendingPhotos] = useState<PendingPhoto[]>([]);
@@ -138,6 +152,16 @@ export default function TaskDrawer({
       setDescription(taskData.description || "");
       setStatus((taskData.status as any) || "OPEN");
       setAssignedUserId(taskData.assigned_user_id || "");
+
+      // Load plan if we have plan_id
+      if (taskData.plan_id) {
+        try {
+          const planData = await apiGet<PlanRow>(`/api/plan?id=${encodeURIComponent(taskData.plan_id)}`);
+          setPlan(planData);
+        } catch (e) {
+          console.log("Could not load plan:", e);
+        }
+      }
 
       const photoData = await apiGet<TaskPhoto[]>(`/api/task-photos?taskId=${encodeURIComponent(id)}`);
       const fixed = (photoData || []).map((p) => ({ ...p, url: fixStorageUrl(p.url) }));
@@ -503,7 +527,55 @@ export default function TaskDrawer({
             </label>
           </div>
 
-          {/* WORKFLOW BUTTONS */}
+          {/* PLAN MAP PREVIEW */}
+          {!isCreate && plan && task?.x_norm !== undefined && task?.y_norm !== undefined && (
+            <div style={{ display: "grid", gap: 8 }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: "rgba(17,24,39,0.6)" }}>
+                📍 {plan.name} (Piętr: {plan.floor})
+              </div>
+              <div
+                style={{
+                  position: "relative",
+                  width: "100%",
+                  height: 160,
+                  background: "rgba(17,24,39,0.05)",
+                  borderRadius: 12,
+                  border: "1px solid rgba(17,24,39,0.10)",
+                  overflow: "hidden",
+                }}
+              >
+                {/* Tile background */}
+                <div
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    height: "100%",
+                    background: `url(/tiles/${plan.id}/0/0/0.png) no-repeat center / cover`,
+                    opacity: 0.3,
+                  }}
+                />
+                {/* Task marker */}
+                <div
+                  style={{
+                    position: "absolute",
+                    left: `${(task.x_norm || 0) * 100}%`,
+                    top: `${(task.y_norm || 0) * 100}%`,
+                    transform: "translate(-50%, -50%)",
+                    width: 24,
+                    height: 24,
+                    background: "#667eea",
+                    borderRadius: "50%",
+                    border: "2px solid white",
+                    boxShadow: "0 2px 8px rgba(102, 126, 234, 0.5)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "white",
+                    fontSize: 12,
+                    fontWeight: 800,
+                  }}\n                >\n                  📌\n                </div>\n              </div>\n              <a\n                href={`/plan/${plan.id}`}\n                style={{\n                  display: "inline-block",\n                  padding: "6px 12px\",\n                  background: \"#667eea\",\n                  color: \"white\",\n                  borderRadius: 8,\n                  textDecoration: \"none\",\n                  fontSize: 12,\n                  fontWeight: 800,\n                }}\n              >\n                🗺️ Otwórz pełną mapę\n              </a>\n            </div>\n          )}\n\n          {/* WORKFLOW BUTTONS */}
           {!isCreate && (
             <div style={{ display: "grid", gap: 8 }}>
               <div style={{ fontSize: 12, fontWeight: 800, color: "rgba(17,24,39,0.6)" }}>{t("taskDrawer", "workflowActions")}</div>
