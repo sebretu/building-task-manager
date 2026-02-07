@@ -304,6 +304,7 @@ export default function Home() {
     <>
       <PWAInstallBanner />
       <div className="home-hero">
+
         <img src="/logo-uploaded.png" alt="Logo background" className="home-hero-bg-logo" aria-hidden="true" />
         <header className="home-topbar">
           {/* Logo and text removed as requested */}

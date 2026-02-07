@@ -5,10 +5,10 @@ import styles from "./UnifiedLayout.module.css";
 import { usePathname } from "next/navigation";
 
 const navLinks = [
-  { href: "/", label: "Zadania" },
-  { href: "/plans", label: "Plany" },
-  { href: "/users", label: "Użytkownicy" },
-  { href: "/companies", label: "Firmy" },
+  { href: "/", label: "Aufgaben" },
+  { href: "/plans", label: "Pläne" },
+  { href: "/users", label: "Benutzer" },
+  { href: "/companies", label: "Unternehmen" },
 ];
 
 export default function UnifiedLayout({ children }: { children: React.ReactNode }) {
@@ -17,10 +17,6 @@ export default function UnifiedLayout({ children }: { children: React.ReactNode 
     <div className={styles.layoutRoot}>
       <header className={styles.header}>
         <div className={styles.headerInner}>
-          <div className={styles.logo}>
-            <span style={{ fontWeight: 900, fontSize: 28, marginRight: 8 }}>🛡️</span>
-            InspectHero
-          </div>
           <nav className={styles.nav}>
             {navLinks.map((link) => (
               <Link
@@ -36,6 +32,13 @@ export default function UnifiedLayout({ children }: { children: React.ReactNode 
               </Link>
             ))}
           </nav>
+          <div style={{ marginLeft: 16 }}>
+            {/* LanguageSwitcher moved here */}
+            <span style={{ display: 'inline-block', verticalAlign: 'middle', fontWeight: 700, fontSize: 18 }}>
+              🌐▾
+            </span>
+            {/* Możesz zamienić na <LanguageSwitcher /> jeśli chcesz pełny komponent */}
+          </div>
         </div>
       </header>
       <main className={styles.main}>{children}</main>
