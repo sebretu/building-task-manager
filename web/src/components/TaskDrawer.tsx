@@ -444,37 +444,35 @@ export default function TaskDrawer({
   // Drawer slide state
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // Always render the handle, panel slides in only when clicked
+  // Always render the handle, it toggles the panel
   return (
     <>
       {/* Drawer handle (button) always visible at right edge */}
-      {!drawerOpen && (
-        <div
+      <div
+        style={{
+          position: "fixed",
+          top: "50%",
+          right: 0,
+          zIndex: 10000,
+          transform: "translateY(-50%)",
+        }}
+      >
+        <button
+          onClick={() => setDrawerOpen((v) => !v)}
           style={{
-            position: "fixed",
-            top: "50%",
-            right: 0,
-            zIndex: 10000,
-            transform: "translateY(-50%)",
+            padding: "12px 16px",
+            borderRadius: "12px 0 0 12px",
+            border: "1px solid #ccc",
+            background: "#fff",
+            color: "#111827",
+            fontWeight: 900,
+            boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+            cursor: "pointer",
           }}
         >
-          <button
-            onClick={() => setDrawerOpen(true)}
-            style={{
-              padding: "12px 16px",
-              borderRadius: "12px 0 0 12px",
-              border: "1px solid #ccc",
-              background: "#fff",
-              color: "#111827",
-              fontWeight: 900,
-              boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-              cursor: "pointer",
-            }}
-          >
-            ≡
-          </button>
-        </div>
-      )}
+          ≡
+        </button>
+      </div>
 
       {/* overlay */}
       {showOverlay && drawerOpen && (
