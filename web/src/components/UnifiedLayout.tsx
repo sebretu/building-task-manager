@@ -23,7 +23,6 @@ export default function UnifiedLayout({ children }: { children: React.ReactNode 
           <div className="topbar__brand">
             <Link href="/" className="topbar__logo" aria-label="InspectHero home">
               <img src="/logo-uploaded.png" alt="Logo" />
-              <span>InspectHero</span>
             </Link>
           </div>
 
