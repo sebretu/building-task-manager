@@ -8,7 +8,8 @@
   --success: #2BD97F;
   --warning: #FFB020;
   --danger: #FF4D4F;
-  --text: #E6EAF0;
+  --text: #111827;
+    --home-muted: #111827;
   --background: #111318;
   --foreground: #1B1F27;
   --card: #fff;
@@ -31,8 +32,7 @@ body {
   overflow-x: hidden;
 }
 
-body {
-  color: var(--text);
+  color: #111827;
   background: var(--background);
   font-family: var(--font-body);
     font-family: var(--font-header);
@@ -185,7 +185,7 @@ a:hover, a:focus {
   gap: 6px;
   font-size: 12px;
   font-weight: 700;
-  color: var(--home-muted);
+  color: #111827;
 }
 
 .upload-field input {
