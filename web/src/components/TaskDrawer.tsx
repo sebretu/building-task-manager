@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { DrawerHandle } from "./DrawerHandle";
 import { apiGet, apiPost, apiPatch, apiDelete } from "@/lib/apiClient";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -104,6 +103,7 @@ export default function TaskDrawer({
   taskId: string | null;
   onClose: () => void;
   uploadedBy: string;
+  // createDraft = tryb CREATE (klik w mapę)
   createDraft?: {
     project_id: string;
     plan_id: string;
@@ -113,18 +113,6 @@ export default function TaskDrawer({
   } | null;
   showOverlay?: boolean;
 }) {
-  // Drawer slide state for mobile/tablet
-  const [drawerOpen, setDrawerOpen] = useState(open);
-  useEffect(() => { setDrawerOpen(open); }, [open]);
-
-  // Detect mobile/tablet
-  const [isMobile, setIsMobile] = useState(false);
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth <= 900);
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, []);
   const isCreate = !!createDraft && !taskId;
   const { t, language } = useLanguage();
 
@@ -453,17 +441,14 @@ export default function TaskDrawer({
     }
   }
 
-  // Only render the drawer if open or (mobile and drawerOpen)
-  if (!open && (!drawerOpen || !isMobile)) return null;
+  // Drawer slide state
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
-
-
-  // Drawer widoczny tylko jeśli: (desktop && open) lub (mobile && drawerOpen)
-
-  // DrawerHandle zawsze widoczny na mobile, przy prawej krawędzi
+  // Always render the handle, panel slides in only when clicked
   return (
     <>
-      {isMobile && !drawerOpen && (
+      {/* Drawer handle (button) always visible at right edge */}
+      {!drawerOpen && (
         <div
           style={{
             position: "fixed",
@@ -473,53 +458,58 @@ export default function TaskDrawer({
             transform: "translateY(-50%)",
           }}
         >
-          <DrawerHandle onClick={() => setDrawerOpen(true)} isOpen={false} />
+          <button
+            onClick={() => setDrawerOpen(true)}
+            style={{
+              padding: "12px 16px",
+              borderRadius: "12px 0 0 12px",
+              border: "1px solid #ccc",
+              background: "#fff",
+              color: "#111827",
+              fontWeight: 900,
+              boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+              cursor: "pointer",
+            }}
+          >
+            ≡
+          </button>
         </div>
       )}
+
       {/* overlay */}
       {showOverlay && drawerOpen && (
         <div
-          onClick={() => {
-            setDrawerOpen(false);
-            setTimeout(onClose, 300);
-          }}
+          onClick={() => setDrawerOpen(false)}
           style={{
             position: "fixed",
             inset: 0,
             background: "rgba(0,0,0,0.45)",
             zIndex: 9998,
-            transition: "opacity 0.3s",
-            opacity: drawerOpen ? 1 : 0,
           }}
         />
       )}
+
+      {/* CARD */}
       <div
         style={{
           position: "fixed",
-          top: isMobile ? 0 : 24,
-          right: 0,
-          bottom: isMobile ? 0 : 24,
-          width: isMobile ? "min(96vw, 560px)" : "min(560px, 96vw)",
-          maxWidth: "100vw",
+          top: 24,
+          right: 24,
+          bottom: 24,
+          width: "min(560px, 96vw)",
           background: "linear-gradient(180deg, #ffffff, #f9fafb)",
-          borderRadius: isMobile ? "18px 0 0 18px" : 18,
+          borderRadius: 18,
           boxShadow: drawerOpen ? "0 25px 60px rgba(0,0,0,0.35)" : "none",
           border: "1px solid rgba(0,0,0,0.08)",
           zIndex: 9999,
-          display: "flex",
+          display: drawerOpen ? "flex" : "none",
           flexDirection: "column",
           overflow: "hidden",
           color: "#111827",
-          transform: drawerOpen ? "translateX(0)" : "translateX(100%)",
           transition: "transform 0.3s cubic-bezier(.4,1.2,.4,1)",
-          boxSizing: "border-box",
-          pointerEvents: !drawerOpen && isMobile ? "none" : undefined,
+          transform: drawerOpen ? "translateX(0)" : "translateX(100%)",
         }}
       >
-        {/* Drawer handle tylko na mobile, gdy otwarty */}
-        {isMobile && drawerOpen && (
-          <DrawerHandle onClick={() => setDrawerOpen(false)} isOpen={drawerOpen} />
-        )}
         {/* HEADER */}
         <div
           style={{
@@ -533,6 +523,7 @@ export default function TaskDrawer({
           }}
         >
           <div style={{ fontSize: 14 }}>{headerTitle}</div>
+
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             {!isCreate && !!taskId && (
               <button
@@ -550,6 +541,7 @@ export default function TaskDrawer({
                 {t("common", "delete")}
               </button>
             )}
+
             <button
               onClick={onClose}
               style={{
@@ -566,6 +558,7 @@ export default function TaskDrawer({
             </button>
           </div>
         </div>
+
         {/* BODY */}
         <div style={{ padding: 16, overflow: "auto", display: "grid", gap: 16 }}>
           {err && (
@@ -573,8 +566,427 @@ export default function TaskDrawer({
               {err}
             </div>
           )}
-          {/* ...reszta kodu bez zmian... */}
-          {/* ...existing code... */}
+
+          <label style={labelStyle}>
+            <span style={{ fontWeight: 800 }}>{t("taskDrawer", "title")}</span>
+            <input value={title} onChange={(e) => setTitle(e.target.value)} style={inputStyle} />
+          </label>
+
+          <label style={labelStyle}>
+            <span style={{ fontWeight: 800 }}>{t("taskDrawer", "description")}</span>
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)} style={{ ...inputStyle, minHeight: 110, resize: "vertical" }} />
+          </label>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <label style={labelStyle}>
+              <span style={{ fontWeight: 800 }}>{t("taskDrawer", "status")}</span>
+              <select value={status} onChange={(e) => setStatus(e.target.value as any)} style={inputStyle}>
+                <option value="OPEN">{t("taskStatus", "OPEN")}</option>
+                <option value="IN_PROGRESS">{t("taskStatus", "IN_PROGRESS")}</option>
+                <option value="DONE_WAITING_APPROVAL">{t("taskStatus", "DONE_WAITING_APPROVAL")}</option>
+                <option value="APPROVED">{t("taskStatus", "APPROVED")}</option>
+                <option value="REJECTED">{t("taskStatus", "REJECTED")}</option>
+              </select>
+            </label>
+
+            <label style={labelStyle}>
+              <span style={{ fontWeight: 800 }}>{t("taskDrawer", "assignedUser")}</span>
+              <select value={assignedUserId} onChange={(e) => setAssignedUserId(e.target.value)} style={inputStyle}>
+                <option value="">—</option>
+                {profiles.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.full_name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <label style={labelStyle}>
+              <span style={{ fontWeight: 800 }}>{t("taskDrawer", "priority")}</span>
+              <select value={priority} onChange={(e) => setPriority(e.target.value as any)} style={inputStyle}>
+                <option value="LOW">{t("taskPriority", "LOW")}</option>
+                <option value="MEDIUM">{t("taskPriority", "MEDIUM")}</option>
+                <option value="HIGH">{t("taskPriority", "HIGH")}</option>
+                <option value="CRITICAL">{t("taskPriority", "CRITICAL")}</option>
+              </select>
+            </label>
+
+            <label style={labelStyle}>
+              <span style={{ fontWeight: 800 }}>{t("taskDrawer", "dueDate")}</span>
+              <input
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                style={inputStyle}
+              />
+            </label>
+          </div>
+
+          {/* PLAN MAP PREVIEW */}
+          {/* Usunięto podgląd mapy z pinem i link do pełnej mapy na prośbę użytkownika */}
+          {/* WORKFLOW BUTTONS */}
+          {!isCreate && (
+            <div style={{ display: "grid", gap: 8 }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: "rgba(17,24,39,0.6)" }}>{t("taskDrawer", "workflowActions")}</div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {status === "OPEN" && (
+                  <button
+                    onClick={() => setStatus("IN_PROGRESS")}
+                    style={{
+                      padding: "8px 14px",
+                      borderRadius: 10,
+                      border: "1px solid rgba(59,130,246,0.35)",
+                      background: "rgba(59,130,246,0.08)",
+                      color: "#2563eb",
+                      cursor: "pointer",
+                      fontWeight: 800,
+                      fontSize: 13,
+                    }}
+                  >
+                    {t("taskDrawer", "startWork")}
+                  </button>
+                )}
+
+                {status === "IN_PROGRESS" && (
+                  <button
+                    onClick={() => setStatus("DONE_WAITING_APPROVAL")}
+                    style={{
+                      padding: "8px 14px",
+                      borderRadius: 10,
+                      border: "1px solid rgba(249,115,22,0.35)",
+                      background: "rgba(249,115,22,0.08)",
+                      color: "#ea580c",
+                      cursor: "pointer",
+                      fontWeight: 800,
+                      fontSize: 13,
+                    }}
+                  >
+                    {t("taskDrawer", "markDone")}
+                  </button>
+                )}
+
+                {status === "DONE_WAITING_APPROVAL" && (
+                  <>
+                    <button
+                      onClick={() => setStatus("APPROVED")}
+                      style={{
+                        padding: "8px 14px",
+                        borderRadius: 10,
+                        border: "1px solid rgba(34,197,94,0.35)",
+                        background: "rgba(34,197,94,0.08)",
+                        color: "#16a34a",
+                        cursor: "pointer",
+                        fontWeight: 800,
+                        fontSize: 13,
+                      }}
+                    >
+                      {t("taskDrawer", "approve")}
+                    </button>
+                    <button
+                      onClick={() => setStatus("REJECTED")}
+                      style={{
+                        padding: "8px 14px",
+                        borderRadius: 10,
+                        border: "1px solid rgba(239,68,68,0.35)",
+                        background: "rgba(239,68,68,0.08)",
+                        color: "#dc2626",
+                        cursor: "pointer",
+                        fontWeight: 800,
+                        fontSize: 13,
+                      }}
+                    >
+                      {t("taskDrawer", "reject")}
+                    </button>
+                  </>
+                )}
+
+                {(status === "APPROVED" || status === "REJECTED") && (
+                  <div style={{ fontSize: 13, color: "rgba(17,24,39,0.5)", fontStyle: "italic" }}>
+                    {t("taskDrawer", "finalStatus")}: {status === "APPROVED" ? t("taskDrawer", "approvedStatus") : t("taskDrawer", "rejectedStatus")}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ACTIONS */}
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <button
+              onClick={save}
+              disabled={saving || uploading}
+              style={{
+                flex: 1,
+                padding: "10px 12px",
+                borderRadius: 12,
+                border: "1px solid rgba(17,24,39,0.20)",
+                background: "#111827",
+                color: "#fff",
+                cursor: saving || uploading ? "not-allowed" : "pointer",
+                fontWeight: 900,
+              }}
+            >
+              {saving ? t("taskDrawer", "saving") : t("common", "save")}
+            </button>
+
+            <button
+              onClick={onClose}
+              disabled={saving || uploading}
+              style={{
+                padding: "10px 12px",
+                borderRadius: 12,
+                border: "1px solid rgba(17,24,39,0.18)",
+                background: "#fff",
+                color: "#111827",
+                cursor: saving || uploading ? "not-allowed" : "pointer",
+                fontWeight: 900,
+              }}
+            >
+              {t("taskDrawer", "close")}
+            </button>
+          </div>
+
+          <hr style={{ border: "none", borderTop: "1px solid rgba(17,24,39,0.10)" }} />
+
+          {/* PHOTOS */}
+          <div style={{ display: "grid", gap: 10 }}>
+            <div style={{ fontWeight: 900 }}>{t("taskDrawer", "photos")}</div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, alignItems: "end" }}>
+              <label style={labelStyle}>
+                <span style={{ fontWeight: 800 }}>{t("taskDrawer", "captionLabel")}</span>
+                <input value={caption} onChange={(e) => setCaption(e.target.value)} style={inputStyle} />
+              </label>
+
+              <label style={{ ...labelStyle, cursor: uploading ? "not-allowed" : "pointer" }}>
+                <span style={{ fontWeight: 800 }}>{t("taskDrawer", "addPhoto")}</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  disabled={uploading}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (!f) return;
+                    e.currentTarget.value = "";
+
+                    if (isCreate) {
+                      addPending(f);
+                      return;
+                    }
+
+                    // EDIT: od razu upload
+                    if (!taskId) return;
+                    setUploading(true);
+                    (async () => {
+                      try {
+                        const ph = await uploadOne(taskId, f, caption.trim() === "" ? null : caption.trim());
+                        setCaption("");
+                        setPhotos((prev) => [ph, ...prev]);
+                        window.dispatchEvent(new CustomEvent("task-photo-added", { detail: { taskId } }));
+                      } catch (e2: any) {
+                        setErr(e2?.message || String(e2));
+                      } finally {
+                        setUploading(false);
+                      }
+                    })();
+                  }}
+                />
+              </label>
+            </div>
+
+            {/* CREATE: pending */}
+            {pendingPhotos.length > 0 && (
+              <div style={{ display: "grid", gap: 8 }}>
+                <div style={{ fontSize: 12, opacity: 0.8, fontWeight: 800 }}>
+                  {t("taskDrawer", "pendingPhotos")}
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+                  {pendingPhotos.map((p) => (
+                    <div key={p.id} style={{ position: "relative" }}>
+                      <img
+                        src={p.previewUrl}
+                        alt=""
+                        style={{ width: "100%", height: 92, objectFit: "cover", borderRadius: 12, border: "1px solid rgba(17,24,39,0.10)" }}
+                      />
+                      <button
+                        onClick={() => removePending(p.id)}
+                        style={{
+                          position: "absolute",
+                          top: 6,
+                          right: 6,
+                          width: 26,
+                          height: 26,
+                          borderRadius: 999,
+                          border: "1px solid rgba(17,24,39,0.25)",
+                          background: "rgba(255,255,255,0.92)",
+                          cursor: "pointer",
+                          fontWeight: 900,
+                        }}
+                        title={t("common", "delete")}
+                      >
+                        ✕
+                      </button>
+                      {p.caption && (
+                        <div style={{ marginTop: 4, fontSize: 11, opacity: 0.85, wordBreak: "break-word" }}>{p.caption}</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* EDIT/CREATE: existing photos list */}
+            {photos.length > 0 && (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+                {photos.map((p) => (
+                  <a key={p.id} href={p.url} target="_blank" rel="noreferrer" style={{ textDecoration: "none" }}>
+                    <img
+                      src={p.url}
+                      alt={p.caption || ""}
+                      style={{ width: "100%", height: 92, objectFit: "cover", borderRadius: 12, border: "1px solid rgba(17,24,39,0.10)" }}
+                      loading="lazy"
+                    />
+                  </a>
+                ))}
+              </div>
+            )}
+
+            {photos.length === 0 && pendingPhotos.length === 0 && (
+              <div style={{ fontSize: 12, opacity: 0.75 }}>{t("taskDrawer", "photos")}: 0</div>
+            )}
+          </div>
+
+          {/* COMMENTS */}
+          {!isCreate && (
+            <>
+              <hr style={{ border: "none", borderTop: "1px solid rgba(17,24,39,0.10)" }} />
+              
+              <div style={{ display: "grid", gap: 10 }}>
+                <div style={{ fontSize: 14, fontWeight: 800 }}>{t("taskDrawer", "comments")} ({comments.length})</div>
+
+                {/* Add comment input */}
+                <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+                  <textarea
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                    placeholder={t("taskDrawer", "addComment")}
+                    style={{
+                      ...inputStyle,
+                      minHeight: 60,
+                      resize: "vertical",
+                      flex: 1,
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                        e.preventDefault();
+                        addComment();
+                      }
+                    }}
+                  />
+                  <button
+                    onClick={addComment}
+                    disabled={!newComment.trim()}
+                    style={{
+                      padding: "8px 14px",
+                      borderRadius: 10,
+                      border: "1px solid rgba(17,24,39,0.20)",
+                      background: newComment.trim() ? "#111827" : "rgba(17,24,39,0.05)",
+                      color: newComment.trim() ? "#fff" : "rgba(17,24,39,0.4)",
+                      cursor: newComment.trim() ? "pointer" : "not-allowed",
+                      fontWeight: 800,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {t("common", "save")}
+                  </button>
+                </div>
+
+                {/* Comments list */}
+                {comments.length > 0 && (
+                  <div style={{ display: "grid", gap: 8, maxHeight: 300, overflowY: "auto" }}>
+                    {comments.map((c) => {
+                      const profile = profiles.find((p) => p.id === c.user_id);
+                      const userName = profile?.full_name || c.user_id.slice(0, 8);
+                      const timestamp = new Date(c.created_at).toLocaleString(localeByLang[language] || "en-US", {
+                        year: "numeric",
+                        month: "2-digit",
+                        day: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      });
+
+                      return (
+                        <div
+                          key={c.id}
+                          style={{
+                            padding: 10,
+                            borderRadius: 10,
+                            border: "1px solid rgba(17,24,39,0.10)",
+                            background: "rgba(17,24,39,0.02)",
+                          }}
+                        >
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                            <div style={{ fontWeight: 800, fontSize: 12 }}>{userName}</div>
+                            <div style={{ fontSize: 11, opacity: 0.6 }}>{timestamp}</div>
+                          </div>
+                          <div style={{ fontSize: 13, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{c.comment}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {comments.length === 0 && (
+                  <div style={{ fontSize: 12, opacity: 0.75 }}>{t("taskDrawer", "noComments")}</div>
+                )}
+              </div>
+
+              <hr style={{ border: "none", borderTop: "1px solid rgba(17,24,39,0.10)" }} />
+
+              <div style={{ display: "grid", gap: 10 }}>
+                <div style={{ fontSize: 14, fontWeight: 800 }}>{t("taskDrawer", "history")}</div>
+
+                {history.length > 0 ? (
+                  <div style={{ display: "grid", gap: 8, maxHeight: 260, overflowY: "auto" }}>
+                    {history.map((h) => {
+                      const actor = profiles.find((p) => p.id === h.changed_by);
+                      const actorName = actor?.full_name || (h.changed_by ? h.changed_by.slice(0, 8) : "—");
+                      const timestamp = new Date(h.created_at).toLocaleString(localeByLang[language] || "en-US", {
+                        year: "numeric",
+                        month: "2-digit",
+                        day: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      });
+                      const action = h.action || h.summary || t("taskDrawer", "historyUpdate");
+
+                      return (
+                        <div
+                          key={h.id}
+                          style={{
+                            padding: 10,
+                            borderRadius: 10,
+                            border: "1px solid rgba(17,24,39,0.10)",
+                            background: "rgba(17,24,39,0.02)",
+                          }}
+                        >
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                            <div style={{ fontWeight: 800, fontSize: 12 }}>{actorName}</div>
+                            <div style={{ fontSize: 11, opacity: 0.6 }}>{timestamp}</div>
+                          </div>
+                          <div style={{ fontSize: 13, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{action}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 12, opacity: 0.75 }}>{t("taskDrawer", "noHistory")}</div>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </>
