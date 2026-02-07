@@ -2948,3 +2948,41 @@ To github.com:sebretu/building-task-manager.git
 error: failed to push some refs to 'github.com:sebretu/building-task-manager.git'
 ----- 2026-02-07 10:00:01 auto-backup start -----
 whoami=root pwd=/root/building-task-manager
+date: extra operand ‘%H:%M’
+Try 'date --help' for more information.
+[main 630df2c] auto-backup:
+ 5 files changed, 233 insertions(+), 90 deletions(-)
+remote: error: GH013: Repository rule violations found for refs/heads/main.        
+remote: 
+remote: - GITHUB PUSH PROTECTION        
+remote:   —————————————————————————————————————————        
+remote:     Resolve the following violations before pushing again        
+remote: 
+remote:     - Push cannot contain secrets        
+remote: 
+remote:             
+remote:      (?) Learn how to resolve a blocked push        
+remote:      https://docs.github.com/code-security/secret-scanning/working-with-secret-scanning-and-push-protection/working-with-push-protection-from-the-command-line#resolving-a-blocked-push        
+remote:             
+remote:             
+remote:       —— Supabase Secret Key ———————————————————————————————        
+remote:        locations:        
+remote:          - commit: d012819010b164b2d04d4fd58f8aca9500733f95        
+remote:            path: web/scripts/inspect_supabase.js:4        
+remote:          - commit: d012819010b164b2d04d4fd58f8aca9500733f95        
+remote:            path: web/scripts/list_users.js:4        
+remote:          - commit: d012819010b164b2d04d4fd58f8aca9500733f95        
+remote:            path: web/scripts/show_data.js:4        
+remote:          - commit: d012819010b164b2d04d4fd58f8aca9500733f95        
+remote:            path: web/scripts/test_rls.js:4        
+remote:             
+remote:        (?) To push, remove secret from commit(s) or follow this URL to allow the secret.        
+remote:        https://github.com/sebretu/building-task-manager/security/secret-scanning/unblock-secret/39JXa3vAuSOPQ1ACbDQLvIvywnv        
+remote:             
+remote: 
+remote: 
+To github.com:sebretu/building-task-manager.git
+ ! [remote rejected] HEAD -> main (push declined due to repository rule violations)
+error: failed to push some refs to 'github.com:sebretu/building-task-manager.git'
+----- 2026-02-07 11:00:01 auto-backup start -----
+whoami=root pwd=/root/building-task-manager

@@ -15,11 +15,11 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+
 export const metadata: Metadata = {
   title: "Task Manager - Professional Task & Project Management",
   description: "Manage projects and tasks efficiently with offline support",
   manifest: "/manifest.json",
-  themeColor: "#667eea",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
@@ -28,6 +28,10 @@ export const metadata: Metadata = {
   formatDetection: {
     telephone: false,
   },
+};
+
+export const viewport = {
+  themeColor: "#667eea",
 };
 
 export default function RootLayout({
