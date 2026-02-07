@@ -16,25 +16,27 @@ export default function UnifiedLayout({ children }: { children: React.ReactNode 
   return (
     <div className={styles.layoutRoot}>
       <header className={styles.header}>
-        <div className={styles.logo}>
-          <span style={{ fontWeight: 900, fontSize: 28, marginRight: 8 }}>🛡️</span>
-          InspectHero
+        <div className={styles.headerInner}>
+          <div className={styles.logo}>
+            <span style={{ fontWeight: 900, fontSize: 28, marginRight: 8 }}>🛡️</span>
+            InspectHero
+          </div>
+          <nav className={styles.nav}>
+            {navLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={
+                  pathname === link.href
+                    ? `${styles.navLink} ${styles.navLinkActive}`
+                    : styles.navLink
+                }
+              >
+                {link.label}
+              </Link>
+            ))}
+          </nav>
         </div>
-        <nav className={styles.nav}>
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={
-                pathname === link.href
-                  ? `${styles.navLink} ${styles.navLinkActive}`
-                  : styles.navLink
-              }
-            >
-              {link.label}
-            </Link>
-          ))}
-        </nav>
       </header>
       <main className={styles.main}>{children}</main>
       <footer className={styles.footer}>
