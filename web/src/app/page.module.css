@@ -87,7 +87,7 @@
 
 .ctas a:hover, .ctas a:focus {
   background: linear-gradient(135deg, #2F6BFF 0%, #5A8BFF 100%);
-  color: #fff;
+  color: #111827;
   box-shadow: var(--shadow-accent);
   outline: none;
 }

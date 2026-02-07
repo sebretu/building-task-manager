@@ -63,7 +63,7 @@ a {
 
 a:hover, a:focus {
   background: linear-gradient(135deg, #2F6BFF 0%, #5A8BFF 100%);
-  color: #fff;
+  color: #111827;
   box-shadow: var(--shadow-accent);
   outline: none;
 }
@@ -205,7 +205,7 @@ a:hover, a:focus {
   border-radius: 999px;
   border: none;
   background: var(--home-accent);
-  color: #fff;
+  color: #111827;
   font-weight: 700;
   cursor: pointer;
 }
@@ -341,7 +341,7 @@ a:hover, a:focus {
   padding: 8px 14px;
   border-radius: 999px;
   background: var(--home-accent);
-  color: #fff;
+  color: #111827;
   font-weight: 700;
   cursor: pointer;
 }
@@ -396,7 +396,7 @@ a:hover, a:focus {
 
 .home-hero-primary {
   background: var(--home-accent);
-  color: #fff;
+  color: #111827;
 }
 
 .home-hero-secondary {
@@ -427,7 +427,7 @@ a:hover, a:focus {
     linear-gradient(135deg, #0f355f 0%, #1f4f82 50%, #2f6ea5 100%);
   overflow: hidden;
   box-shadow: 0 30px 60px rgba(15, 23, 42, 0.25);
-  color: #fff;
+  color: #111827;
 }
 
 .home-hero-panel {
@@ -621,7 +621,7 @@ a:hover, a:focus {
 
 .home-pill.active {
   background: var(--home-accent);
-  color: #fff;
+  color: #111827;
 }
 
 .home-view-toggle {
@@ -636,7 +636,7 @@ a:hover, a:focus {
 .home-toggle.active,
 .home-toggle:hover {
   background: var(--home-accent);
-  color: #fff;
+  color: #111827;
 }
 
 .home-toggle {
@@ -993,7 +993,7 @@ a:hover, a:focus {
   border-radius: 10px;
   border: 1px solid rgba(0, 0, 0, 0.2);
   background: #111;
-  color: #fff;
+  color: #111827;
   cursor: pointer;
 }
 

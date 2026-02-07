@@ -59,13 +59,13 @@
 
 .navLink:hover, .navLinkActive {
   background: var(--home-accent);
-  color: #fff;
+  color: #111827;
 }
 }
 
 .footer {
   background: #f8fbff;
-  color: var(--home-muted);
+  color: #111827;
   text-align: center;
   padding: 1.5rem 0 1rem 0;
   font-size: 1rem;
