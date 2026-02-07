@@ -306,69 +306,18 @@ export default function Home() {
       <div className="home-hero">
 
         <img src="/logo-uploaded.png" alt="Logo background" className="home-hero-bg-logo" aria-hidden="true" />
-        <header className="home-topbar">
-          {/* Logo and text removed as requested */}
-          <nav className="home-nav">
-            <Link href="/" className="home-nav-link">
-              {t("nav", "tasks")}
-            </Link>
-            <Link href="/plans" className="home-nav-link">
-              {t("nav", "plans")}
-            </Link>
-            <Link href="/users" className="home-nav-link">
-              {t("nav", "users")}
-            </Link>
-            <Link href="/companies" className="home-nav-link">
-              {t("nav", "companies")}
-            </Link>
-          </nav>
-          <div className="home-topbar-actions">
-            <LanguageSwitcher />
+
+        <section className="home-hero-content">
+          <div className="home-hero-actions" style={{ marginTop: 32 }}>
             <button className="home-logout" onClick={handleLogout}>
               {t("common", "logout")}
             </button>
-          </div>
-        </header>
-
-        <section className="home-hero-content">
-          <div className="home-hero-text" style={{ marginTop: 120 }}>
-            <div className="home-hero-kicker">{t("home", "heroKicker")}</div>
-            <h1 className="home-hero-title">{t("home", "heroTitle")}</h1>
-            <p className="home-hero-subtitle">{t("home", "heroSubtitle")}</p>
-            <div className="home-hero-actions">
-              <Link href="/plans" className="home-hero-primary">
-                {t("home", "heroPrimary")}
-              </Link>
-              <Link href="/" className="home-hero-secondary">
-                {t("home", "heroSecondary")}
-              </Link>
-            </div>
-            <div className="home-hero-user">
-              <span className="home-hero-user-label">{t("home", "signedInAs")}</span>
-              <span>{user.full_name || user.email}</span>
-            </div>
           </div>
           {/* home-hero-media and panel removed as requested */}
         </section>
       </div>
 
       <main className="home-main">
-        <section className="home-services">
-          <div className="home-section-header">
-            <h2>{t("home", "servicesTitle")}</h2>
-            <p>{t("home", "servicesSubtitle")}</p>
-          </div>
-          <div className="home-services-grid">
-            {services.map((item) => (
-              <Link key={item.title} href={item.href} className="home-service-card">
-                <div className="home-service-title">{item.title}</div>
-                <div className="home-service-body">{item.body}</div>
-                <div className="home-service-link">{t("home", "serviceMore")}</div>
-              </Link>
-            ))}
-          </div>
-        </section>
-
         <section className="home-control">
           <div className="home-control-card">
             <div className="home-card-title">{t("home", "notifications")}</div>
@@ -579,41 +528,64 @@ export default function Home() {
             </div>
 
           {viewMode === "list" ? (
-            <ul className="home-task-list">
+            <div className="tasks-grid">
               {tasks.map((task) => {
                 const thumb = thumbByTask[task.id];
                 const tileUrl = getTileUrl(task);
+                const statusLabel = t("taskStatus", task.status, task.status);
+                const priorityLabel = t("taskPriority", task.priority, task.priority);
+                const dueLabel = task.due_date ? new Date(task.due_date).toLocaleDateString() : "—";
+                const assignee = task.assigned_user_id ? profileById[task.assigned_user_id] : undefined;
+                const assigneeLabel = assignee?.full_name || assignee?.email || t("taskDrawer", "assignedUser");
+                const assigneeText = assignee ? assigneeLabel : `${t("taskDrawer", "assignedUser")}: —`;
 
                 return (
-                  <li key={task.id}>
-                    <Link href={`/task/${task.id}`} className="home-task-link">
-                      <div className="home-task-info">
-                        <span className="home-task-pill">{t("taskStatus", task.status, task.status)}</span>
-                        <span className="home-task-title">{task.title}</span>
-                      </div>
-                      <div className="home-task-media">
-                        <div className="home-task-media-item">
-                          {thumb ? (
-                            <img src={thumb} alt={t("home", "photoLabel")} className="home-task-thumb" />
-                          ) : (
-                            <div className="home-task-placeholder">{t("home", "noPhoto")}</div>
-                          )}
-                          <span className="home-task-media-label">{t("home", "photoLabel")}</span>
+                  <article key={task.id} className="task-card">
+                    <div className="task-card__media">
+                      {thumb ? (
+                        <img src={thumb} alt={t("home", "photoLabel")} />
+                      ) : (
+                        <div className="task-card__media-placeholder">
+                          <span aria-hidden="true">📷</span>
+                          <p>{t("home", "noPhoto")}</p>
                         </div>
-                        <div className="home-task-media-item">
-                          {tileUrl ? (
-                            <img src={tileUrl} alt={t("home", "mapLabel")} className="home-task-thumb" />
-                          ) : (
-                            <div className="home-task-placeholder">{t("home", "noTile")}</div>
-                          )}
-                          <span className="home-task-media-label">{t("home", "mapLabel")}</span>
-                        </div>
+                      )}
+                    </div>
+
+                    <div className="task-card__body">
+                      <div className="task-card__status-row">
+                        <span className="task-card__badge">{statusLabel}</span>
+                        <span className="task-card__pill">{priorityLabel}</span>
                       </div>
-                    </Link>
-                  </li>
+                      <h3>{task.title}</h3>
+                      <p className="task-card__note">
+                        {assigneeText} · {t("taskDrawer", "dueDate")}: {dueLabel}
+                      </p>
+                    </div>
+
+                    <div className="task-card__map">
+                      {tileUrl ? (
+                        <img src={tileUrl} alt={t("home", "mapLabel")} />
+                      ) : (
+                        <div className="task-card__map-placeholder">
+                          <span aria-hidden="true">📍</span>
+                          <small>{t("home", "noTile")}</small>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="task-card__footer">
+                      <span>
+                        {priorityLabel} · {dueLabel}
+                      </span>
+                      <Link href={`/task/${task.id}`} className="task-card__cta">
+                        {t("home", "serviceMore")}
+                      </Link>
+                    </div>
+                  </article>
                 );
               })}
-            </ul>
+            </div>
           ) : (
             <div className="home-kanban">
               {kanbanColumns.map((status) => {

@@ -1,104 +1,31 @@
 .layoutRoot {
   min-height: 100vh;
-  background: linear-gradient(135deg, #dfe9f6 0%, #f3f7ff 50%, #dfe8f4 100%);
-  color: var(--home-ink);
-  font-family: 'Source Sans 3', 'Segoe UI', system-ui, sans-serif;
+  background:
+    radial-gradient(900px 500px at 15% -10%, var(--ui-glow-1, rgba(14,165,233,.10)), transparent 60%),
+    radial-gradient(900px 500px at 95% 0%, var(--ui-glow-2, rgba(245,158,11,.10)), transparent 55%),
+    var(--ui-bg, #f6f8fb);
+  color: var(--ui-text, #0f172a);
+  font-family: var(--font-geist-sans, 'Inter', system-ui, sans-serif);
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
+}
 
-.header {
-  background: #f8fbff;
-  color: var(--home-ink);
-  padding: 0 1.5rem;
-  height: 64px;
+.main {
+  flex: 1;
   width: 100%;
-  padding: 0;
-  border-bottom: 1px solid var(--home-line);
-
-.headerInner {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 0 1.5rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-  flex-direction: column;
-  .header {
-    flex-direction: column;
-    padding: 0.5rem 0.5rem;
-    gap: 0.5rem;
-  }
-  letter-spacing: 0.02em;
-  display: flex;
-  align-items: center;
-  color: var(--home-accent-strong);
-  margin-top: 8px;
-  margin-bottom: 4px;
-}
-
-.nav {
-  display: flex;
-  gap: 2rem;
-  margin-bottom: 8px;
-}
-
-.navLink {
-  color: var(--home-ink);
-  font-weight: 600;
-  font-size: 1.1rem;
-  text-decoration: none;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
-  transition: background 0.2s, color 0.2s;
-  background: transparent;
-}
-
-.navLink:hover, .navLinkActive {
-  background: var(--home-accent);
-  color: #111827;
-}
+  padding: 96px 0 48px;
 }
 
 .footer {
-  background: #f8fbff;
-  color: #111827;
+  margin-top: auto;
   text-align: center;
-  padding: 1.5rem 0 1rem 0;
-  font-size: 1rem;
-  border-top: 1px solid var(--home-line);
+  padding: 32px 16px 48px;
+  color: var(--ui-muted, #64748b);
+  font-size: 0.95rem;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 768px) {
   .main {
-    max-width: 98vw;
-    padding: 1.2rem 0.5rem 1.5rem 0.5rem;
-    margin: 0 auto;
-    border-radius: 12px;
-  }
-  .nav {
-    gap: 1rem;
-  }
-}
-
-@media (max-width: 600px) {
-  .header {
-    flex-direction: column;
-    height: auto;
-    padding: 0.5rem 0.5rem;
-    gap: 0.5rem;
-  }
-  .logo {
-    font-size: 1.3rem;
-  }
-  .main {
-    max-width: 100vw;
-    padding: 0.5rem 0.1rem 1rem 0.1rem;
-    margin: 0 auto;
-    border-radius: 8px;
-    box-shadow: none;
+    padding-top: 88px;
   }
 }
