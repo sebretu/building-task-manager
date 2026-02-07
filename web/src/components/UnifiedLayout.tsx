@@ -15,33 +15,28 @@ export default function UnifiedLayout({ children }: { children: React.ReactNode 
   const pathname = usePathname();
   return (
     <div className={styles.layoutRoot}>
-      <header className={styles.header}>
-        <div className={styles.headerInner}>
-          <nav className={styles.nav}>
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={
-                  pathname === link.href
-                    ? `${styles.navLink} ${styles.navLinkActive}`
-                    : styles.navLink
-                }
-              >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
-          <div style={{ marginLeft: 16 }}>
-            {/* LanguageSwitcher moved here */}
-            <span style={{ display: 'inline-block', verticalAlign: 'middle', fontWeight: 700, fontSize: 18 }}>
-              🌐▾
-            </span>
-            {/* Możesz zamienić na <LanguageSwitcher /> jeśli chcesz pełny komponent */}
-          </div>
+      <header className="home-topbar">
+        <nav className="home-nav">
+          <Link href="/" className="home-nav-link">
+            Aufgaben
+          </Link>
+          <Link href="/plans" className="home-nav-link">
+            Pläne
+          </Link>
+          <Link href="/users" className="home-nav-link">
+            Benutzer
+          </Link>
+          <Link href="/companies" className="home-nav-link">
+            Unternehmen
+          </Link>
+        </nav>
+        <div className="home-topbar-actions">
+          {/* Jeśli chcesz, zamień na <LanguageSwitcher /> */}
+            {/* LanguageSwitcher usunięty na życzenie */}
         </div>
       </header>
       <main className={styles.main}>{children}</main>
+
       <footer className={styles.footer}>
         InspectHero © {new Date().getFullYear()} — Platforma do inspekcji i raportowania
       </footer>
