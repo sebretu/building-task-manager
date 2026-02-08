@@ -3,13 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
-import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function PlansUploadPage() {
   const router = useRouter();
-  const { t } = useLanguage();
 
   const [projectId, setProjectId] = useState("55555555-5555-5555-5555-555555555555");
   const [floorId, setFloorId] = useState("77777777-7777-7777-7777-777777777777");
@@ -34,12 +30,6 @@ export default function PlansUploadPage() {
   }, [file]);
 
   const canSubmit = useMemo(() => !!file && !!projectId && !!floorId && !!version, [file, projectId, floorId, version]);
-
-  async function handleLogout() {
-    await supabase.auth.signOut();
-    router.push("/auth/login");
-    router.refresh();
-  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -82,36 +72,6 @@ export default function PlansUploadPage() {
   return (
     <>
       <div className="home-hero upload-hero">
-        <header className="home-topbar">
-          <div className="home-logo">
-            <span className="home-logo-mark" />
-            <div>
-              <div className="home-logo-title">InspectHero</div>
-              <div className="home-logo-sub">Facility Task Control</div>
-            </div>
-          </div>
-          <nav className="home-nav">
-            <Link href="/" className="home-nav-link">
-              {t("nav", "tasks")}
-            </Link>
-            <Link href="/plans" className="home-nav-link">
-              {t("nav", "plans")}
-            </Link>
-            <Link href="/users" className="home-nav-link">
-              {t("nav", "users")}
-            </Link>
-            <Link href="/companies" className="home-nav-link">
-              {t("nav", "companies")}
-            </Link>
-          </nav>
-          <div className="home-topbar-actions">
-            <LanguageSwitcher />
-            <button className="home-logout" onClick={handleLogout}>
-              {t("common", "logout")}
-            </button>
-          </div>
-        </header>
-
         <section className="home-hero-content upload-hero-content">
           <div className="home-hero-text">
             <div className="home-hero-kicker">Upload</div>

@@ -2,12 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { apiGet, getToken } from "@/lib/apiClient";
-import { supabase } from "@/lib/supabase";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
-import { useLanguage } from "@/contexts/LanguageContext";
-import PlanThumbnail from "@/components/PlanThumbnail";
 import PlanCompositeThumbnail from "@/components/PlanCompositeThumbnail";
 
 type Project = { id: string; name: string };
@@ -36,8 +31,6 @@ type Plan = {
 // use `getToken` and `apiGet` from lib/apiClient
 
 export default function PlansPage() {
-  const router = useRouter();
-  const { t } = useLanguage();
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectId, setProjectId] = useState("");
   const [floors, setFloors] = useState<Floor[]>([]);
@@ -48,12 +41,6 @@ export default function PlansPage() {
     () => projects.find((p) => p.id === projectId),
     [projects, projectId]
   );
-
-  async function handleLogout() {
-    await supabase.auth.signOut();
-    router.push("/auth/login");
-    router.refresh();
-  }
 
   async function loadAll(pid?: string) {
     setErr(null);
@@ -84,36 +71,6 @@ export default function PlansPage() {
   return (
     <>
       <div className="home-hero plans-hero">
-        <header className="home-topbar">
-          <div className="home-logo">
-            <span className="home-logo-mark" />
-            <div>
-              <div className="home-logo-title">InspectHero</div>
-              <div className="home-logo-sub">Facility Task Control</div>
-            </div>
-          </div>
-          <nav className="home-nav">
-            <Link href="/" className="home-nav-link">
-              {t("nav", "tasks")}
-            </Link>
-            <Link href="/plans" className="home-nav-link">
-              {t("nav", "plans")}
-            </Link>
-            <Link href="/users" className="home-nav-link">
-              {t("nav", "users")}
-            </Link>
-            <Link href="/companies" className="home-nav-link">
-              {t("nav", "companies")}
-            </Link>
-          </nav>
-          <div className="home-topbar-actions">
-            <LanguageSwitcher />
-            <button className="home-logout" onClick={handleLogout}>
-              {t("common", "logout")}
-            </button>
-          </div>
-        </header>
-
         <section className="home-hero-content plans-hero-content">
           <div className="home-hero-text">
             <div className="home-hero-kicker">Plans</div>

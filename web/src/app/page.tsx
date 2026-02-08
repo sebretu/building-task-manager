@@ -7,7 +7,6 @@ import { apiGet, apiPost } from "@/lib/apiClient";
 import { supabase } from "@/lib/supabase";
 import { PWAInstallBanner } from "@/components/PWAInstallBanner";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 type Project = { id: string; name: string };
 type Task = {
@@ -145,12 +144,6 @@ export default function Home() {
 
     checkSession();
   }, [router]);
-
-  async function handleLogout() {
-    await supabase.auth.signOut();
-    router.push("/auth/login");
-    router.refresh();
-  }
 
   async function loadAll() {
     setErr(null);
@@ -303,19 +296,6 @@ export default function Home() {
   return (
     <>
       <PWAInstallBanner />
-      <div className="home-hero">
-
-        <img src="/logo-uploaded.png" alt="Logo background" className="home-hero-bg-logo" aria-hidden="true" />
-
-        <section className="home-hero-content">
-          <div className="home-hero-actions" style={{ marginTop: 32 }}>
-            <button className="home-logout" onClick={handleLogout}>
-              {t("common", "logout")}
-            </button>
-          </div>
-          {/* home-hero-media and panel removed as requested */}
-        </section>
-      </div>
 
       <main className="home-main">
         <section className="home-control">

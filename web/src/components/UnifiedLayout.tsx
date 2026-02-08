@@ -5,6 +5,7 @@ import styles from "./UnifiedLayout.module.css";
 import { usePathname } from "next/navigation";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { LogoutButton } from "@/components/LogoutButton";
 
 export default function UnifiedLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -42,6 +43,7 @@ export default function UnifiedLayout({ children }: { children: React.ReactNode 
           </div>
           <div className={styles.navStripControls}>
             <LanguageSwitcher />
+            <LogoutButton className={styles.navLogout} />
           </div>
         </div>
       </nav>
