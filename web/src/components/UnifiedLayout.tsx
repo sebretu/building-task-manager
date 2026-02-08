@@ -42,6 +42,9 @@ export default function UnifiedLayout({ children }: { children: React.ReactNode 
             })}
           </div>
           <div className={styles.navStripControls}>
+            <Link href="/plans/upload" className={styles.navUpload}>
+              Upload plan
+            </Link>
             <LanguageSwitcher />
             <LogoutButton className={styles.navLogout} />
           </div>
@@ -51,8 +54,7 @@ export default function UnifiedLayout({ children }: { children: React.ReactNode 
         <div className="topbar__inner container">
           <div className="topbar__brand">
             <Link href="/" className="topbar__logo" aria-label="InspectHero home">
-              <img src="/logo-uploaded.png" alt="Logo" />
-              
+              <img src="/inspecthero-logo.png" alt="InspectHero logo" />
             </Link>
           </div>
 

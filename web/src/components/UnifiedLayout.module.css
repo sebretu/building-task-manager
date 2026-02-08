@@ -1,3 +1,63 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+
+:global(.topbar) {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  justify-content: center;
+  padding: 120px 0 32px;
+  min-height: 55vh;
+  display: flex;
+  align-items: center;
+}
+
+:global(.topbar__inner) {
+  width: 100%;
+  max-width: 800px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+:global(.topbar__brand) {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  position: relative;
+}
+
+:global(.topbar__logo) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: min(40vw, 300px);
+  height: auto;
+  border-radius: 0;
+  overflow: visible;
+  background: transparent;
+  box-shadow: none;
+}
+
+:global(.topbar__logo:hover),
+:global(.topbar__logo:focus) {
+  background: transparent !important;
+  box-shadow: none;
+  color: inherit;
+}
+
+:global(.topbar__logo img) {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  object-position: center;
+}
+
+:global(.topbar__toggle),
+:global(.topbar__nav),
+:global(.topbar__actions) {
+  display: none !important;
+}
+
 .layoutRoot {
   min-height: 100vh;
   background:
@@ -45,9 +105,8 @@
 .navStripLink {
   text-decoration: none;
   color: var(--ui-text, #0f172a);
-  border-bottom: 2px solid transparent;
   padding-bottom: 4px;
-  transition: color 0.2s ease, border-color 0.2s ease;
+  transition: color 0.2s ease;
 }
 
 .navStripLink:hover {
@@ -55,7 +114,6 @@
 }
 
 .navStripLinkActive {
-  border-color: var(--ui-accent, #2563eb);
   color: var(--ui-accent, #2563eb);
 }
 
@@ -65,6 +123,25 @@
   justify-content: flex-end;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+.navUpload {
+  border: 1px solid rgba(15, 23, 42, 0.15);
+  border-radius: 999px;
+  padding: 8px 18px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--ui-text, #0f172a);
+  text-decoration: none;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+  white-space: nowrap;
+}
+
+.navUpload:hover {
+  background: var(--ui-accent, #2563eb);
+  color: #fff;
+  transform: translateY(-1px);
 }
 
 .navLogout {
@@ -92,10 +169,6 @@
 .navLogout:focus-visible {
   outline: 2px solid var(--ui-accent, #2563eb);
   outline-offset: 3px;
-}
-
-:global(.topbar__nav) {
-  display: none;
 }
 
 .main {
@@ -130,18 +203,6 @@
   .navStripControls {
     width: 100%;
     justify-content: flex-start;
-  }
-
-  :global(.topbar__nav) {
-    width: 100%;
-    display: none;
-    flex-direction: column;
-    gap: 16px;
-    margin-top: 16px;
-  }
-
-  :global(.topbar.is-open .topbar__nav) {
-    display: flex;
   }
 
   .main {

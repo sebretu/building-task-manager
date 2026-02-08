@@ -79,20 +79,15 @@ export default function PlansPage() {
               Manage current drawings, track floor levels, and open the live viewer for any plan.
             </p>
             <div className="home-hero-actions">
-              <Link href="/plans/upload" className="home-hero-primary">
-                Upload plan
-              </Link>
               <Link href="/" className="home-hero-secondary">
                 Back to tasks
               </Link>
             </div>
           </div>
           <div className="home-hero-media plans-hero-media">
-            <div className="home-hero-panel">
-              <div className="home-hero-panel-title">Current overview</div>
-              <div className="home-hero-panel-body">
-                {selectedProject?.name || "Select a project"}
-              </div>
+            <div className="plans-hero-overview">
+              <span className="plans-hero-label">Current overview</span>
+              <h3 className="plans-hero-project">{selectedProject?.name || "Select a project"}</h3>
               <div className="plans-hero-stats">
                 <span>{projects.length} projects</span>
                 <span>{floors.length} floors</span>
