@@ -1,28 +1,56 @@
 "use client";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import Link from "next/link";
 import styles from "./UnifiedLayout.module.css";
 import { usePathname } from "next/navigation";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
-
-const navLinks = [
-  { href: "/", label: "Aufgaben" },
-  { href: "/plans", label: "Pläne" },
-  { href: "/users", label: "Benutzer" },
-  { href: "/companies", label: "Unternehmen" },
-];
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function UnifiedLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
+  const { language, t } = useLanguage();
+  const currentYear = new Date().getFullYear();
+
+  const navLinks = useMemo(
+    () => [
+      { href: "/", label: t("nav", "tasks", "Aufgaben") },
+      { href: "/plans", label: t("nav", "plans", "Pläne") },
+      { href: "/users", label: t("nav", "users", "Benutzer") },
+      { href: "/companies", label: t("nav", "companies", "Unternehmen") },
+    ],
+    [language, t]
+  );
 
   return (
     <div className={styles.layoutRoot}>
+      <nav className={styles.navStrip} aria-label="Primary">
+        <div className={`${styles.navStripInner} container`}>
+          <div className={styles.navStripLinks}>
+            {navLinks.map((link) => {
+              const isActive = pathname === link.href;
+              return (
+                <Link
+                  key={`strip-${link.href}`}
+                  href={link.href}
+                  className={`${styles.navStripLink} ${isActive ? styles.navStripLinkActive : ""}`.trim()}
+                >
+                  {link.label}
+                </Link>
+              );
+            })}
+          </div>
+          <div className={styles.navStripControls}>
+            <LanguageSwitcher />
+          </div>
+        </div>
+      </nav>
       <header className={`topbar ${menuOpen ? "is-open" : ""}`}>
         <div className="topbar__inner container">
           <div className="topbar__brand">
             <Link href="/" className="topbar__logo" aria-label="InspectHero home">
               <img src="/logo-uploaded.png" alt="Logo" />
+              
             </Link>
           </div>
 
@@ -52,18 +80,11 @@ export default function UnifiedLayout({ children }: { children: React.ReactNode 
               );
             })}
           </nav>
-
-          <div className="topbar__actions">
-            <div className="lang-switch">
-              <LanguageSwitcher />
-            </div>
-          </div>
         </div>
       </header>
-
       <main className={styles.main}>{children}</main>
       <footer className={styles.footer}>
-        InspectHero © {new Date().getFullYear()} — Platforma do inspekcji i raportowania
+        InspectHero © {currentYear} — Platforma do inspekcji i raportowania
       </footer>
     </div>
   );
