@@ -98,12 +98,18 @@ export default function Home() {
     return u.replace(/^http:\/\/[^/]+:54321/i, `${proto}//${host}:54321`);
   }
 
+  type TaskPhotoRow = { id: string; url?: string | null };
+
   async function loadThumb(taskId: string) {
-    const r = await fetch(`/api/task-photos?taskId=${encodeURIComponent(taskId)}`, { cache: "no-store" });
-    const j = await r.json().catch(() => null);
-    const raw = j?.ok && j.data && j.data.length ? j.data[0].url : null;
-    const fixed = raw ? fixStorageUrl(raw) : null;
-    setThumbByTask((prev) => ({ ...prev, [taskId]: fixed }));
+    try {
+      const photos = await apiGet<TaskPhotoRow[]>(`/api/task-photos?taskId=${encodeURIComponent(taskId)}`);
+      const raw = Array.isArray(photos) && photos.length > 0 ? photos[0]?.url || null : null;
+      const fixed = raw ? fixStorageUrl(raw) : null;
+      setThumbByTask((prev) => ({ ...prev, [taskId]: fixed }));
+    } catch (loadErr) {
+      console.warn("[home] loadThumb failed", loadErr);
+      setThumbByTask((prev) => ({ ...prev, [taskId]: null }));
+    }
   }
 
   async function loadPlanMeta(planId: string) {
