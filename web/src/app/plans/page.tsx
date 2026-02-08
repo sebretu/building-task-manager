@@ -28,6 +28,25 @@ type Plan = {
   image_height: number | null;
 };
 
+function formatPlanName(rawName: string | null | undefined, level?: number) {
+  const fallback = typeof level === "number" ? `Level ${level}` : "Plan";
+  if (!rawName) return fallback;
+
+  let cleaned = rawName.trim();
+  cleaned = cleaned.replace(/^L\d+[\s_-]*/i, "");
+  cleaned = cleaned.replace(/^Level[\s_-]*\d+[\s_-]*/i, "");
+  cleaned = cleaned.replace(/[_-]+/g, " ");
+
+  const trailingNoise = /(?:[\s_-]*(?:[0-9a-f]{8,}|[0-9]{6,}))$/i;
+  let next = cleaned;
+  while (trailingNoise.test(next)) {
+    next = next.replace(trailingNoise, "");
+  }
+
+  cleaned = next.replace(/\s{2,}/g, " ").trim();
+  return cleaned || fallback;
+}
+
 // use `getToken` and `apiGet` from lib/apiClient
 
 export default function PlansPage() {
@@ -36,6 +55,15 @@ export default function PlansPage() {
   const [floors, setFloors] = useState<Floor[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [err, setErr] = useState<string | null>(null);
+
+  const floorDisplayNames = useMemo<Record<string, string>>(
+    () =>
+      floors.reduce((acc, floor) => {
+        acc[floor.id] = formatPlanName(floor.name, floor.level);
+        return acc;
+      }, {} as Record<string, string>),
+    [floors]
+  );
 
   const selectedProject = useMemo(
     () => projects.find((p) => p.id === projectId),
@@ -117,9 +145,7 @@ export default function PlansPage() {
                 <ul className="plans-list">
                   {floors.map((f) => (
                     <li key={f.id}>
-                      <span className="plans-pill">L{f.level}</span>
-                      <span>{f.name}</span>
-                      <span className="plans-muted">{f.id.slice(0, 8)}</span>
+                      <span>{floorDisplayNames[f.id] || formatPlanName(f.name, f.level)}</span>
                     </li>
                   ))}
                 </ul>
@@ -131,16 +157,21 @@ export default function PlansPage() {
               {plans.length === 0 && <div className="plans-empty">No current plans</div>}
               {plans.length > 0 && (
                 <div style={{ display: "flex", flexDirection: "row", flexWrap: "wrap", gap: 24 }}>
-                  {plans.map((p) => (
-                    <div key={p.id} style={{ border: "1px solid #ddd", borderRadius: 12, padding: 18, width: 520, display: "flex", flexDirection: "column", alignItems: "center", background: "#fff", boxShadow: "0 2px 12px #0001", marginBottom: 24 }}>
-                      <PlanCompositeThumbnail planId={p.id} size={480} alt={`Plan ${p.id}`} />
-                      <div style={{ marginTop: 14, fontWeight: 600, fontSize: 18 }}>v{p.version} <span style={{ color: "#888", fontWeight: 400 }}>({p.status})</span></div>
-                      <div style={{ fontSize: 15, color: "#666", marginBottom: 6 }}>Floor: {p.floor_id.slice(0, 8)}</div>
-                      <Link href={`/plan/${p.id}`} className="plans-link" style={{ marginTop: 10, fontSize: 16, color: "#1976d2", textDecoration: "underline" }}>
-                        Open viewer
-                      </Link>
-                    </div>
-                  ))}
+                  {plans.map((p) => {
+                    const planTitle = floorDisplayNames[p.floor_id] || `Plan v${p.version}`;
+                    return (
+                      <div key={p.id} style={{ border: "1px solid #ddd", borderRadius: 12, padding: 18, width: 520, display: "flex", flexDirection: "column", alignItems: "center", background: "#fff", boxShadow: "0 2px 12px #0001", marginBottom: 24 }}>
+                        <PlanCompositeThumbnail planId={p.id} size={480} alt={`Plan ${planTitle}`} />
+                        <div style={{ marginTop: 14, fontWeight: 600, fontSize: 20, textAlign: "center" }}>{planTitle}</div>
+                        <div style={{ marginTop: 8, fontSize: 15, color: "#666" }}>
+                          v{p.version} <span style={{ color: "#888", fontWeight: 400 }}>({p.status})</span>
+                        </div>
+                        <Link href={`/plan/${p.id}`} className="plans-link" style={{ marginTop: 10, fontSize: 16, color: "#1976d2", textDecoration: "underline" }}>
+                          Open viewer
+                        </Link>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
