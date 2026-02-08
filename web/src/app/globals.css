@@ -208,6 +208,22 @@ a:hover, a:focus {
   padding: 6px 0;
 }
 
+.upload-floor-create {
+  margin-top: 4px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px dashed var(--home-line);
+  background: rgba(15, 23, 42, 0.02);
+  display: grid;
+  gap: 10px;
+}
+
+.upload-floor-create p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--home-muted);
+}
+
 .upload-submit {
   padding: 10px 14px;
   border-radius: 999px;
@@ -481,45 +497,6 @@ a:hover, a:focus {
     linear-gradient(90deg, rgba(255, 255, 255, 0.12) 1px, transparent 1px);
   background-size: 40px 40px;
   opacity: 0.4;
-}
-
-.plans-hero-overview {
-  position: relative;
-  z-index: 2;
-  padding: 32px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  color: #fff;
-  max-width: 420px;
-}
-
-.plans-hero-label {
-  text-transform: uppercase;
-  font-size: 12px;
-  letter-spacing: 0.25em;
-  font-weight: 700;
-  opacity: 0.7;
-}
-
-.plans-hero-project {
-  font-size: clamp(22px, 3vw, 34px);
-  font-weight: 800;
-  margin: 0;
-}
-
-.plans-hero-stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14px;
-  font-weight: 700;
-  font-size: 13px;
-  letter-spacing: 0.08em;
-}
-
-.plans-hero-stats span {
-  padding-bottom: 4px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 

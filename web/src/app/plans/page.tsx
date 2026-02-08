@@ -84,18 +84,6 @@ export default function PlansPage() {
               </Link>
             </div>
           </div>
-          <div className="home-hero-media plans-hero-media">
-            <div className="plans-hero-overview">
-              <span className="plans-hero-label">Current overview</span>
-              <h3 className="plans-hero-project">{selectedProject?.name || "Select a project"}</h3>
-              <div className="plans-hero-stats">
-                <span>{projects.length} projects</span>
-                <span>{floors.length} floors</span>
-                <span>{plans.length} plans</span>
-              </div>
-            </div>
-            <div className="home-hero-grid" />
-          </div>
         </section>
       </div>
 
