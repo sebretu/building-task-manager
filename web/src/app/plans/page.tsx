@@ -167,25 +167,7 @@ export default function PlansPage() {
   }
 
   return (
-    <>
-      <div className="home-hero plans-hero">
-        <section className="home-hero-content plans-hero-content">
-          <div className="home-hero-text">
-            <div className="home-hero-kicker">Plans</div>
-            <h1 className="home-hero-title">Project plans and floors</h1>
-            <p className="home-hero-subtitle">
-              Manage current drawings, track floor levels, and open the live viewer for any plan.
-            </p>
-            <div className="home-hero-actions">
-              <Link href="/" className="home-hero-secondary">
-                Back to tasks
-              </Link>
-            </div>
-          </div>
-        </section>
-      </div>
-
-      <main className="home-main plans-main">
+    <main className="home-main plans-main">
         {err && <div className="home-card-error plans-error">{err}</div>}
         <section className="home-task-panel plans-panel">
           <div className="home-section-header">
@@ -266,6 +248,5 @@ export default function PlansPage() {
           </div>
         </section>
       </main>
-    </>
   );
 }
