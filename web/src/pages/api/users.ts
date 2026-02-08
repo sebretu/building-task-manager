@@ -5,6 +5,10 @@ import { NextApiRequest, NextApiResponse } from "next";
 type ApiOk<T> = { ok: true; data: T };
 type ApiErr = { ok: false; error: { message: string; code?: string; meta?: any } };
 
+function isUuid(v: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+}
+
 async function confirmUserEmail(adminClient: ReturnType<typeof getSupabaseAdminClient>, userId: string) {
   await adminClient.auth.admin
     .updateUserById(userId, {
@@ -36,7 +40,7 @@ export default async function handler(
     }
 
     if (req.method === "POST") {
-      const { email, full_name, company_id, role, password } = req.body || {};
+      const { email, full_name, company_id, role, password, project_id, project_role } = req.body || {};
 
       if (!email || !full_name) {
         return res.status(400).json({ ok: false, error: { message: "Email and full_name are required", code: "BAD_REQUEST" } });
@@ -67,6 +71,18 @@ export default async function handler(
       if (requester?.role !== "ADMIN") {
         return res.status(403).json({ ok: false, error: { message: "Only admins can invite users", code: "FORBIDDEN" } });
       }
+
+      const trimmedProjectId = typeof project_id === "string" ? project_id.trim() : "";
+      const shouldAttachProject = trimmedProjectId.length > 0;
+      if (shouldAttachProject && !isUuid(trimmedProjectId)) {
+        return res.status(400).json({ ok: false, error: { message: "Invalid project_id", code: "BAD_REQUEST" } });
+      }
+
+      const normalizedProjectRole = typeof project_role === "string" && project_role.trim().length > 0
+        ? project_role.trim().toUpperCase()
+        : "USER";
+      const allowedProjectRoles = new Set(["ADMIN", "MODERATOR", "USER"]);
+      const projectRoleToUse = allowedProjectRoles.has(normalizedProjectRole) ? normalizedProjectRole : "USER";
 
       const adminClient = getSupabaseAdminClient();
 
@@ -122,6 +138,26 @@ export default async function handler(
 
       if (error) {
         return res.status(400).json({ ok: false, error: { message: error.message, code: error.code, meta: error.details } });
+      }
+
+      if (shouldAttachProject) {
+        const { error: memberError } = await adminClient
+          .from("project_members")
+          .upsert(
+            {
+              project_id: trimmedProjectId,
+              user_id: authUserId,
+              role: projectRoleToUse,
+              added_by: userId,
+            },
+            { onConflict: "project_id,user_id" }
+          )
+          .select("id")
+          .single();
+
+        if (memberError) {
+          return res.status(400).json({ ok: false, error: { message: memberError.message, code: memberError.code, meta: memberError.details } });
+        }
       }
 
       await confirmUserEmail(adminClient, authUserId);

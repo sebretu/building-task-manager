@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { createServerSupabaseClient } from "@/lib/supabaseServer";
 import { requireRequesterProfile, isAdminRole } from "@/lib/requesterProfile";
+import { getSupabaseAdminClient } from "@/lib/supabaseAdmin";
 
 type ApiOk = { ok: true; data: any; meta?: any };
 type ApiErr = { ok: false; error: { code: string; message: string; meta?: any } };
@@ -64,6 +65,41 @@ async function loadNotificationSettings(supabase: any, userId: string | null): P
   if (!userId) return DEFAULT_NOTIFICATION_SETTINGS;
   const { data } = await supabase.from("profiles").select("notification_settings").eq("id", userId).single();
   return (data as any)?.notification_settings || DEFAULT_NOTIFICATION_SETTINGS;
+}
+
+let cachedAdminClient: ReturnType<typeof getSupabaseAdminClient> | null = null;
+function getAdminClientSafely() {
+  if (cachedAdminClient) return cachedAdminClient;
+  try {
+    cachedAdminClient = getSupabaseAdminClient();
+  } catch (err) {
+    console.error("[tasks api] cannot init admin client", err);
+    cachedAdminClient = null;
+  }
+  return cachedAdminClient;
+}
+
+async function ensureProjectMembership(projectId: string | null | undefined, userId: string | null | undefined, addedBy: string | null) {
+  if (!projectId || !userId) return;
+  const admin = getAdminClientSafely();
+  if (!admin) return;
+  try {
+    await admin
+      .from("project_members")
+      .upsert(
+        {
+          project_id: projectId,
+          user_id: userId,
+          role: "USER",
+          added_by: addedBy,
+        },
+        { onConflict: "project_id,user_id" }
+      )
+      .select("id")
+      .single();
+  } catch (err) {
+    console.error("[tasks api] ensureProjectMembership failed", err);
+  }
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse<ApiOk | ApiErr>) {
@@ -238,6 +274,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     }
 
     if (data?.assigned_user_id) {
+      await ensureProjectMembership(project_id, data.assigned_user_id, created_by);
       const { data: profile } = await supabase
         .from("profiles")
         .select("email, notification_settings")
@@ -306,7 +343,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     try {
       const { data: prevTask, error: prevTaskError } = await supabase
         .from("tasks")
-        .select("status, assigned_user_id, title")
+        .select("status, assigned_user_id, title, project_id")
         .eq("id", id)
         .single();
 
@@ -364,12 +401,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
 
       const { data: nextTask } = await supabase
         .from("tasks")
-        .select("status, assigned_user_id, title")
+        .select("status, assigned_user_id, title, project_id")
         .eq("id", id)
         .single();
 
       const statusChanged = prevTask?.status && nextTask?.status && prevTask.status !== nextTask.status;
       const assignedChanged = prevTask?.assigned_user_id !== nextTask?.assigned_user_id;
+
+      if (assignedChanged && nextTask?.assigned_user_id) {
+        await ensureProjectMembership(nextTask.project_id, nextTask.assigned_user_id, requester.id);
+      }
 
       if (nextTask?.assigned_user_id) {
         const { data: profile } = await supabase

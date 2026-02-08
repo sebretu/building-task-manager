@@ -20,10 +20,16 @@ type Company = {
   name: string;
 };
 
+type Project = {
+  id: string;
+  name: string;
+};
+
 export default function UsersPage() {
   const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -32,6 +38,8 @@ export default function UsersPage() {
   const [inviteName, setInviteName] = useState("");
   const [inviteCompanyId, setInviteCompanyId] = useState("");
   const [inviteRole, setInviteRole] = useState("USER");
+  const [inviteProjectId, setInviteProjectId] = useState("");
+  const [inviteProjectRole, setInviteProjectRole] = useState("USER");
   const [invitePassword, setInvitePassword] = useState("");
   const [invitePasswordConfirm, setInvitePasswordConfirm] = useState("");
   const [inviteError, setInviteError] = useState<string | null>(null);
@@ -68,12 +76,14 @@ export default function UsersPage() {
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const [usersData, companiesData] = await Promise.all([
+      const [usersData, companiesData, projectsData] = await Promise.all([
         apiGet<User[]>("/api/users"),
         apiGet<Company[]>("/api/companies"),
+        apiGet<Project[]>("/api/projects"),
       ]);
       setUsers(usersData || []);
       setCompanies(companiesData || []);
+      setProjects(projectsData || []);
       setError(null);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Error loading data";
@@ -128,20 +138,29 @@ export default function UsersPage() {
     try {
       setInviteSaving(true);
       setInviteError(null);
-      const newUser = await apiPost<User>("/api/users", {
+      const payload: Record<string, any> = {
         email: inviteEmail,
         full_name: inviteName,
         company_id: inviteCompanyId || null,
         role: inviteRole,
         password: invitePassword,
-      });
+      };
 
-      setUsers((prev) => [...prev, newUser]);
+      if (inviteProjectId) {
+        payload.project_id = inviteProjectId;
+        payload.project_role = inviteProjectRole;
+      }
+
+      await apiPost<User>("/api/users", payload);
+
+      await loadData();
       setShowInviteModal(false);
       setInviteEmail("");
       setInviteName("");
       setInviteCompanyId("");
       setInviteRole("USER");
+      setInviteProjectId("");
+      setInviteProjectRole("USER");
       setInvitePassword("");
       setInvitePasswordConfirm("");
     } catch (err) {
@@ -503,6 +522,53 @@ export default function UsersPage() {
                 </select>
               </div>
 
+              <div style={{ marginBottom: "15px" }}>
+                <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>
+                  Projekt (opcjonalnie)
+                </label>
+                <select
+                  value={inviteProjectId}
+                  onChange={(e) => setInviteProjectId(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "10px",
+                    border: "1px solid #ccc",
+                    borderRadius: "4px",
+                    boxSizing: "border-box",
+                  }}
+                >
+                  <option value="">-- Wybierz projekt --</option>
+                  {projects.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {inviteProjectId && (
+                <div style={{ marginBottom: "15px" }}>
+                  <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>
+                    Rola w projekcie
+                  </label>
+                  <select
+                    value={inviteProjectRole}
+                    onChange={(e) => setInviteProjectRole(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: "10px",
+                      border: "1px solid #ccc",
+                      borderRadius: "4px",
+                      boxSizing: "border-box",
+                    }}
+                  >
+                    <option value="USER">Członek</option>
+                    <option value="MODERATOR">Moderator</option>
+                    <option value="ADMIN">Administrator</option>
+                  </select>
+                </div>
+              )}
+
               <div style={{ display: "flex", gap: "10px" }}>
                 <button
                   type="submit"
@@ -527,6 +593,8 @@ export default function UsersPage() {
                     setInviteError(null);
                     setInvitePassword("");
                     setInvitePasswordConfirm("");
+                    setInviteProjectId("");
+                    setInviteProjectRole("USER");
                   }}
                   style={{
                     flex: 1,
