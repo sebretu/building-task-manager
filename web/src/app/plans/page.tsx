@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { apiGet, getToken } from "@/lib/apiClient";
+import { apiDelete, apiGet, getToken } from "@/lib/apiClient";
 import PlanCompositeThumbnail from "@/components/PlanCompositeThumbnail";
 
 type Project = { id: string; name: string };
@@ -55,6 +55,7 @@ export default function PlansPage() {
   const [floors, setFloors] = useState<Floor[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [err, setErr] = useState<string | null>(null);
+  const [deletingPlanId, setDeletingPlanId] = useState<string | null>(null);
 
   const floorDisplayNames = useMemo<Record<string, string>>(
     () =>
@@ -64,6 +65,11 @@ export default function PlansPage() {
       }, {} as Record<string, string>),
     [floors]
   );
+
+  const floorsWithPlans = useMemo(() => {
+    const floorIdsWithPlans = new Set(plans.map((p) => p.floor_id));
+    return floors.filter((f) => floorIdsWithPlans.has(f.id));
+  }, [floors, plans]);
 
   const selectedProject = useMemo(
     () => projects.find((p) => p.id === projectId),
@@ -89,6 +95,24 @@ export default function PlansPage() {
       token
     );
     setPlans(pls);
+  }
+
+  async function handleDeletePlan(planId: string) {
+    if (!planId) return;
+    const confirmed = typeof window !== "undefined" ? window.confirm("Usunąć plan oraz kafelki?") : false;
+    if (!confirmed) return;
+
+    setErr(null);
+    setDeletingPlanId(planId);
+    try {
+      const token = await getToken();
+      await apiDelete(`/api/plans?id=${encodeURIComponent(planId)}`, token);
+      await loadAll(projectId || undefined);
+    } catch (e: any) {
+      setErr(e?.message || "Nie udało się usunąć planu");
+    } finally {
+      setDeletingPlanId(null);
+    }
   }
 
   useEffect(() => {
@@ -140,10 +164,10 @@ export default function PlansPage() {
 
             <div className="plans-card">
               <div className="plans-card-title">Floors</div>
-              {floors.length === 0 && <div className="plans-empty">No floors</div>}
-              {floors.length > 0 && (
+              {floorsWithPlans.length === 0 && <div className="plans-empty">No floors with current plans</div>}
+              {floorsWithPlans.length > 0 && (
                 <ul className="plans-list">
-                  {floors.map((f) => (
+                  {floorsWithPlans.map((f) => (
                     <li key={f.id}>
                       <span>{floorDisplayNames[f.id] || formatPlanName(f.name, f.level)}</span>
                     </li>
@@ -166,9 +190,27 @@ export default function PlansPage() {
                         <div style={{ marginTop: 8, fontSize: 15, color: "#666" }}>
                           v{p.version} <span style={{ color: "#888", fontWeight: 400 }}>({p.status})</span>
                         </div>
-                        <Link href={`/plan/${p.id}`} className="plans-link" style={{ marginTop: 10, fontSize: 16, color: "#1976d2", textDecoration: "underline" }}>
-                          Open viewer
-                        </Link>
+                        <div style={{ display: "flex", gap: 12, marginTop: 12 }}>
+                          <Link href={`/plan/${p.id}`} className="plans-link" style={{ fontSize: 16, color: "#1976d2", textDecoration: "underline" }}>
+                            Open viewer
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => handleDeletePlan(p.id)}
+                            disabled={deletingPlanId === p.id}
+                            style={{
+                              padding: "8px 14px",
+                              borderRadius: 6,
+                              border: "1px solid #d32f2f",
+                              background: deletingPlanId === p.id ? "#f9d6d5" : "#fff5f5",
+                              color: "#c62828",
+                              fontSize: 14,
+                              cursor: deletingPlanId === p.id ? "not-allowed" : "pointer",
+                            }}
+                          >
+                            {deletingPlanId === p.id ? "Deleting..." : "Delete plan"}
+                          </button>
+                        </div>
                       </div>
                     );
                   })}

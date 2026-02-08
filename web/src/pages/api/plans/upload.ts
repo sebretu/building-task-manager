@@ -1,6 +1,5 @@
 // src/pages/api/plans/upload.ts
 import type { NextApiRequest, NextApiResponse } from "next";
-import { createClient } from "@supabase/supabase-js";
 import formidable from "formidable";
 import crypto from "crypto";
 import os from "os";
@@ -9,6 +8,7 @@ import fsSync from "fs";
 import fs from "fs/promises";
 import { execFile } from "child_process";
 import { promisify } from "util";
+import { getSupabaseAdminClient } from "@/lib/supabaseAdmin";
 
 export const config = {
   api: {
@@ -23,20 +23,6 @@ function json(res: NextApiResponse, status: number, body: any) {
   res.end(JSON.stringify(body));
 }
 
-function getSupabaseAdmin() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const service =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.SUPABASE_SERVICE_KEY ||
-    process.env.SUPABASE_SERVICE_ROLE;
-
-  if (!url) throw new Error("Missing env: NEXT_PUBLIC_SUPABASE_URL");
-  if (!service) throw new Error("Missing env: SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_SERVICE_KEY)");
-
-  return createClient(url, service, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-}
 
 async function parseMultipart(req: NextApiRequest): Promise<{
   fields: Record<string, any>;
@@ -133,7 +119,7 @@ async function generateTilesInBackground(opts: {
   minZoom: number;
   maxZoom: number;
 }) {
-  const supabase = getSupabaseAdmin();
+  const supabase = getSupabaseAdminClient();
 
   // osobny try/catch żeby nie wywalić handlera
   (async () => {
@@ -211,7 +197,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return;
     }
 
-    const supabase = getSupabaseAdmin();
+    const supabase = getSupabaseAdminClient();
 
     const { data: latestPlans, error: latestErr } = await supabase
       .from("plans")
