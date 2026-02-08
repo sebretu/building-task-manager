@@ -60,6 +60,10 @@ export default function PlansPage() {
   const [err, setErr] = useState<string | null>(null);
   const [deletingPlanId, setDeletingPlanId] = useState<string | null>(null);
   const [sessionChecked, setSessionChecked] = useState(false);
+  const [viewerProfile, setViewerProfile] = useState<{ id: string; role: string | null } | null>(null);
+
+  const normalizedRole = (viewerProfile?.role || "").toUpperCase();
+  const isAdmin = normalizedRole === "ADMIN";
 
   const floorDisplayNames = useMemo<Record<string, string>>(
     () =>
@@ -107,7 +111,7 @@ export default function PlansPage() {
   }
 
   async function handleDeletePlan(planId: string) {
-    if (!planId) return;
+    if (!planId || !isAdmin) return;
     const confirmed = typeof window !== "undefined" ? window.confirm("Usunąć plan oraz kafelki?") : false;
     if (!confirmed) return;
 
@@ -139,7 +143,23 @@ export default function PlansPage() {
           router.replace("/auth/login");
           return;
         }
-        setSessionChecked(true);
+
+        const authId = data.session.user.id;
+        supabase
+          .from("profiles")
+          .select("id, role")
+          .eq("id", authId)
+          .single()
+          .then(({ data: profile }) => {
+            if (!isMounted) return;
+            setViewerProfile(profile || null);
+            setSessionChecked(true);
+          })
+          .catch(() => {
+            if (!isMounted) return;
+            setViewerProfile(null);
+            setSessionChecked(true);
+          });
       })
       .catch(() => {
         if (!isMounted) return;
@@ -222,22 +242,24 @@ export default function PlansPage() {
                           <Link href={`/plan/${p.id}`} className="plans-link" style={{ fontSize: 16, color: "#1976d2", textDecoration: "underline" }}>
                             Open viewer
                           </Link>
-                          <button
-                            type="button"
-                            onClick={() => handleDeletePlan(p.id)}
-                            disabled={deletingPlanId === p.id}
-                            style={{
-                              padding: "8px 14px",
-                              borderRadius: 6,
-                              border: "1px solid #d32f2f",
-                              background: deletingPlanId === p.id ? "#f9d6d5" : "#fff5f5",
-                              color: "#c62828",
-                              fontSize: 14,
-                              cursor: deletingPlanId === p.id ? "not-allowed" : "pointer",
-                            }}
-                          >
-                            {deletingPlanId === p.id ? "Deleting..." : "Delete plan"}
-                          </button>
+                          {isAdmin && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeletePlan(p.id)}
+                              disabled={deletingPlanId === p.id}
+                              style={{
+                                padding: "8px 14px",
+                                borderRadius: 6,
+                                border: "1px solid #d32f2f",
+                                background: deletingPlanId === p.id ? "#f9d6d5" : "#fff5f5",
+                                color: "#c62828",
+                                fontSize: 14,
+                                cursor: deletingPlanId === p.id ? "not-allowed" : "pointer",
+                              }}
+                            >
+                              {deletingPlanId === p.id ? "Deleting..." : "Delete plan"}
+                            </button>
+                          )}
                         </div>
                       </div>
                     );
