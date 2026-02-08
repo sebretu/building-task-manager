@@ -5,6 +5,7 @@
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.task_photos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.floors ENABLE ROW LEVEL SECURITY;
 
 -- profiles: user can see their profile; company members can select; users can update own profile
 CREATE POLICY profiles_select_self_or_company
@@ -55,5 +56,63 @@ CREATE POLICY storage_objects_select_task_photos
 CREATE POLICY tasks_delete_allowed
   ON public.tasks FOR DELETE
   USING (auth.uid() IS NOT NULL);
+
+-- floors: project members can read/manage floors that belong to their projects
+CREATE POLICY floors_select_project_members
+  ON public.floors FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1
+      FROM public.buildings b
+      JOIN public.project_members pm ON pm.project_id = b.project_id
+      WHERE b.id = public.floors.building_id
+        AND pm.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY floors_insert_project_members
+  ON public.floors FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1
+      FROM public.buildings b
+      JOIN public.project_members pm ON pm.project_id = b.project_id
+      WHERE b.id = public.floors.building_id
+        AND pm.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY floors_update_project_members
+  ON public.floors FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1
+      FROM public.buildings b
+      JOIN public.project_members pm ON pm.project_id = b.project_id
+      WHERE b.id = public.floors.building_id
+        AND pm.user_id = auth.uid()
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1
+      FROM public.buildings b
+      JOIN public.project_members pm ON pm.project_id = b.project_id
+      WHERE b.id = public.floors.building_id
+        AND pm.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY floors_delete_project_members
+  ON public.floors FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1
+      FROM public.buildings b
+      JOIN public.project_members pm ON pm.project_id = b.project_id
+      WHERE b.id = public.floors.building_id
+        AND pm.user_id = auth.uid()
+    )
+  );
 
 -- End of RLS policies
