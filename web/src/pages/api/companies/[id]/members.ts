@@ -1,4 +1,4 @@
-import { createServerSupabaseClient, isAuthRequiredError } from "@/lib/supabaseServer";
+import { createServerSupabaseClient } from "@/lib/supabaseServer";
 import { NextApiRequest, NextApiResponse } from "next";
 
 export default async function handler(
@@ -40,14 +40,12 @@ export default async function handler(
 
     return res.status(405).json({ error: "Method not allowed" });
   } catch (err) {
-    if (isAuthRequiredError(err)) {
-      return res.status(401).json({ error: "Unauthorized", message: "Missing Bearer token" });
-    }
-
     console.error("Error in /api/companies/[id]/members:", err);
-    return res.status(500).json({
-      error: "Internal server error",
-      message: err instanceof Error ? err.message : String(err),
-    });
+    return res
+      .status(500)
+      .json({
+        error: "Internal server error",
+        message: err instanceof Error ? err.message : String(err),
+      });
   }
 }

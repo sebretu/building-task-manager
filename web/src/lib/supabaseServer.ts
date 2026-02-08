@@ -1,17 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import type { NextApiRequest } from "next";
 
-export class AuthRequiredError extends Error {
-  constructor() {
-    super("AUTH_REQUIRED");
-    this.name = "AuthRequiredError";
-  }
-}
-
-export function isAuthRequiredError(err: unknown): err is AuthRequiredError {
-  return err instanceof AuthRequiredError || (err instanceof Error && err.message === "AUTH_REQUIRED");
-}
-
 /**
  * Extract Bearer token from Authorization header
  */
@@ -47,8 +36,29 @@ export function createServerSupabaseClient(
 
   const token = getAuthToken(req);
 
+  // By default require auth. In development, if no token is present
+  // allow a temporary fallback using the service role key so local
+  // testing is possible. This MUST NOT be used in production.
   if (!token && options?.requireAuth !== false) {
-    throw new AuthRequiredError();
+    if (process.env.NODE_ENV !== "production") {
+      const service =
+        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE;
+      if (!service) {
+        throw new Error("AUTH_REQUIRED");
+      }
+
+      const client = createClient(url, service, {
+        auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+      });
+
+      // For local testing you can set DEV_SUPABASE_USER_ID to an existing
+      // profile id in your DB so server handlers that expect `userId` work.
+      // Example: export DEV_SUPABASE_USER_ID="<uuid>"
+      const devUserId = process.env.DEV_SUPABASE_USER_ID || null;
+      return { client, userId: devUserId };
+    }
+
+    throw new Error("AUTH_REQUIRED");
   }
 
   const client = createClient(url, anonKey, {

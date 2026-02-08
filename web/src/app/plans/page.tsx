@@ -2,10 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { apiDelete, apiGet, getToken } from "@/lib/apiClient";
 import PlanCompositeThumbnail from "@/components/PlanCompositeThumbnail";
-import { supabase } from "@/lib/supabase";
 
 type Project = { id: string; name: string };
 
@@ -52,14 +50,12 @@ function formatPlanName(rawName: string | null | undefined, level?: number) {
 // use `getToken` and `apiGet` from lib/apiClient
 
 export default function PlansPage() {
-  const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectId, setProjectId] = useState("");
   const [floors, setFloors] = useState<Floor[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [deletingPlanId, setDeletingPlanId] = useState<string | null>(null);
-  const [sessionChecked, setSessionChecked] = useState(false);
 
   const floorDisplayNames = useMemo<Record<string, string>>(
     () =>
@@ -83,11 +79,6 @@ export default function PlansPage() {
   async function loadAll(pid?: string) {
     setErr(null);
     const token = await getToken();
-    if (!token) {
-      setErr("Brak aktywnej sesji");
-      router.push("/auth/login");
-      return;
-    }
 
     const ps = await apiGet<Project[]>("/api/projects", token);
     setProjects(ps);
@@ -115,11 +106,6 @@ export default function PlansPage() {
     setDeletingPlanId(planId);
     try {
       const token = await getToken();
-      if (!token) {
-        setErr("Brak aktywnej sesji");
-        router.push("/auth/login");
-        return;
-      }
       await apiDelete(`/api/plans?id=${encodeURIComponent(planId)}`, token);
       await loadAll(projectId || undefined);
     } catch (e: any) {
@@ -130,41 +116,9 @@ export default function PlansPage() {
   }
 
   useEffect(() => {
-    let isMounted = true;
-    supabase.auth
-      .getSession()
-      .then(({ data }) => {
-        if (!isMounted) return;
-        if (!data?.session) {
-          router.replace("/auth/login");
-          return;
-        }
-        setSessionChecked(true);
-      })
-      .catch(() => {
-        if (!isMounted) return;
-        router.replace("/auth/login");
-      });
-    return () => {
-      isMounted = false;
-    };
-  }, [router]);
-
-  useEffect(() => {
-    if (!sessionChecked) return;
-    loadAll().catch((e: any) => {
-      const message = e?.message || "Nie udało się załadować planów";
-      setErr(message);
-      if (typeof message === "string" && message.toLowerCase().includes("token")) {
-        router.push("/auth/login");
-      }
-    });
+    loadAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionChecked, router]);
-
-  if (!sessionChecked) {
-    return <div style={{ padding: 32 }}>Ładowanie...</div>;
-  }
+  }, []);
 
   return (
     <>
