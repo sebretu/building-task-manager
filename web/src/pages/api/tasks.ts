@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { createServerSupabaseClient, getUserIdFromRequest } from "@/lib/supabaseServer";
+import { createServerSupabaseClient } from "@/lib/supabaseServer";
+import { requireRequesterProfile, isAdminRole } from "@/lib/requesterProfile";
 
 type ApiOk = { ok: true; data: any; meta?: any };
 type ApiErr = { ok: false; error: { code: string; message: string; meta?: any } };
@@ -75,6 +76,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     return res.status(401).json({ ok: false, error: { code: 'AUTH_INVALID', message: 'Missing Bearer token' } });
   }
 
+  let requester: { id: string; role: string | null };
+  try {
+    requester = await requireRequesterProfile(supabase, userId);
+  } catch (err: any) {
+    return res.status(err?.status || 403).json({
+      ok: false,
+      error: {
+        code: err?.code || "PROFILE_ERROR",
+        message: err?.message || "Unable to load profile",
+      },
+    });
+  }
+
+  const isAdmin = isAdminRole(requester.role);
+
   // ------------------------
   // GET /api/tasks (list)
   // ------------------------
@@ -106,7 +122,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     if (planId) query = query.eq("plan_id", planId);
     if (status) query = query.eq("status", status as any);
     if (priority) query = query.eq("priority", priority as any);
-    if (assignedUserId) query = query.eq("assigned_user_id", assignedUserId);
+    const effectiveAssignedId = isAdmin ? assignedUserId : requester.id;
+    if (effectiveAssignedId) query = query.eq("assigned_user_id", effectiveAssignedId);
     if (dueFrom) query = query.gte("due_date", dueFrom);
     if (dueTo) query = query.lte("due_date", dueTo);
     if (q) query = query.or(`title.ilike.%${q}%,description.ilike.%${q}%`);
@@ -141,6 +158,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
   // POST /api/tasks (create)
   // ------------------------
   if (req.method === "POST") {
+    if (!isAdmin) {
+      return res.status(403).json({
+        ok: false,
+        error: { code: "FORBIDDEN", message: "Only admins can create tasks" },
+      });
+    }
+
     const body = readJsonBody(req);
 
     const project_id = String(body?.project_id || "").trim();
@@ -267,12 +291,68 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     if (body.assigned_user_id !== undefined) patch.assigned_user_id = body.assigned_user_id || "";
     if (body.assigned_company_id !== undefined) patch.assigned_company_id = body.assigned_company_id || "";
 
+    if (!isAdmin) {
+      const forbiddenFields = ["title", "description", "priority", "due_date", "assigned_user_id", "assigned_company_id"].filter(
+        (field) => body?.[field] !== undefined
+      );
+      if (forbiddenFields.length > 0) {
+        return res.status(403).json({
+          ok: false,
+          error: { code: "FORBIDDEN", message: "Users can only update status" },
+        });
+      }
+    }
+
     try {
-      const { data: prevTask } = await supabase
+      const { data: prevTask, error: prevTaskError } = await supabase
         .from("tasks")
         .select("status, assigned_user_id, title")
         .eq("id", id)
         .single();
+
+      if (prevTaskError || !prevTask) {
+        return res.status((prevTaskError as any)?.status || 404).json({
+          ok: false,
+          error: {
+            code: "SUPABASE",
+            message: prevTaskError?.message || "Task not found",
+            meta: { code: (prevTaskError as any)?.code, details: (prevTaskError as any)?.details },
+          },
+        });
+      }
+
+      if (!isAdmin && prevTask.assigned_user_id !== requester.id) {
+        return res.status(403).json({
+          ok: false,
+          error: { code: "FORBIDDEN", message: "You do not have access to this task" },
+        });
+      }
+
+      if (!isAdmin) {
+        if (patch.status === undefined) {
+          return res.status(400).json({
+            ok: false,
+            error: { code: "BAD_REQUEST", message: "Status update is required" },
+          });
+        }
+
+        const fromStatus = (prevTask.status || "").toUpperCase();
+        const toStatus = String(patch.status || "").toUpperCase();
+        const allowedTransitions: Record<string, string[]> = {
+          OPEN: ["IN_PROGRESS"],
+          IN_PROGRESS: ["DONE_WAITING_APPROVAL"],
+        };
+
+        const sameStatus = fromStatus === toStatus;
+        if (!sameStatus && !allowedTransitions[fromStatus]?.includes(toStatus)) {
+          return res.status(403).json({
+            ok: false,
+            error: { code: "FORBIDDEN", message: "Status change not allowed" },
+          });
+        }
+
+        patch.status = toStatus;
+      }
 
       const { data, error } = await (supabase as any).rpc("update_task_api", {
         p_id: id,

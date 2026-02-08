@@ -2,6 +2,8 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
+import { apiGet } from "@/lib/apiClient";
+import { supabase } from "@/lib/supabase";
 
 type Meta = {
   tileSize: number;
@@ -36,18 +38,25 @@ export default function PlanViewer({
   focusPoint,
   focusTaskId,
   allowCreate,
+  currentUserId,
+  currentUserRole,
 }: {
   planId: string;
   fullHeight?: boolean;
   focusPoint?: { x_norm: number; y_norm: number } | null;
   focusTaskId?: string | null;
   allowCreate?: boolean;
+  currentUserId?: string | null;
+  currentUserRole?: string | null;
 }) {
   const [meta, setMeta] = useState<Meta | null>(null);
   const [metaStatus, setMetaStatus] = useState<
     "LOADING" | "PROCESSING" | "READY" | "ERROR"
   >("LOADING");
   const [metaErr, setMetaErr] = useState<string | null>(null);
+  const [viewerProfile, setViewerProfile] = useState<{ id: string; role: string | null } | null>(null);
+  const [planProjectId, setPlanProjectId] = useState<string | null>(null);
+  const [planProjectErr, setPlanProjectErr] = useState<string | null>(null);
 
   // --- polling meta.json ---
   useEffect(() => {
@@ -105,6 +114,71 @@ export default function PlanViewer({
       if (timer) clearTimeout(timer);
     };
   }, [planId]);
+
+  useEffect(() => {
+    let alive = true;
+    setPlanProjectId(null);
+    setPlanProjectErr(null);
+
+    apiGet<{ project_id?: string | null }>(`/api/plan?id=${encodeURIComponent(planId)}`)
+      .then((plan) => {
+        if (!alive) return;
+        setPlanProjectId(plan?.project_id || null);
+      })
+      .catch((err: any) => {
+        if (!alive) return;
+        setPlanProjectErr(err?.message || "Nie udało się pobrać projektu planu");
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [planId]);
+
+  useEffect(() => {
+    if (currentUserId && currentUserRole) {
+      setViewerProfile({ id: currentUserId, role: currentUserRole });
+      return;
+    }
+
+    let alive = true;
+
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (!alive) return;
+        const authId = data.session?.user?.id;
+        if (!authId) {
+          setViewerProfile(null);
+          return;
+        }
+        supabase
+          .from("profiles")
+          .select("id, role")
+          .eq("id", authId)
+          .single()
+          .then(({ data: profile }) => {
+            if (!alive) return;
+            setViewerProfile(profile || null);
+          })
+          .catch(() => {
+            if (!alive) return;
+            setViewerProfile(null);
+          });
+      })
+      .catch(() => {
+        if (!alive) return;
+        setViewerProfile(null);
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [currentUserId, currentUserRole]);
+
+  const effectiveUserId = currentUserId ?? viewerProfile?.id ?? null;
+  const effectiveUserRole = currentUserRole ?? viewerProfile?.role ?? null;
+  const allowCreateResolved = typeof allowCreate === "boolean" ? allowCreate : (effectiveUserRole || "").toUpperCase() === "ADMIN";
 
   // ------------------------------------------------------------------
   // 1) META JESZCZE NIE MA → POKAZUJ PDF (ZERO LEAFLET, ZERO SSR PROBLEMÓW)
@@ -183,11 +257,15 @@ export default function PlanViewer({
   return (
     <PlanMap
       planId={planId}
+      projectId={planProjectId}
       meta={meta!}
       fullHeight={fullHeight}
       focusPoint={focusPoint}
       focusTaskId={focusTaskId}
-      allowCreate={allowCreate}
+      allowCreate={allowCreateResolved}
+      currentUserId={effectiveUserId}
+      currentUserRole={effectiveUserRole}
+      projectLoadError={planProjectErr}
     />
   );
 }

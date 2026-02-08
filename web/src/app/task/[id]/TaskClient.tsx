@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import TaskDrawer from "@/components/TaskDrawer";
 import PlanViewer from "@/components/PlanViewer";
 import { apiGet } from "@/lib/apiClient";
+import { supabase } from "@/lib/supabase";
 
 function isUuid(v: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
@@ -15,6 +16,7 @@ export default function TaskClient({ id }: { id: string }) {
   const [planId, setPlanId] = useState<string | null>(null);
   const [planError, setPlanError] = useState<string | null>(null);
   const [focusPoint, setFocusPoint] = useState<{ x_norm: number; y_norm: number } | null>(null);
+  const [currentUser, setCurrentUser] = useState<{ id: string; role: string | null } | null>(null);
 
   const okId = useMemo(() => (typeof id === "string" ? id.trim() : ""), [id]);
 
@@ -79,6 +81,43 @@ export default function TaskClient({ id }: { id: string }) {
     };
   }, [okId]);
 
+  useEffect(() => {
+    let active = true;
+
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (!active) return;
+        const authId = data.session?.user?.id;
+        if (!authId) {
+          setCurrentUser(null);
+          return;
+        }
+
+        supabase
+          .from("profiles")
+          .select("id, role")
+          .eq("id", authId)
+          .single()
+          .then(({ data: profile }) => {
+            if (!active) return;
+            setCurrentUser(profile || null);
+          })
+          .catch(() => {
+            if (!active) return;
+            setCurrentUser(null);
+          });
+      })
+      .catch(() => {
+        if (!active) return;
+        setCurrentUser(null);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <div style={{ position: "fixed", inset: 0, background: "#0b0f1a" }}>
       {planId ? (
@@ -89,6 +128,8 @@ export default function TaskClient({ id }: { id: string }) {
             focusPoint={focusPoint}
             focusTaskId={okId}
             allowCreate={false}
+            currentUserId={currentUser?.id || null}
+            currentUserRole={currentUser?.role || null}
           />
         </div>
       ) : (
@@ -101,6 +142,8 @@ export default function TaskClient({ id }: { id: string }) {
         open={true}
         taskId={okId}
         uploadedBy={UPLOADED_BY}
+        currentUserId={currentUser?.id || null}
+        currentUserRole={currentUser?.role || null}
         onClose={() => router.back()}
         showOverlay={false}
       />

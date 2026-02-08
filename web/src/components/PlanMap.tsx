@@ -5,6 +5,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from "re
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import TaskDrawer from "./TaskDrawer";
+import { apiGet } from "@/lib/apiClient";
 
 type Meta = {
   tileSize: number;
@@ -26,6 +27,11 @@ type TaskRow = {
 type ProfileRow = {
   id: string;
   full_name: string;
+};
+
+type TaskPhotoRow = {
+  id: string;
+  url: string;
 };
 
 const CRS = L.CRS.Simple;
@@ -78,22 +84,29 @@ function fixStorageUrl(u: string) {
 
 export default function PlanMap({
   planId,
+  projectId,
   meta,
   fullHeight = false,
   focusPoint,
   focusTaskId,
   allowCreate = true,
+  currentUserId,
+  currentUserRole,
+  projectLoadError,
 }: {
   planId: string;
+  projectId: string | null;
   meta: Meta;
   fullHeight?: boolean;
   focusPoint?: { x_norm: number; y_norm: number } | null;
   focusTaskId?: string | null;
   allowCreate?: boolean;
+  currentUserId?: string | null;
+  currentUserRole?: string | null;
+  projectLoadError?: string | null;
 }) {
-  const PROJECT_ID = "55555555-5555-5555-5555-555555555555";
-  const CREATED_BY = "44444444-4444-4444-4444-444444444444";
   const START_ZOOM = 2;
+  const FALLBACK_UPLOADED_BY = "44444444-4444-4444-4444-444444444444";
 
   const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [thumbByTask, setThumbByTask] = useState<Record<string, string | null>>({});
@@ -124,21 +137,32 @@ export default function PlanMap({
   const MapContainerAny: any = MapContainer;
 
   const loadTasks = useCallback(async () => {
-    const r = await fetch(`/api/tasks?projectId=${PROJECT_ID}&planId=${planId}&limit=200&offset=0`, {
-      cache: "no-store",
+    if (!projectId) {
+      setTasks([]);
+      return;
+    }
+
+    const search = new URLSearchParams({
+      projectId,
+      planId,
+      limit: "200",
+      offset: "0",
     });
-    const j = await r.json();
-    if (j?.ok) setTasks(j.data || []);
-  }, [PROJECT_ID, planId]);
+
+    try {
+      const data = await apiGet<TaskRow[]>(`/api/tasks?${search.toString()}`);
+      setTasks(data || []);
+    } catch {
+      setTasks([]);
+    }
+  }, [projectId, planId]);
 
   // ⭐ pobierz profile 1x
   useEffect(() => {
-    fetch("/api/profiles?limit=1000")
-      .then((r) => r.json())
-      .then((j) => {
-        if (!j?.ok) return;
+    apiGet<ProfileRow[]>("/api/profiles?limit=1000")
+      .then((rows) => {
         const map: Record<string, string> = {};
-        for (const p of j.data as ProfileRow[]) map[p.id] = p.full_name;
+        for (const p of rows || []) map[p.id] = p.full_name;
         setProfiles(map);
       })
       .catch(() => {});
@@ -149,13 +173,16 @@ export default function PlanMap({
   }, [loadTasks]);
 
   async function loadThumb(taskId: string) {
-    const r = await fetch(`/api/task-photos?taskId=${encodeURIComponent(taskId)}`, { cache: "no-store" });
-    const j = await r.json();
-
-    const raw: string | null = j?.ok && j.data && j.data.length ? j.data[0].url : null;
-    const fixed = raw ? fixStorageUrl(raw) : null;
-
-    setThumbByTask((p) => ({ ...p, [taskId]: fixed }));
+    try {
+      const photos = await apiGet<TaskPhotoRow[]>(
+        `/api/task-photos?taskId=${encodeURIComponent(taskId)}&limit=1`
+      );
+      const raw: string | null = photos && photos.length > 0 ? photos[0].url : null;
+      const fixed = raw ? fixStorageUrl(raw) : null;
+      setThumbByTask((p) => ({ ...p, [taskId]: fixed }));
+    } catch {
+      setThumbByTask((p) => ({ ...p, [taskId]: null }));
+    }
   }
 
   function ensureThumb(taskId: string) {
@@ -164,17 +191,18 @@ export default function PlanMap({
   }
 
   // ✅ PRZYWRÓCONE: klik w mapę otwiera drawer w trybie CREATE
-  function ClickToCreate() {
+  function ClickToCreate({ projectId, createdBy }: { projectId: string; createdBy: string }) {
     useMapEvents({
       click: (e: any) => {
+        if (!projectId || !createdBy) return;
         const p = CRS.latLngToPoint(e.latlng, meta.maxZoom);
 
         const draft = {
-          project_id: PROJECT_ID,
+          project_id: projectId,
           plan_id: planId,
           x_norm: p.x / worldPxW,
           y_norm: p.y / worldPxH,
-          created_by: CREATED_BY,
+          created_by: createdBy,
         };
 
         setDrawerTaskId(null);
@@ -246,7 +274,7 @@ export default function PlanMap({
       >
         <TileLayer url={`/api/tiles/${planId}/{z}/{x}/{y}.png`} />
 
-        {allowCreate && <ClickToCreate />}
+        {allowCreate && projectId && currentUserId && <ClickToCreate projectId={projectId} createdBy={currentUserId} />}
 
         <FocusOnTask target={focusLatLng} />
 
@@ -326,12 +354,33 @@ export default function PlanMap({
         createDraft={createDraft}
         open={!!drawerTaskId || !!createDraft}
         taskId={drawerTaskId}
-        uploadedBy={CREATED_BY}
+        uploadedBy={currentUserId || FALLBACK_UPLOADED_BY}
+        currentUserId={currentUserId}
+        currentUserRole={currentUserRole}
         onClose={() => {
           setDrawerTaskId(null);
           setCreateDraft(null);
         }}
       />
+
+      {!projectId && projectLoadError && (
+        <div
+          style={{
+            position: "absolute",
+            top: 16,
+            left: "50%",
+            transform: "translateX(-50%)",
+            background: "rgba(17,24,39,0.9)",
+            color: "#fff",
+            padding: "8px 14px",
+            borderRadius: 999,
+            fontSize: 13,
+            fontWeight: 600,
+          }}
+        >
+          {projectLoadError}
+        </div>
+      )}
     </>
   );
 }

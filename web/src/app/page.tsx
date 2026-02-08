@@ -34,6 +34,7 @@ type User = {
   id: string;
   email: string;
   full_name: string;
+  role?: string;
 };
 type Profile = {
   id: string;
@@ -130,11 +131,18 @@ export default function Home() {
         const userEmail = data.session.user.email;
         const { data: profile } = await supabase
           .from("profiles")
-          .select("id, email, full_name")
+          .select("id, email, full_name, role")
           .eq("email", userEmail)
           .single();
 
-        setUser(profile || { id: data.session.user.id, email: userEmail || "", full_name: "" });
+        setUser(
+          profile || {
+            id: data.session.user.id,
+            email: userEmail || "",
+            full_name: "",
+            role: "USER",
+          }
+        );
         setSessionLoaded(true);
       } catch (e) {
         console.error("Session check failed:", e);
@@ -196,6 +204,12 @@ export default function Home() {
       .catch(() => {})
       .finally(() => setSettingsLoaded(true));
   }, [sessionLoaded, settingsLoaded]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    if ((user.role || "").toUpperCase() === "ADMIN") return;
+    setAssignedFilter((prev) => (prev === user.id ? prev : user.id));
+  }, [user]);
 
   async function saveNotificationSettings(next: NotificationSettings) {
     setSettingsSaving(true);
@@ -409,23 +423,25 @@ export default function Home() {
                 </select>
               </label>
 
-              <label>
-                {t("home", "filterAssignee")}:
-                <select
-                  value={assignedFilter}
-                  onChange={(e) => {
-                    setAssignedFilter(e.target.value);
-                    setOffset(0);
-                  }}
-                >
-                  <option value="">{t("taskStatus", "ALL")}</option>
-                  {profiles.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.full_name || p.email || p.id.slice(0, 8)}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              {(user?.role || "").toUpperCase() === "ADMIN" && (
+                <label>
+                  {t("home", "filterAssignee")}:
+                  <select
+                    value={assignedFilter}
+                    onChange={(e) => {
+                      setAssignedFilter(e.target.value);
+                      setOffset(0);
+                    }}
+                  >
+                    <option value="">{t("taskStatus", "ALL")}</option>
+                    {profiles.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.full_name || p.email || p.id.slice(0, 8)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
 
               <label>
                 {t("home", "dueFrom")}:

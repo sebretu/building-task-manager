@@ -97,6 +97,8 @@ export default function TaskDrawer({
   onClose,
   uploadedBy,
   createDraft,
+  currentUserId,
+  currentUserRole,
   showOverlay = true,
 }: {
   open: boolean;
@@ -111,6 +113,8 @@ export default function TaskDrawer({
     y_norm: number;
     created_by?: string;
   } | null;
+  currentUserId?: string | null;
+  currentUserRole?: string | null;
   showOverlay?: boolean;
 }) {
   const isCreate = !!createDraft && !taskId;
@@ -146,6 +150,14 @@ export default function TaskDrawer({
     de: "de-DE",
     sk: "sk-SK",
   };
+
+  const normalizedRole = (currentUserRole || "").toUpperCase();
+  const isAdmin = normalizedRole === "ADMIN";
+  const isAssignedToCurrentUser = !!currentUserId && !!task && task.assigned_user_id === currentUserId;
+  const canUpdateStatus = isAdmin || isAssignedToCurrentUser;
+  const canEditFields = isAdmin || isCreate;
+  const canManagePhotos = isAdmin || isAssignedToCurrentUser;
+  const canSubmit = isCreate ? isAdmin : canUpdateStatus;
 
   const canShow = open && (!!taskId || !!createDraft);
 
@@ -317,10 +329,15 @@ export default function TaskDrawer({
     const trimmedAssigned = assignedUserId.trim();
     if (trimmedAssigned && !isUuid(trimmedAssigned)) return setErr(t("taskDrawer", "errorAssignedUser"));
 
+    if (!isCreate && !canUpdateStatus) {
+      return setErr(t("taskDrawer", "noPermission", "Brak uprawnień"));
+    }
+
     setSaving(true);
     try {
       // CREATE
       if (isCreate) {
+        if (!isAdmin) throw new Error(t("taskDrawer", "noPermission", "Brak uprawnień"));
         const d = createDraft!;
 
         const newData = await apiPost<TaskRow>("/api/tasks", {
@@ -385,15 +402,20 @@ export default function TaskDrawer({
       if (!taskId) throw new Error(t("taskDrawer", "errorMissingTaskId"));
       if (!isUuid(taskId)) throw new Error(t("taskDrawer", "errorInvalidTaskId"));
 
-      await apiPatch<TaskRow>("/api/tasks", {
-        id: taskId,
-        title: trimmedTitle,
-        description: description.trim() === "" ? null : description.trim(),
-        status,
-        priority,
-        due_date: dueDate.trim() === "" ? null : dueDate.trim(),
-        assigned_user_id: trimmedAssigned ? trimmedAssigned : null,
-      });
+      const patchBody: Record<string, any> = { id: taskId };
+
+      if (isAdmin) {
+        patchBody.title = trimmedTitle;
+        patchBody.description = description.trim() === "" ? null : description.trim();
+        patchBody.status = status;
+        patchBody.priority = priority;
+        patchBody.due_date = dueDate.trim() === "" ? null : dueDate.trim();
+        patchBody.assigned_user_id = trimmedAssigned ? trimmedAssigned : null;
+      } else {
+        patchBody.status = status;
+      }
+
+      await apiPatch<TaskRow>("/api/tasks", patchBody);
 
       window.dispatchEvent(new CustomEvent("task-saved"));
 
@@ -523,7 +545,7 @@ export default function TaskDrawer({
           <div style={{ fontSize: 14 }}>{headerTitle}</div>
 
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            {!isCreate && !!taskId && (
+            {isAdmin && !isCreate && !!taskId && (
               <button
                 onClick={removeTask}
                 style={{
@@ -567,18 +589,23 @@ export default function TaskDrawer({
 
           <label style={labelStyle}>
             <span style={{ fontWeight: 800 }}>{t("taskDrawer", "title")}</span>
-            <input value={title} onChange={(e) => setTitle(e.target.value)} style={inputStyle} />
+            <input value={title} onChange={(e) => setTitle(e.target.value)} style={inputStyle} disabled={!canEditFields} />
           </label>
 
           <label style={labelStyle}>
             <span style={{ fontWeight: 800 }}>{t("taskDrawer", "description")}</span>
-            <textarea value={description} onChange={(e) => setDescription(e.target.value)} style={{ ...inputStyle, minHeight: 110, resize: "vertical" }} />
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              style={{ ...inputStyle, minHeight: 110, resize: "vertical" }}
+              disabled={!canEditFields}
+            />
           </label>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <label style={labelStyle}>
               <span style={{ fontWeight: 800 }}>{t("taskDrawer", "status")}</span>
-              <select value={status} onChange={(e) => setStatus(e.target.value as any)} style={inputStyle}>
+              <select value={status} onChange={(e) => setStatus(e.target.value as any)} style={inputStyle} disabled={!isAdmin}>
                 <option value="OPEN">{t("taskStatus", "OPEN")}</option>
                 <option value="IN_PROGRESS">{t("taskStatus", "IN_PROGRESS")}</option>
                 <option value="DONE_WAITING_APPROVAL">{t("taskStatus", "DONE_WAITING_APPROVAL")}</option>
@@ -589,7 +616,7 @@ export default function TaskDrawer({
 
             <label style={labelStyle}>
               <span style={{ fontWeight: 800 }}>{t("taskDrawer", "assignedUser")}</span>
-              <select value={assignedUserId} onChange={(e) => setAssignedUserId(e.target.value)} style={inputStyle}>
+              <select value={assignedUserId} onChange={(e) => setAssignedUserId(e.target.value)} style={inputStyle} disabled={!isAdmin}>
                 <option value="">—</option>
                 {profiles.map((p) => (
                   <option key={p.id} value={p.id}>
@@ -603,7 +630,7 @@ export default function TaskDrawer({
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <label style={labelStyle}>
               <span style={{ fontWeight: 800 }}>{t("taskDrawer", "priority")}</span>
-              <select value={priority} onChange={(e) => setPriority(e.target.value as any)} style={inputStyle}>
+              <select value={priority} onChange={(e) => setPriority(e.target.value as any)} style={inputStyle} disabled={!isAdmin}>
                 <option value="LOW">{t("taskPriority", "LOW")}</option>
                 <option value="MEDIUM">{t("taskPriority", "MEDIUM")}</option>
                 <option value="HIGH">{t("taskPriority", "HIGH")}</option>
@@ -618,6 +645,7 @@ export default function TaskDrawer({
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
                 style={inputStyle}
+                disabled={!isAdmin}
               />
             </label>
           </div>
@@ -625,7 +653,7 @@ export default function TaskDrawer({
           {/* PLAN MAP PREVIEW */}
           {/* Usunięto podgląd mapy z pinem i link do pełnej mapy na prośbę użytkownika */}
           {/* WORKFLOW BUTTONS */}
-          {!isCreate && (
+          {!isCreate && canUpdateStatus && (
             <div style={{ display: "grid", gap: 8 }}>
               <div style={{ fontSize: 12, fontWeight: 800, color: "rgba(17,24,39,0.6)" }}>{t("taskDrawer", "workflowActions")}</div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -665,7 +693,7 @@ export default function TaskDrawer({
                   </button>
                 )}
 
-                {status === "DONE_WAITING_APPROVAL" && (
+                {status === "DONE_WAITING_APPROVAL" && isAdmin && (
                   <>
                     <button
                       onClick={() => setStatus("APPROVED")}
@@ -713,7 +741,7 @@ export default function TaskDrawer({
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
             <button
               onClick={save}
-              disabled={saving || uploading}
+              disabled={saving || uploading || !canSubmit}
               style={{
                 flex: 1,
                 padding: "10px 12px",
@@ -721,7 +749,7 @@ export default function TaskDrawer({
                 border: "1px solid rgba(17,24,39,0.20)",
                 background: "#111827",
                 color: "#fff",
-                cursor: saving || uploading ? "not-allowed" : "pointer",
+                cursor: saving || uploading || !canSubmit ? "not-allowed" : "pointer",
                 fontWeight: 900,
               }}
             >
@@ -757,13 +785,14 @@ export default function TaskDrawer({
                 <input value={caption} onChange={(e) => setCaption(e.target.value)} style={inputStyle} />
               </label>
 
-              <label style={{ ...labelStyle, cursor: uploading ? "not-allowed" : "pointer" }}>
+              <label style={{ ...labelStyle, cursor: uploading || !canManagePhotos ? "not-allowed" : "pointer" }}>
                 <span style={{ fontWeight: 800 }}>{t("taskDrawer", "addPhoto")}</span>
                 <input
                   type="file"
                   accept="image/*"
-                  disabled={uploading}
+                  disabled={uploading || !canManagePhotos}
                   onChange={(e) => {
+                    if (!canManagePhotos) return;
                     const f = e.target.files?.[0];
                     if (!f) return;
                     e.currentTarget.value = "";

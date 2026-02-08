@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { createServerSupabaseClient, getUserIdFromRequest } from "@/lib/supabaseServer";
+import { createServerSupabaseClient } from "@/lib/supabaseServer";
+import { requireRequesterProfile, isAdminRole } from "@/lib/requesterProfile";
 
 // ✅ NEW: podnieś limit body (base64 z iPhone robi się ogromne)
 export const config = {
@@ -49,12 +50,53 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     return res.status(401).json({ ok: false, error: { code: "AUTH_INVALID", message: "Missing Bearer token" } });
   }
 
+  let requester: { id: string; role: string | null };
+  try {
+    requester = await requireRequesterProfile(supabase, userId);
+  } catch (err: any) {
+    return res.status(err?.status || 403).json({
+      ok: false,
+      error: { code: err?.code || "PROFILE_ERROR", message: err?.message || "Unable to load profile" },
+    });
+  }
+
+  const isAdmin = isAdminRole(requester.role);
+
+  async function ensureTaskAccess(taskId: string) {
+    if (isAdmin) return;
+    const { data, error } = await supabase
+      .from("tasks")
+      .select("assigned_user_id")
+      .eq("id", taskId)
+      .single();
+
+    if (error) {
+      throw {
+        status: (error as any).status || 400,
+        code: (error as any).code || "SUPABASE",
+        message: error.message,
+        meta: { code: (error as any).code, details: (error as any).details },
+      };
+    }
+
+    if (data?.assigned_user_id !== requester.id) {
+      throw { status: 403, code: "FORBIDDEN", message: "You do not have access to this task" };
+    }
+  }
+
   // ------------------------
   // GET /api/task-photos?taskId=...
   // ------------------------
   if (req.method === "GET") {
     const taskId = String(req.query.taskId || "").trim();
     if (!taskId) return bad(res, "Missing query: taskId");
+
+    try {
+      await ensureTaskAccess(taskId);
+    } catch (err: any) {
+      const status = err?.status || 400;
+      return res.status(status).json({ ok: false, error: { code: err?.code || "FORBIDDEN", message: err?.message || "Access denied", meta: err?.meta } });
+    }
 
     const { data, error } = await supabase
       .from("task_photos")
@@ -102,6 +144,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     if (!task_id) return bad(res, "Missing task_id");
     if (!uploaded_by) return bad(res, "Cannot determine user from token");
     if (!base64) return bad(res, "Missing base64");
+
+    try {
+      await ensureTaskAccess(task_id);
+    } catch (err: any) {
+      const status = err?.status || 400;
+      return res.status(status).json({ ok: false, error: { code: err?.code || "FORBIDDEN", message: err?.message || "Access denied", meta: err?.meta } });
+    }
 
     // base64 może przyjść jako data:image/...;base64,....
     const b64 = base64.includes("base64,") ? base64.split("base64,")[1] : base64;
