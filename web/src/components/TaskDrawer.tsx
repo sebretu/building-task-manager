@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { apiGet, apiPost, apiPatch, apiDelete } from "@/lib/apiClient";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -465,6 +465,23 @@ export default function TaskDrawer({
 
   // Drawer slide state
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const prevCanShowRef = useRef<boolean>(canShow);
+
+  useEffect(() => {
+    if (canShow && !prevCanShowRef.current) {
+      setDrawerOpen(true);
+    }
+    if (!canShow) {
+      setDrawerOpen(false);
+    }
+    prevCanShowRef.current = canShow;
+  }, [canShow]);
+
+  useEffect(() => {
+    if (taskId || createDraft) {
+      setDrawerOpen(true);
+    }
+  }, [taskId, createDraft]);
 
   // Always render the handle, it toggles the panel
   return (
@@ -477,6 +494,9 @@ export default function TaskDrawer({
           right: 0,
           zIndex: 10000,
           transform: "translateY(-50%)",
+          display: "grid",
+          gap: 6,
+          justifyItems: "end",
         }}
       >
         <button
@@ -490,10 +510,30 @@ export default function TaskDrawer({
             fontWeight: 900,
             boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
             cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 52,
+            height: 56,
+          }}
+          title={drawerOpen ? t("taskDrawer", "drawerHandleClose", "Click to hide panel") : t("taskDrawer", "drawerHandleOpen", "Click to expand panel")}
+        >
+          {drawerOpen ? "⇦" : "⇨"}
+        </button>
+        <div
+          style={{
+            background: "rgba(17,24,39,0.85)",
+            color: "#fff",
+            padding: "4px 10px",
+            borderRadius: 999,
+            fontSize: 11,
+            fontWeight: 600,
+            whiteSpace: "nowrap",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
           }}
         >
-          ≡
-        </button>
+          {drawerOpen ? t("taskDrawer", "drawerHandleClose", "Click to hide panel") : t("taskDrawer", "drawerHandleOpen", "Click to expand panel")}
+        </div>
       </div>
 
       {/* overlay */}

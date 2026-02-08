@@ -151,6 +151,12 @@ export const translations = {
       errorMissingTaskId: "Missing taskId",
       errorInvalidTaskId: "taskId is not a UUID",
       confirmDelete: "Delete this task? (photos will be deleted too)",
+      drawerHandleOpen: "Click to expand panel",
+      drawerHandleClose: "Click to hide panel",
+    },
+    planMap: {
+      openTaskButton: "Open task",
+      openTaskHint: "Click to expand the side panel",
     },
     users: {
       title: "Users",
@@ -356,6 +362,12 @@ export const translations = {
       errorMissingTaskId: "Brak taskId",
       errorInvalidTaskId: "taskId nie jest UUID",
       confirmDelete: "Na pewno usunąć task? (usunie też zdjęcia)",
+      drawerHandleOpen: "Kliknij, aby rozwinąć panel",
+      drawerHandleClose: "Kliknij, aby schować panel",
+    },
+    planMap: {
+      openTaskButton: "Otwórz task",
+      openTaskHint: "Kliknij, aby rozwinąć panel",
     },
     users: {
       title: "👥 Użytkownicy",
@@ -561,6 +573,12 @@ export const translations = {
       errorMissingTaskId: "Fehlende taskId",
       errorInvalidTaskId: "taskId ist keine UUID",
       confirmDelete: "Aufgabe löschen? (Fotos werden auch gelöscht)",
+      drawerHandleOpen: "Klicken, um das Panel zu öffnen",
+      drawerHandleClose: "Klicken, um das Panel zu schließen",
+    },
+    planMap: {
+      openTaskButton: "Aufgabe öffnen",
+      openTaskHint: "Zum Öffnen des Seitenpanels klicken",
     },
     users: {
       title: "Benutzer",
@@ -766,6 +784,12 @@ export const translations = {
       errorMissingTaskId: "Chýba taskId",
       errorInvalidTaskId: "taskId nie je UUID",
       confirmDelete: "Odstrániť úlohu? (fotografie sa tiež odstránia)",
+      drawerHandleOpen: "Kliknite pre rozbalenie panela",
+      drawerHandleClose: "Kliknite pre skrytie panela",
+    },
+    planMap: {
+      openTaskButton: "Otvoriť úlohu",
+      openTaskHint: "Kliknite pre rozbalenie bočného panela",
     },
     users: {
       title: "👥 Používatelia",

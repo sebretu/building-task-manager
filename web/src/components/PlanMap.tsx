@@ -6,6 +6,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import TaskDrawer from "./TaskDrawer";
 import { apiGet } from "@/lib/apiClient";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 type Meta = {
   tileSize: number;
@@ -107,6 +108,7 @@ export default function PlanMap({
 }) {
   const START_ZOOM = 2;
   const FALLBACK_UPLOADED_BY = "44444444-4444-4444-4444-444444444444";
+  const { t } = useLanguage();
 
   const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [thumbByTask, setThumbByTask] = useState<Record<string, string | null>>({});
@@ -279,13 +281,23 @@ export default function PlanMap({
         <FocusOnTask target={focusLatLng} />
 
         {tasks
-          .filter((t) => (!focusTaskId ? true : t.id === focusTaskId))
-          .map((t) => {
-          const ll = CRS.pointToLatLng(L.point(t.x_norm * worldPxW, t.y_norm * worldPxH), meta.maxZoom);
-          const thumb = thumbByTask[t.id];
+          .filter((task) => (!focusTaskId ? true : task.id === focusTaskId))
+          .map((task) => {
+          const ll = CRS.pointToLatLng(L.point(task.x_norm * worldPxW, task.y_norm * worldPxH), meta.maxZoom);
+          const thumb = thumbByTask[task.id];
 
           return (
-            <Marker key={t.id} position={ll} eventHandlers={{ click: () => ensureThumb(t.id) }}>
+            <Marker
+              key={task.id}
+              position={ll}
+              eventHandlers={{
+                click: () => {
+                  ensureThumb(task.id);
+                  setCreateDraft(null);
+                  setDrawerTaskId(task.id);
+                },
+              }}
+            >
               {/* react-leaflet Popup props typing differs across versions; ignore here */}
               {/* @ts-ignore */}
               <Popup autoPan closeButton offset={[0, 30]}>
@@ -312,13 +324,13 @@ export default function PlanMap({
                     </div>
                   )}
 
-                  <div style={{ fontWeight: 900, marginTop: 8 }}>{t.title}</div>
+                  <div style={{ fontWeight: 900, marginTop: 8 }}>{task.title}</div>
 
                   <div style={{ marginTop: 6, display: "grid", gap: 6 }}>
-                    {statusBadge(t.status)}
+                    {statusBadge(task.status)}
                     <div style={{ fontSize: 12 }}>
                       <b>Przydzielony:</b>{" "}
-                      {t.assigned_user_id ? profiles[t.assigned_user_id] || shortId(t.assigned_user_id) : "—"}
+                      {task.assigned_user_id ? profiles[task.assigned_user_id] || shortId(task.assigned_user_id) : "—"}
                     </div>
                   </div>
 
@@ -336,11 +348,20 @@ export default function PlanMap({
                     }}
                     onClick={() => {
                       setCreateDraft(null);
-                      setDrawerTaskId(t.id);
+                      setDrawerTaskId(task.id);
                     }}
                   >
-                    Otwórz task
+                    {t("planMap", "openTaskButton", "Open task")}
                   </button>
+                  <div
+                    style={{
+                      marginTop: 4,
+                      fontSize: 12,
+                      color: "rgba(17,24,39,0.7)",
+                    }}
+                  >
+                    {t("planMap", "openTaskHint", "Click to expand the side panel")}
+                  </div>
                 </div>
               </Popup>
             </Marker>
