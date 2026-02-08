@@ -15,6 +15,7 @@ export const translations = {
       search: "Search",
       status: "Status",
       actions: "Actions",
+      unknownUser: "Not signed in",
     },
     nav: {
       tasks: "Tasks",
@@ -231,6 +232,7 @@ export const translations = {
       search: "Szukaj",
       status: "Status",
       actions: "Akcje",
+      unknownUser: "Niezalogowany",
     },
     nav: {
       tasks: "Zadania",
@@ -447,6 +449,7 @@ export const translations = {
       search: "Suchen",
       status: "Status",
       actions: "Aktionen",
+      unknownUser: "Nicht angemeldet",
     },
     nav: {
       tasks: "Aufgaben",
@@ -663,6 +666,7 @@ export const translations = {
       search: "Hľadať",
       status: "Stav",
       actions: "Akcie",
+      unknownUser: "Neprihlásený",
     },
     nav: {
       tasks: "Úlohy",

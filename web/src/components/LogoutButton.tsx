@@ -66,7 +66,7 @@ export function LogoutButton({ className }: LogoutButtonProps) {
   }
 
   const label = pending ? t("common", "loading", "Loading...") : t("common", "logout", "Logout");
-  const nameLabel = userName || t("common", "unknownUser", "Unknown user");
+  const nameLabel = userName || t("common", "unknownUser", "Not signed in");
 
   return (
     <span
