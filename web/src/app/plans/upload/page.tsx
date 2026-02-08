@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { apiGet, apiPost, getToken } from "@/lib/apiClient";
+import { supabase } from "@/lib/supabase";
 
 type Project = { id: string; name: string };
 type Floor = { id: string; name: string; level: number | null };
@@ -25,6 +26,19 @@ export default function PlansUploadPage() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
+  const [sessionChecked, setSessionChecked] = useState(false);
+
+  const handleAuthRedirect = useCallback(
+    (message: string) => {
+      const msg = message.toLowerCase();
+      if (msg.includes("bearer token") || msg.includes("auth_required") || msg.includes("auth invalid")) {
+        router.replace("/auth/login");
+        return true;
+      }
+      return false;
+    },
+    [router]
+  );
 
   // Local preview of the chosen PDF before upload
   const [localPdfUrl, setLocalPdfUrl] = useState<string | null>(null);
@@ -45,9 +59,36 @@ export default function PlansUploadPage() {
 
   useEffect(() => {
     let active = true;
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (!active) return;
+        if (!data?.session) {
+          router.replace("/auth/login");
+          return;
+        }
+        setSessionChecked(true);
+      })
+      .catch(() => {
+        if (!active) return;
+        router.replace("/auth/login");
+      });
+    return () => {
+      active = false;
+    };
+  }, [router]);
+
+  useEffect(() => {
+    if (!sessionChecked) return;
+
+    let active = true;
     (async () => {
       try {
         const token = await getToken();
+        if (!token) {
+          handleAuthRedirect("Missing Bearer token");
+          return;
+        }
         const ps = await apiGet<Project[]>("/api/projects", token);
         if (!active) return;
         setProjects(ps);
@@ -56,17 +97,19 @@ export default function PlansUploadPage() {
         }
       } catch (error: any) {
         if (!active) return;
-        setErr(error?.message || String(error));
+        const message = error?.message || String(error);
+        if (handleAuthRedirect(message)) return;
+        setErr(message);
       }
     })();
     return () => {
       active = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [sessionChecked]);
 
   useEffect(() => {
-    if (!projectId) {
+    if (!projectId || !sessionChecked) {
       setFloors([]);
       setFloorId("");
       return;
@@ -76,6 +119,10 @@ export default function PlansUploadPage() {
     (async () => {
       try {
         const token = await getToken();
+        if (!token) {
+          handleAuthRedirect("Missing Bearer token");
+          return;
+        }
         const fs = await apiGet<Floor[]>(`/api/floors?projectId=${encodeURIComponent(projectId)}`, token);
         if (!active) return;
         setFloors(fs);
@@ -86,13 +133,15 @@ export default function PlansUploadPage() {
         }
       } catch (error: any) {
         if (!active) return;
-        setErr(error?.message || String(error));
+        const message = error?.message || String(error);
+        if (handleAuthRedirect(message)) return;
+        setErr(message);
       }
     })();
     return () => {
       active = false;
     };
-  }, [projectId]);
+  }, [projectId, floorId, handleAuthRedirect, sessionChecked]);
 
   async function createFloor() {
     setErr(null);
@@ -140,7 +189,9 @@ export default function PlansUploadPage() {
       setNewFloorName("");
       setNewFloorLevel("");
     } catch (error: any) {
-      setErr(error?.message || String(error));
+      const message = error?.message || String(error);
+      if (handleAuthRedirect(message)) return;
+      setErr(message);
     } finally {
       setCreatingFloor(false);
     }
@@ -163,13 +214,30 @@ export default function PlansUploadPage() {
 
     setBusy(true);
     try {
+      const token = await getToken();
+      if (!token) {
+        handleAuthRedirect("Missing Bearer token");
+        return;
+      }
+
       const fd = new FormData();
       fd.append("projectId", projectId);
       fd.append("floorId", floorId);
       fd.append("file", file); // field must be named "file"
 
-      const r = await fetch("/api/plans/upload", { method: "POST", body: fd });
+      const r = await fetch("/api/plans/upload", {
+        method: "POST",
+        body: fd,
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       const j = await r.json().catch(() => null);
+
+      if (r.status === 401) {
+        handleAuthRedirect("Missing Bearer token");
+        return;
+      }
 
       if (!r.ok || !j?.ok) {
         throw new Error(j?.error || j?.error?.message || `Upload failed (${r.status})`);
@@ -184,10 +252,16 @@ export default function PlansUploadPage() {
 
       setFile(null);
     } catch (error: any) {
-      setErr(error?.message || String(error));
+      const message = error?.message || String(error);
+      if (handleAuthRedirect(message)) return;
+      setErr(message);
     } finally {
       setBusy(false);
     }
+  }
+
+  if (!sessionChecked) {
+    return <div style={{ padding: 32 }}>Ładowanie...</div>;
   }
 
   return (

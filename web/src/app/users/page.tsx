@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { apiGet, apiPost } from "@/lib/apiClient";
+import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { apiGet, apiPatch, apiPost } from "@/lib/apiClient";
+import { supabase } from "@/lib/supabase";
 
 type User = {
   id: string;
@@ -19,6 +21,7 @@ type Company = {
 };
 
 export default function UsersPage() {
+  const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [search, setSearch] = useState("");
@@ -29,12 +32,40 @@ export default function UsersPage() {
   const [inviteName, setInviteName] = useState("");
   const [inviteCompanyId, setInviteCompanyId] = useState("");
   const [inviteRole, setInviteRole] = useState("USER");
+  const [invitePassword, setInvitePassword] = useState("");
+  const [invitePasswordConfirm, setInvitePasswordConfirm] = useState("");
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviteSaving, setInviteSaving] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editUser, setEditUser] = useState<User | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editRole, setEditRole] = useState("USER");
+  const [editCompanyId, setEditCompanyId] = useState("");
+  const [editActive, setEditActive] = useState(true);
+  const [editPassword, setEditPassword] = useState("");
+  const [editPasswordConfirm, setEditPasswordConfirm] = useState("");
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
+  const [confirmingEmail, setConfirmingEmail] = useState(false);
+  const [sessionChecked, setSessionChecked] = useState(false);
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  const handleAuthRedirect = useCallback(
+    (message: string) => {
+      const normalized = message.toLowerCase();
+      if (
+        normalized.includes("bearer token") ||
+        normalized.includes("auth_required") ||
+        normalized.includes("auth invalid")
+      ) {
+        router.replace("/auth/login");
+        return true;
+      }
+      return false;
+    },
+    [router]
+  );
 
-  async function loadData() {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       const [usersData, companiesData] = await Promise.all([
@@ -45,25 +76,64 @@ export default function UsersPage() {
       setCompanies(companiesData || []);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error loading data");
+      const message = err instanceof Error ? err.message : "Error loading data";
+      if (handleAuthRedirect(message)) return;
+      setError(message);
     } finally {
       setLoading(false);
     }
-  }
+  }, [handleAuthRedirect]);
+
+  useEffect(() => {
+    let active = true;
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (!active) return;
+        if (!data?.session) {
+          router.replace("/auth/login");
+          return;
+        }
+        setSessionChecked(true);
+      })
+      .catch(() => {
+        if (!active) return;
+        router.replace("/auth/login");
+      });
+    return () => {
+      active = false;
+    };
+  }, [router]);
+
+  useEffect(() => {
+    if (!sessionChecked) return;
+    loadData();
+  }, [sessionChecked, loadData]);
 
   async function handleInvite(e: React.FormEvent) {
     e.preventDefault();
     if (!inviteEmail || !inviteName) {
-      alert("Email and name are required");
+      setInviteError("Email i imię są wymagane");
+      return;
+    }
+    if (invitePassword !== invitePasswordConfirm) {
+      setInviteError("Hasła muszą być takie same");
+      return;
+    }
+    if (invitePassword.length < 8) {
+      setInviteError("Hasło musi mieć minimum 8 znaków");
       return;
     }
 
     try {
-      const newUser = await apiPost<User>("/api/users/invite", {
+      setInviteSaving(true);
+      setInviteError(null);
+      const newUser = await apiPost<User>("/api/users", {
         email: inviteEmail,
         full_name: inviteName,
         company_id: inviteCompanyId || null,
         role: inviteRole,
+        password: invitePassword,
       });
 
       setUsers((prev) => [...prev, newUser]);
@@ -72,8 +142,92 @@ export default function UsersPage() {
       setInviteName("");
       setInviteCompanyId("");
       setInviteRole("USER");
+      setInvitePassword("");
+      setInvitePasswordConfirm("");
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Error inviting user");
+      const message = err instanceof Error ? err.message : "Błąd podczas zapraszania";
+      if (handleAuthRedirect(message)) return;
+      setInviteError(message);
+    } finally {
+      setInviteSaving(false);
+    }
+  }
+
+  function openEditModal(user: User) {
+    setEditUser(user);
+    setEditName(user.full_name);
+    setEditRole(user.role);
+    setEditCompanyId(user.company_id || "");
+    setEditActive(user.is_active);
+    setEditPassword("");
+    setEditPasswordConfirm("");
+    setEditError(null);
+    setEditModalOpen(true);
+  }
+
+  function closeEditModal() {
+    setEditModalOpen(false);
+    setEditUser(null);
+    setEditPassword("");
+    setEditPasswordConfirm("");
+    setConfirmingEmail(false);
+  }
+
+  async function handleEditSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editUser) return;
+
+    if (editPassword || editPasswordConfirm) {
+      if (editPassword !== editPasswordConfirm) {
+        setEditError("Hasła muszą być takie same");
+        return;
+      }
+      if (editPassword.length < 8) {
+        setEditError("Hasło musi mieć minimum 8 znaków");
+        return;
+      }
+    }
+
+    try {
+      setEditSaving(true);
+      setEditError(null);
+      const updated = await apiPatch<User>("/api/users", {
+        id: editUser.id,
+        full_name: editName,
+        role: editRole,
+        company_id: editCompanyId || null,
+        is_active: editActive,
+        password: editPassword || undefined,
+      });
+
+      setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
+      closeEditModal();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Error updating user";
+      if (handleAuthRedirect(message)) return;
+      setEditError(message);
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
+  async function handleConfirmEmail() {
+    if (!editUser) return;
+    try {
+      setConfirmingEmail(true);
+      setEditError(null);
+      const updated = await apiPatch<User>("/api/users", {
+        id: editUser.id,
+        confirm_email: true,
+      });
+      setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
+      setEditUser(updated);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Nie udało się potwierdzić emaila";
+      if (handleAuthRedirect(message)) return;
+      setEditError(message);
+    } finally {
+      setConfirmingEmail(false);
     }
   }
 
@@ -87,6 +241,10 @@ export default function UsersPage() {
     if (!companyId) return "-";
     return companies.find((c) => c.id === companyId)?.name || "Unknown";
   };
+
+  if (!sessionChecked) {
+    return <div style={{ padding: 32 }}>Ładowanie...</div>;
+  }
 
   return (
     <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
@@ -181,6 +339,7 @@ export default function UsersPage() {
                       cursor: "pointer",
                       fontSize: "12px",
                     }}
+                    onClick={() => openEditModal(user)}
                   >
                     Edytuj
                   </button>
@@ -218,6 +377,11 @@ export default function UsersPage() {
             }}
           >
             <h2>➕ Zaproś użytkownika</h2>
+            {inviteError && (
+              <div style={{ background: "#fee", color: "#c33", padding: "8px", borderRadius: 4, marginBottom: 12 }}>
+                {inviteError}
+              </div>
+            )}
             <form onSubmit={handleInvite}>
               <div style={{ marginBottom: "15px" }}>
                 <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>
@@ -279,6 +443,44 @@ export default function UsersPage() {
 
               <div style={{ marginBottom: "15px" }}>
                 <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>
+                  Hasło (min. 8 znaków)
+                </label>
+                <input
+                  type="password"
+                  value={invitePassword}
+                  onChange={(e) => setInvitePassword(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "10px",
+                    border: "1px solid #ccc",
+                    borderRadius: "4px",
+                    boxSizing: "border-box",
+                  }}
+                  required
+                />
+              </div>
+
+              <div style={{ marginBottom: "15px" }}>
+                <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>
+                  Powtórz hasło
+                </label>
+                <input
+                  type="password"
+                  value={invitePasswordConfirm}
+                  onChange={(e) => setInvitePasswordConfirm(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "10px",
+                    border: "1px solid #ccc",
+                    borderRadius: "4px",
+                    boxSizing: "border-box",
+                  }}
+                  required
+                />
+              </div>
+
+              <div style={{ marginBottom: "15px" }}>
+                <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>
                   Firma (opcjonalnie)
                 </label>
                 <select
@@ -304,22 +506,28 @@ export default function UsersPage() {
               <div style={{ display: "flex", gap: "10px" }}>
                 <button
                   type="submit"
+                  disabled={inviteSaving}
                   style={{
                     flex: 1,
                     padding: "10px",
-                    background: "#28a745",
+                    background: inviteSaving ? "#9dc7a7" : "#28a745",
                     color: "white",
                     border: "none",
                     borderRadius: "4px",
-                    cursor: "pointer",
+                    cursor: inviteSaving ? "not-allowed" : "pointer",
                     fontWeight: "bold",
                   }}
                 >
-                  Zaproś
+                  {inviteSaving ? "Zapraszanie..." : "Zaproś"}
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowInviteModal(false)}
+                  onClick={() => {
+                    setShowInviteModal(false);
+                    setInviteError(null);
+                    setInvitePassword("");
+                    setInvitePasswordConfirm("");
+                  }}
                   style={{
                     flex: 1,
                     padding: "10px",
@@ -333,6 +541,160 @@ export default function UsersPage() {
                   Anuluj
                 </button>
               </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {editModalOpen && editUser && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+        >
+          <div
+            style={{
+              background: "white",
+              padding: "30px",
+              borderRadius: "8px",
+              width: "100%",
+              maxWidth: "420px",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
+            }}
+          >
+            <h2>Edytuj użytkownika</h2>
+            {editError && (
+              <div style={{ background: "#fee", color: "#c33", padding: "8px", borderRadius: 4, marginBottom: 12 }}>
+                {editError}
+              </div>
+            )}
+            <form onSubmit={handleEditSubmit}>
+              <div style={{ marginBottom: "12px" }}>
+                <label style={{ display: "block", marginBottom: 5, fontWeight: "bold" }}>Imię i nazwisko</label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  style={{ width: "100%", padding: 10, border: "1px solid #ccc", borderRadius: 4 }}
+                  required
+                />
+              </div>
+
+              <div style={{ marginBottom: "12px" }}>
+                <label style={{ display: "block", marginBottom: 5, fontWeight: "bold" }}>Rola</label>
+                <select
+                  value={editRole}
+                  onChange={(e) => setEditRole(e.target.value)}
+                  style={{ width: "100%", padding: 10, border: "1px solid #ccc", borderRadius: 4 }}
+                >
+                  <option value="USER">USER</option>
+                  <option value="ADMIN">ADMIN</option>
+                </select>
+              </div>
+
+              <div style={{ marginBottom: "12px" }}>
+                <label style={{ display: "block", marginBottom: 5, fontWeight: "bold" }}>Firma</label>
+                <select
+                  value={editCompanyId}
+                  onChange={(e) => setEditCompanyId(e.target.value)}
+                  style={{ width: "100%", padding: 10, border: "1px solid #ccc", borderRadius: 4 }}
+                >
+                  <option value="">-- Wybierz firmę --</option>
+                  {companies.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+                <input type="checkbox" checked={editActive} onChange={(e) => setEditActive(e.target.checked)} />
+                Aktywny
+              </label>
+
+              <div style={{ marginBottom: "12px" }}>
+                <label style={{ display: "block", marginBottom: 5, fontWeight: "bold" }}>Nowe hasło (opcjonalnie)</label>
+                <input
+                  type="password"
+                  value={editPassword}
+                  onChange={(e) => setEditPassword(e.target.value)}
+                  placeholder="Minimum 8 znaków"
+                  style={{ width: "100%", padding: 10, border: "1px solid #ccc", borderRadius: 4 }}
+                />
+              </div>
+
+              <div style={{ marginBottom: "12px" }}>
+                <label style={{ display: "block", marginBottom: 5, fontWeight: "bold" }}>Powtórz hasło</label>
+                <input
+                  type="password"
+                  value={editPasswordConfirm}
+                  onChange={(e) => setEditPasswordConfirm(e.target.value)}
+                  style={{ width: "100%", padding: 10, border: "1px solid #ccc", borderRadius: 4 }}
+                />
+              </div>
+
+              <div style={{ display: "flex", gap: 10 }}>
+                <button
+                  type="submit"
+                  disabled={editSaving}
+                  style={{
+                    flex: 1,
+                    padding: "10px",
+                    background: editSaving ? "#9dc7a7" : "#28a745",
+                    color: "white",
+                    border: "none",
+                    borderRadius: 4,
+                    cursor: editSaving ? "not-allowed" : "pointer",
+                    fontWeight: "bold",
+                  }}
+                >
+                  {editSaving ? "Zapisywanie..." : "Zapisz"}
+                </button>
+                <button
+                  type="button"
+                  onClick={closeEditModal}
+                  style={{
+                    flex: 1,
+                    padding: "10px",
+                    background: "#6c757d",
+                    color: "white",
+                    border: "none",
+                    borderRadius: 4,
+                    cursor: "pointer",
+                  }}
+                >
+                  Anuluj
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleConfirmEmail}
+                disabled={confirmingEmail}
+                style={{
+                  width: "100%",
+                  marginTop: 12,
+                  padding: "10px",
+                  background: confirmingEmail ? "#d1d5db" : "#2563eb",
+                  color: "white",
+                  border: "none",
+                  borderRadius: 4,
+                  cursor: confirmingEmail ? "not-allowed" : "pointer",
+                  fontWeight: "bold",
+                }}
+              >
+                {confirmingEmail ? "Potwierdzanie..." : "Potwierdź email"}
+              </button>
             </form>
           </div>
         </div>

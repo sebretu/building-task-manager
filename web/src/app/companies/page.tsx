@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { apiGet, apiPost } from "@/lib/apiClient";
+import { supabase } from "@/lib/supabase";
 
 type Company = {
   id: string;
@@ -20,6 +22,7 @@ type User = {
 };
 
 export default function CompaniesPage() {
+  const router = useRouter();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,12 +30,25 @@ export default function CompaniesPage() {
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState("");
+  const [sessionChecked, setSessionChecked] = useState(false);
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  const handleAuthRedirect = useCallback(
+    (message: string) => {
+      const normalized = message.toLowerCase();
+      if (
+        normalized.includes("bearer token") ||
+        normalized.includes("auth_required") ||
+        normalized.includes("auth invalid")
+      ) {
+        router.replace("/auth/login");
+        return true;
+      }
+      return false;
+    },
+    [router]
+  );
 
-  async function loadData() {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       const [companiesData, usersData] = await Promise.all([
@@ -43,11 +59,39 @@ export default function CompaniesPage() {
       setUsers(usersData || []);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error loading data");
+      const message = err instanceof Error ? err.message : "Error loading data";
+      if (handleAuthRedirect(message)) return;
+      setError(message);
     } finally {
       setLoading(false);
     }
-  }
+  }, [handleAuthRedirect]);
+
+  useEffect(() => {
+    let active = true;
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (!active) return;
+        if (!data?.session) {
+          router.replace("/auth/login");
+          return;
+        }
+        setSessionChecked(true);
+      })
+      .catch(() => {
+        if (!active) return;
+        router.replace("/auth/login");
+      });
+    return () => {
+      active = false;
+    };
+  }, [router]);
+
+  useEffect(() => {
+    if (!sessionChecked) return;
+    loadData();
+  }, [sessionChecked, loadData]);
 
   async function handleAddUser(e: React.FormEvent) {
     e.preventDefault();
@@ -66,7 +110,9 @@ export default function CompaniesPage() {
       setShowAddUserModal(false);
       setSelectedUserId("");
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Error adding user");
+      const message = err instanceof Error ? err.message : "Error adding user";
+      if (handleAuthRedirect(message)) return;
+      alert(message);
     }
   }
 
@@ -77,6 +123,10 @@ export default function CompaniesPage() {
   const availableUsers = users.filter(
     (u) => !u.company_id || u.company_id === selectedCompanyId
   );
+
+  if (!sessionChecked) {
+    return <div style={{ padding: 32 }}>Ładowanie...</div>;
+  }
 
   return (
     <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
