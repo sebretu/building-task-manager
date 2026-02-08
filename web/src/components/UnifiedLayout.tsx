@@ -12,6 +12,7 @@ export default function UnifiedLayout({ children }: { children: React.ReactNode 
   const [menuOpen, setMenuOpen] = useState(false);
   const { t } = useLanguage();
   const currentYear = new Date().getFullYear();
+  const footerTagline = t("footer", "tagline", "Inspection and reporting platform");
 
   const navLinks = useMemo(
     () => [
@@ -88,7 +89,7 @@ export default function UnifiedLayout({ children }: { children: React.ReactNode 
       </header>
       <main className={styles.main}>{children}</main>
       <footer className={styles.footer}>
-        InspectHero © {currentYear} — Platforma do inspekcji i raportowania
+        InspectHero © {currentYear} — {footerTagline}
       </footer>
     </div>
   );

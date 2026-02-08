@@ -160,6 +160,9 @@ export const translations = {
       openTaskButton: "Open task",
       openTaskHint: "Click to expand the side panel",
     },
+    footer: {
+      tagline: "Inspection and reporting platform",
+    },
     users: {
       title: "Users",
       search: "Search users...",
@@ -372,6 +375,9 @@ export const translations = {
     planMap: {
       openTaskButton: "Otwórz task",
       openTaskHint: "Kliknij, aby rozwinąć panel",
+    },
+    footer: {
+      tagline: "Platforma do inspekcji i raportowania",
     },
     users: {
       title: "👥 Użytkownicy",
@@ -586,6 +592,9 @@ export const translations = {
       openTaskButton: "Aufgabe öffnen",
       openTaskHint: "Zum Öffnen des Seitenpanels klicken",
     },
+    footer: {
+      tagline: "Plattform für Inspektionen und Berichte",
+    },
     users: {
       title: "Benutzer",
       search: "🔍 Benutzer durchsuchen...",
@@ -796,6 +805,9 @@ export const translations = {
     planMap: {
       openTaskButton: "Otvoriť úlohu",
       openTaskHint: "Kliknite pre rozbalenie bočného panela",
+    },
+    footer: {
+      tagline: "Platforma na inšpekcie a reportovanie",
     },
     users: {
       title: "👥 Používatelia",
