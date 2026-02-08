@@ -201,8 +201,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const projectId = String(fields.projectId || "");
     const floorId = String(fields.floorId || "");
-    const versionRaw = String(fields.version || "");
-    const version = Number.parseInt(versionRaw, 10);
 
     if (!projectId) {
       json(res, 400, { ok: false, error: "Missing field: projectId" });
@@ -212,10 +210,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       json(res, 400, { ok: false, error: "Missing field: floorId" });
       return;
     }
-    if (!Number.isFinite(version) || version <= 0) {
-      json(res, 400, { ok: false, error: "Invalid field: version (must be positive integer)" });
+
+    const supabase = getSupabaseAdmin();
+
+    const { data: latestPlans, error: latestErr } = await supabase
+      .from("plans")
+      .select("version")
+      .eq("project_id", projectId)
+      .eq("floor_id", floorId)
+      .order("version", { ascending: false })
+      .limit(1);
+
+    if (latestErr) {
+      json(res, 500, { ok: false, error: `Failed to fetch current version: ${latestErr.message}` });
       return;
     }
+
+    const latestVersionValue = latestPlans?.[0]?.version;
+    const parsedVersion = Number(latestVersionValue);
+    const currentVersion = Number.isFinite(parsedVersion) ? parsedVersion : 0;
+    const version = currentVersion + 1;
 
     const tmpPath = (file as any).filepath as string | undefined;
     const originalName = (file as any).originalFilename as string | undefined;
@@ -226,8 +240,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // 1) Upload PDF to Supabase Storage
-    const supabase = getSupabaseAdmin();
-
     const storageBucket = "plans";
     const storagePath = `projects/${projectId}/floors/${floorId}/v${version}.pdf`;
 

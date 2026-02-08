@@ -17,7 +17,6 @@ export default function PlansUploadPage() {
   const [projectId, setProjectId] = useState("");
   const [floors, setFloors] = useState<Floor[]>([]);
   const [floorId, setFloorId] = useState("");
-  const [version, setVersion] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [newFloorName, setNewFloorName] = useState("");
   const [newFloorLevel, setNewFloorLevel] = useState("");
@@ -41,9 +40,8 @@ export default function PlansUploadPage() {
   }, [file]);
 
   const canSubmit = useMemo(() => {
-    const versionNumber = Number(version);
-    return !!file && !!projectId && !!floorId && Number.isFinite(versionNumber) && versionNumber > 0;
-  }, [file, projectId, floorId, version]);
+    return !!file && !!projectId && !!floorId;
+  }, [file, projectId, floorId]);
 
   useEffect(() => {
     let active = true;
@@ -158,21 +156,16 @@ export default function PlansUploadPage() {
       return;
     }
 
-    const versionNumber = Number(version);
-
-    if (!projectId || !floorId || !Number.isFinite(versionNumber) || versionNumber <= 0) {
+      if (!projectId || !floorId) {
       setErr(t("planUpload", "errorMissingFields", "Fill in all fields."));
       return;
     }
-
-    const normalizedVersion = String(Math.max(1, Math.floor(versionNumber)));
 
     setBusy(true);
     try {
       const fd = new FormData();
       fd.append("projectId", projectId);
       fd.append("floorId", floorId);
-      fd.append("version", normalizedVersion);
       fd.append("file", file); // field must be named "file"
 
       const r = await fetch("/api/plans/upload", { method: "POST", body: fd });
@@ -189,7 +182,6 @@ export default function PlansUploadPage() {
         router.push(`/plan/${planId}`);
       }
 
-      setVersion("");
       setFile(null);
     } catch (error: any) {
       setErr(error?.message || String(error));
@@ -209,7 +201,7 @@ export default function PlansUploadPage() {
               {t(
                 "planUpload",
                 "subtitle",
-                "Add a new plan by naming the project, floor, and version before sending the PDF."
+                "Select the project and floor, attach the PDF, and we will version it automatically."
               )}
             </p>
             <div className="home-hero-actions">
@@ -300,11 +292,6 @@ export default function PlansUploadPage() {
               </div>
 
               <label className="upload-field">
-                <span>{t("planUpload", "version", "Version")}</span>
-                <input type="number" value={version} onChange={(e) => setVersion(e.target.value)} min={1} />
-              </label>
-
-              <label className="upload-field">
                 <span>{t("planUpload", "file", "PDF file")}</span>
                 <input
                   type="file"
@@ -321,7 +308,11 @@ export default function PlansUploadPage() {
               {ok && <div className="upload-ok">✅ {ok}</div>}
 
               <div className="upload-tip">
-                {t("planUpload", "tip", "Project ID and floor ID are generated automatically when you upload.")}
+                {t(
+                  "planUpload",
+                  "tip",
+                  "Versions increase automatically—pick the project and floor, then drop the PDF."
+                )}
               </div>
             </form>
 
