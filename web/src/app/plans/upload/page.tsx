@@ -27,6 +27,7 @@ export default function PlansUploadPage() {
   const [err, setErr] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
   const [sessionChecked, setSessionChecked] = useState(false);
+  const [viewerProfile, setViewerProfile] = useState<{ id: string; role: string | null } | null>(null);
 
   const handleAuthRedirect = useCallback(
     (message: string) => {
@@ -53,9 +54,12 @@ export default function PlansUploadPage() {
     return () => URL.revokeObjectURL(url);
   }, [file]);
 
+  const normalizedRole = (viewerProfile?.role || "").toUpperCase();
+  const isAdmin = normalizedRole === "ADMIN";
+
   const canSubmit = useMemo(() => {
-    return !!file && !!projectId && !!floorId;
-  }, [file, projectId, floorId]);
+    return isAdmin && !!file && !!projectId && !!floorId;
+  }, [isAdmin, file, projectId, floorId]);
 
   useEffect(() => {
     let active = true;
@@ -67,7 +71,23 @@ export default function PlansUploadPage() {
           router.replace("/auth/login");
           return;
         }
-        setSessionChecked(true);
+
+        const authId = data.session.user.id;
+        supabase
+          .from("profiles")
+          .select("id, role")
+          .eq("id", authId)
+          .single()
+          .then(({ data: profile }) => {
+            if (!active) return;
+            setViewerProfile(profile || null);
+            setSessionChecked(true);
+          })
+          .catch(() => {
+            if (!active) return;
+            setViewerProfile(null);
+            setSessionChecked(true);
+          });
       })
       .catch(() => {
         if (!active) return;
@@ -79,7 +99,7 @@ export default function PlansUploadPage() {
   }, [router]);
 
   useEffect(() => {
-    if (!sessionChecked) return;
+    if (!sessionChecked || !isAdmin) return;
 
     let active = true;
     (async () => {
@@ -106,10 +126,10 @@ export default function PlansUploadPage() {
       active = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionChecked]);
+  }, [sessionChecked, isAdmin]);
 
   useEffect(() => {
-    if (!projectId || !sessionChecked) {
+    if (!projectId || !sessionChecked || !isAdmin) {
       setFloors([]);
       setFloorId("");
       return;
@@ -141,11 +161,16 @@ export default function PlansUploadPage() {
     return () => {
       active = false;
     };
-  }, [projectId, floorId, handleAuthRedirect, sessionChecked]);
+  }, [projectId, floorId, handleAuthRedirect, sessionChecked, isAdmin]);
 
   async function createFloor() {
     setErr(null);
     setOk(null);
+
+    if (!isAdmin) {
+      setErr(t("planUpload", "adminOnlyBody", "Only admins can upload plans."));
+      return;
+    }
 
     if (!projectId) {
       setErr(t("planUpload", "errorMissingFields", "Fill in all fields."));
@@ -201,6 +226,11 @@ export default function PlansUploadPage() {
     e.preventDefault();
     setErr(null);
     setOk(null);
+
+    if (!isAdmin) {
+      setErr(t("planUpload", "adminOnlyBody", "Only admins can upload plans."));
+      return;
+    }
 
     if (!file) {
       setErr(t("planUpload", "errorMissingFile", "Select a PDF file."));
@@ -262,6 +292,22 @@ export default function PlansUploadPage() {
 
   if (!sessionChecked) {
     return <div style={{ padding: 32 }}>Ładowanie...</div>;
+  }
+
+  if (!isAdmin) {
+    return (
+      <main className="home-main upload-main">
+        <section className="home-task-panel upload-panel">
+          <div className="home-section-header">
+            <h2>{t("planUpload", "adminOnlyTitle", "Upload restricted")}</h2>
+            <p>{t("planUpload", "adminOnlyBody", "Only admins can upload plans.")}</p>
+            <Link href="/plans" className="home-hero-secondary" style={{ marginTop: 16, display: "inline-flex" }}>
+              {t("planUpload", "back", "Back to plans")}
+            </Link>
+          </div>
+        </section>
+      </main>
+    );
   }
 
   return (
