@@ -10,7 +10,7 @@ import { LogoutButton } from "@/components/LogoutButton";
 export default function UnifiedLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
-  const { language, t } = useLanguage();
+  const { t } = useLanguage();
   const currentYear = new Date().getFullYear();
 
   const navLinks = useMemo(
@@ -20,7 +20,7 @@ export default function UnifiedLayout({ children }: { children: React.ReactNode 
       { href: "/users", label: t("nav", "users", "Benutzer") },
       { href: "/companies", label: t("nav", "companies", "Unternehmen") },
     ],
-    [language, t]
+    [t]
   );
 
   return (
