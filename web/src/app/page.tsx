@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiGet, apiPost } from "@/lib/apiClient";
 import { supabase } from "@/lib/supabase";
+import type { Language } from "@/lib/translations";
 import { PWAInstallBanner } from "@/components/PWAInstallBanner";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -56,7 +57,7 @@ export default function Home() {
   const [dueFrom, setDueFrom] = useState("");
   const [dueTo, setDueTo] = useState("");
   const [sortBy, setSortBy] = useState("");
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [user, setUser] = useState<User | null>(null);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [profilesLoaded, setProfilesLoaded] = useState(false);
@@ -81,6 +82,10 @@ export default function Home() {
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [sessionLoaded, setSessionLoaded] = useState(false);
+  const [taskTranslationMap, setTaskTranslationMap] = useState<Record<string, string>>({});
+  const [taskTranslationLang, setTaskTranslationLang] = useState<Language | null>(null);
+  const [taskTranslating, setTaskTranslating] = useState(false);
+  const [taskTranslationError, setTaskTranslationError] = useState<string | null>(null);
 
   const profileById = useMemo(() => {
     const map: Record<string, Profile> = {};
@@ -95,6 +100,16 @@ export default function Home() {
     DONE_WAITING_APPROVAL: "task-card__badge--waiting",
     APPROVED: "task-card__badge--approved",
     REJECTED: "task-card__badge--rejected",
+  };
+
+  const getTranslatedText = (scope: string, id: string, fallback?: string | null) => {
+    if (!id) return fallback ?? "";
+    if (taskTranslationLang !== language) return fallback ?? "";
+    const key = `${scope}:${id}`;
+    const candidate = taskTranslationMap[key];
+    if (!candidate) return fallback ?? "";
+    const trimmed = candidate.trim();
+    return trimmed.length > 0 ? trimmed : fallback ?? "";
   };
 
   function fixStorageUrl(u: string) {
@@ -224,6 +239,66 @@ export default function Home() {
     if ((user.role || "").toUpperCase() === "ADMIN") return;
     setAssignedFilter((prev) => (prev === user.id ? prev : user.id));
   }, [user]);
+
+  useEffect(() => {
+    if (!tasks.length) {
+      setTaskTranslationMap({});
+      setTaskTranslationLang(language);
+      setTaskTranslationError(null);
+      setTaskTranslating(false);
+      return;
+    }
+
+    const items: { key: string; text: string }[] = [];
+    tasks.forEach((task) => {
+      const title = task.title?.trim();
+      if (title) items.push({ key: `task.title:${task.id}`, text: title });
+      const description = task.description?.trim();
+      if (description) items.push({ key: `task.description:${task.id}`, text: description });
+    });
+
+    if (items.length === 0) {
+      setTaskTranslationMap({});
+      setTaskTranslationLang(language);
+      setTaskTranslationError(null);
+      setTaskTranslating(false);
+      return;
+    }
+
+    let alive = true;
+    setTaskTranslating(true);
+    setTaskTranslationError(null);
+
+    apiPost<{ translations: string[] }>("/api/translate", {
+      targetLang: language,
+      texts: items.map((item) => item.text),
+    })
+      .then((payload) => {
+        if (!alive) return;
+        const next: Record<string, string> = {};
+        (payload.translations || []).forEach((value, idx) => {
+          const key = items[idx]?.key;
+          if (key && typeof value === "string") {
+            next[key] = value;
+          }
+        });
+        setTaskTranslationMap(next);
+        setTaskTranslationLang(language);
+      })
+      .catch((translationErr: any) => {
+        if (!alive) return;
+        setTaskTranslationError(translationErr?.message || String(translationErr));
+        setTaskTranslationMap({});
+      })
+      .finally(() => {
+        if (!alive) return;
+        setTaskTranslating(false);
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [tasks, language]);
 
   async function saveNotificationSettings(next: NotificationSettings) {
     setSettingsSaving(true);
@@ -537,6 +612,17 @@ export default function Home() {
               </label>
             </div>
 
+            {taskTranslating && (
+              <div className="home-card-note">
+                {t("taskDrawer", "autoTranslateLoading", "Translating content...")} ({language.toUpperCase()})
+              </div>
+            )}
+            {taskTranslationError && (
+              <div className="home-card-error">
+                {t("taskDrawer", "autoTranslateError", "Auto translation failed")}: {taskTranslationError}
+              </div>
+            )}
+
           {viewMode === "list" ? (
             <div className="tasks-grid">
               {tasks.map((task) => {
@@ -549,7 +635,9 @@ export default function Home() {
                 const assignee = task.assigned_user_id ? profileById[task.assigned_user_id] : undefined;
                 const assigneeLabel = assignee?.full_name || assignee?.email || t("taskDrawer", "assignedUser");
                 const assigneeText = assignee ? assigneeLabel : `${t("taskDrawer", "assignedUser")}: —`;
-                const descriptionRaw = task.description?.trim() || "";
+                const translatedTitle = getTranslatedText("task.title", task.id, task.title);
+                const translatedDescription = getTranslatedText("task.description", task.id, task.description);
+                const descriptionRaw = translatedDescription?.trim() || "";
                 const hasDescription = descriptionRaw.length > 0;
                 const descriptionPreview = hasDescription && descriptionRaw.length > 220 ? `${descriptionRaw.slice(0, 220)}…` : descriptionRaw;
                 const descriptionClasses = ["task-card__description", hasDescription ? "" : "task-card__description--muted"].filter(Boolean).join(" ");
@@ -573,7 +661,7 @@ export default function Home() {
                         <span className={`task-card__badge ${statusClassName}`.trim()}>{statusLabel}</span>
                         <span className="task-card__pill">{priorityLabel}</span>
                       </div>
-                      <h3>{task.title}</h3>
+                      <h3>{translatedTitle || task.title}</h3>
                       <p className={descriptionClasses}>{descriptionContent}</p>
                       <p className="task-card__note">
                         {assigneeText} · {t("taskDrawer", "dueDate")}: {dueLabel}
@@ -617,9 +705,10 @@ export default function Home() {
                       {items.map((task) => {
                         const assignee = task.assigned_user_id ? profileById[task.assigned_user_id] : undefined;
                         const dueLabel = task.due_date ? new Date(task.due_date).toLocaleDateString() : "—";
+                        const translatedTitle = getTranslatedText("task.title", task.id, task.title);
                         return (
                           <Link key={task.id} href={`/task/${task.id}`} className="home-kanban-card">
-                            <div className="home-kanban-title">{task.title}</div>
+                            <div className="home-kanban-title">{translatedTitle || task.title}</div>
                             <div className="home-kanban-meta">
                               <span className="home-kanban-priority">
                                 {t("taskPriority", task.priority, task.priority)}

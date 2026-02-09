@@ -131,6 +131,8 @@ export default function TaskDrawer({
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [titleDirty, setTitleDirty] = useState(false);
+  const [descriptionDirty, setDescriptionDirty] = useState(false);
   const [status, setStatus] = useState<TaskRow["status"]>("OPEN");
   const [priority, setPriority] = useState<TaskRow["priority"]>("MEDIUM");
   const [dueDate, setDueDate] = useState("");
@@ -192,7 +194,9 @@ export default function TaskDrawer({
 
       // ustaw formularz z taska
       setTitle(taskData.title || "");
+      setTitleDirty(false);
       setDescription(taskData.description || "");
+      setDescriptionDirty(false);
       setStatus((taskData.status as any) || "OPEN");
       setPriority((taskData.priority as any) || "MEDIUM");
       setDueDate(taskData.due_date || "");
@@ -246,7 +250,9 @@ export default function TaskDrawer({
       setNewComment("");
       setErr(null);
       setTitle(t("taskDrawer", "newTask"));
+      setTitleDirty(false);
       setDescription("");
+      setDescriptionDirty(false);
       setStatus("OPEN");
       setPriority("MEDIUM");
       setDueDate("");
@@ -350,6 +356,27 @@ export default function TaskDrawer({
       alive = false;
     };
   }, [language, taskId, task?.id, task?.title, task?.description, comments, history, isCreate]);
+
+  useEffect(() => {
+    if (!taskId || isCreate) return;
+    if (translationLang !== language) return;
+
+    const titleKey = makeTranslationKey("task.title", task?.id);
+    if (titleKey) {
+      const translatedTitle = translationMap[titleKey];
+      if (translatedTitle && !titleDirty && translatedTitle !== title) {
+        setTitle(translatedTitle);
+      }
+    }
+
+    const descKey = makeTranslationKey("task.description", task?.id);
+    if (descKey) {
+      const translatedDesc = translationMap[descKey];
+      if (translatedDesc && !descriptionDirty && translatedDesc !== description) {
+        setDescription(translatedDesc);
+      }
+    }
+  }, [taskId, isCreate, translationLang, language, translationMap, task?.id, titleDirty, descriptionDirty, title, description]);
 
   const inputStyle: React.CSSProperties = {
     width: "100%",
@@ -765,7 +792,15 @@ export default function TaskDrawer({
 
           <label style={labelStyle}>
             <span style={{ fontWeight: 800 }}>{t("taskDrawer", "title")}</span>
-            <input value={title} onChange={(e) => setTitle(e.target.value)} style={inputStyle} disabled={!canEditFields} />
+            <input
+              value={title}
+              onChange={(e) => {
+                setTitleDirty(true);
+                setTitle(e.target.value);
+              }}
+              style={inputStyle}
+              disabled={!canEditFields}
+            />
           </label>
           {!isCreate && renderTranslationSegment(makeTranslationKey("task.title", task?.id), task?.title || title)}
 
@@ -773,7 +808,10 @@ export default function TaskDrawer({
             <span style={{ fontWeight: 800 }}>{t("taskDrawer", "description")}</span>
             <textarea
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) => {
+                setDescriptionDirty(true);
+                setDescription(e.target.value);
+              }}
               style={{ ...inputStyle, minHeight: 110, resize: "vertical" }}
               disabled={!canEditFields}
             />

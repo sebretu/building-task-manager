@@ -105,8 +105,12 @@ async function translateWithMyMemory(text: string, target: Language, source?: st
   const fromRaw = normalizeLangTag(source);
   const detected = detectLanguageCode(text);
   const fromCandidate = fromRaw === "auto" ? null : fromRaw;
-  const from = fromCandidate || detected || fallbackSource;
+  const from = (fromCandidate || detected || fallbackSource).toLowerCase();
   const to = target.toLowerCase();
+
+  if (from === to) {
+    return text;
+  }
   const params = new URLSearchParams({
     q: text,
     langpair: `${from}|${to}`,
