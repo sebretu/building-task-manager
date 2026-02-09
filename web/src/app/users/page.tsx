@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { apiDelete, apiGet, apiPatch, apiPost } from "@/lib/apiClient";
 import { supabase } from "@/lib/supabase";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 type User = {
   id: string;
@@ -60,7 +61,9 @@ export default function UsersPage() {
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
-  const isAdmin = currentUserRole === "ADMIN";
+  const [roleChecked, setRoleChecked] = useState(false);
+  const { t } = useLanguage();
+  const isAdmin = (currentUserRole || "").toUpperCase() === "ADMIN";
 
   const handleAuthRedirect = useCallback(
     (message: string) => {
@@ -122,17 +125,37 @@ export default function UsersPage() {
   }, [router]);
 
   useEffect(() => {
-    if (!sessionChecked) return;
+    if (!sessionChecked || !roleChecked) return;
+    if (!isAdmin) return;
     loadData();
-  }, [sessionChecked, loadData]);
+  }, [sessionChecked, roleChecked, isAdmin, loadData]);
 
   useEffect(() => {
     if (!currentUserId) return;
-    const me = users.find((u) => u.id === currentUserId);
-    if (me && me.role !== currentUserRole) {
-      setCurrentUserRole(me.role);
-    }
-  }, [currentUserId, currentUserRole, users]);
+    let active = true;
+    setRoleChecked(false);
+    supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", currentUserId)
+      .single()
+      .then(({ data }) => {
+        if (!active) return;
+        setCurrentUserRole(data?.role || "USER");
+      })
+      .catch(() => {
+        if (!active) return;
+        setCurrentUserRole("USER");
+      })
+      .finally(() => {
+        if (!active) return;
+        setRoleChecked(true);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [currentUserId]);
 
   async function handleInvite(e: React.FormEvent) {
     e.preventDefault();
@@ -295,8 +318,17 @@ export default function UsersPage() {
     return companies.find((c) => c.id === companyId)?.name || "Unknown";
   };
 
-  if (!sessionChecked) {
-    return <div style={{ padding: 32 }}>Ładowanie...</div>;
+  if (!sessionChecked || !roleChecked) {
+    return <div style={{ padding: 32 }}>{t("common", "loading", "Loading...")}</div>;
+  }
+
+  if (!isAdmin) {
+    return (
+      <div style={{ padding: 32, textAlign: "center" }}>
+        <h1 style={{ fontSize: 24, marginBottom: 8 }}>{t("access", "adminOnlyTitle", "Access restricted")}</h1>
+        <p style={{ fontSize: 16 }}>{t("access", "adminOnlyBody", "Only administrators can view this page.")}</p>
+      </div>
+    );
   }
 
   return (

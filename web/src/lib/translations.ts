@@ -169,6 +169,10 @@ export const translations = {
     footer: {
       tagline: "Inspection and reporting platform",
     },
+    access: {
+      adminOnlyTitle: "Access restricted",
+      adminOnlyBody: "Only administrators can view this page.",
+    },
     users: {
       title: "Users",
       search: "Search users...",
@@ -390,6 +394,10 @@ export const translations = {
     },
     footer: {
       tagline: "Platforma do inspekcji i raportowania",
+    },
+    access: {
+      adminOnlyTitle: "Brak dostępu",
+      adminOnlyBody: "Do tej zakładki ma dostęp tylko administrator.",
     },
     users: {
       title: "👥 Użytkownicy",
@@ -613,6 +621,10 @@ export const translations = {
     footer: {
       tagline: "Plattform für Inspektionen und Berichte",
     },
+    access: {
+      adminOnlyTitle: "Kein Zugriff",
+      adminOnlyBody: "Nur Administratoren dürfen diesen Bereich öffnen.",
+    },
     users: {
       title: "Benutzer",
       search: "🔍 Benutzer durchsuchen...",
@@ -832,6 +844,10 @@ export const translations = {
     },
     footer: {
       tagline: "Platforma na inšpekcie a reportovanie",
+    },
+    access: {
+      adminOnlyTitle: "Prístup zamietnutý",
+      adminOnlyBody: "Do tejto sekcie má prístup iba administrátor.",
     },
     users: {
       title: "👥 Používatelia",

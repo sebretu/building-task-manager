@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { apiDelete, apiGet, apiPost } from "@/lib/apiClient";
 import { supabase } from "@/lib/supabase";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 function slugify(input: string) {
   return input
@@ -49,7 +50,9 @@ export default function CompaniesPage() {
   const [companySaving, setCompanySaving] = useState(false);
   const [companyError, setCompanyError] = useState<string | null>(null);
   const [deleteCompanyLoading, setDeleteCompanyLoading] = useState(false);
-  const isAdmin = currentUserRole === "ADMIN";
+  const [roleChecked, setRoleChecked] = useState(false);
+  const { t } = useLanguage();
+  const isAdmin = (currentUserRole || "").toUpperCase() === "ADMIN";
 
   const handleAuthRedirect = useCallback(
     (message: string) => {
@@ -109,17 +112,37 @@ export default function CompaniesPage() {
   }, [router]);
 
   useEffect(() => {
-    if (!sessionChecked) return;
+    if (!sessionChecked || !roleChecked) return;
+    if (!isAdmin) return;
     loadData();
-  }, [sessionChecked, loadData]);
+  }, [sessionChecked, roleChecked, isAdmin, loadData]);
 
   useEffect(() => {
     if (!currentUserId) return;
-    const me = users.find((u) => u.id === currentUserId);
-    if (me && me.role !== currentUserRole) {
-      setCurrentUserRole(me.role);
-    }
-  }, [currentUserId, currentUserRole, users]);
+    let active = true;
+    setRoleChecked(false);
+    supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", currentUserId)
+      .single()
+      .then(({ data }) => {
+        if (!active) return;
+        setCurrentUserRole(data?.role || "USER");
+      })
+      .catch(() => {
+        if (!active) return;
+        setCurrentUserRole("USER");
+      })
+      .finally(() => {
+        if (!active) return;
+        setRoleChecked(true);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [currentUserId]);
 
   useEffect(() => {
     if (slugEdited) return;
@@ -213,8 +236,17 @@ export default function CompaniesPage() {
     (u) => !u.company_id || u.company_id === selectedCompanyId
   );
 
-  if (!sessionChecked) {
-    return <div style={{ padding: 32 }}>Ładowanie...</div>;
+  if (!sessionChecked || !roleChecked) {
+    return <div style={{ padding: 32 }}>{t("common", "loading", "Loading...")}</div>;
+  }
+
+  if (!isAdmin) {
+    return (
+      <div style={{ padding: 32, textAlign: "center" }}>
+        <h1 style={{ fontSize: 24, marginBottom: 8 }}>{t("access", "adminOnlyTitle", "Access restricted")}</h1>
+        <p style={{ fontSize: 16 }}>{t("access", "adminOnlyBody", "Only administrators can view this page.")}</p>
+      </div>
+    );
   }
 
   return (
@@ -318,7 +350,7 @@ export default function CompaniesPage() {
                       selectedCompanyId === company.id ? "bold" : "normal",
                   }}
                 >
-                  <div style={{ fontSize: "14px" }}>{company.name}</div>
+                  <div style={{ fontSize: "14px", color: "#0d6efd" }}>{company.name}</div>
                   <div
                     style={{
                       fontSize: "12px",
