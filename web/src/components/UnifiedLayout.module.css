@@ -5,10 +5,10 @@
   border: none;
   box-shadow: none;
   justify-content: center;
-  padding: 120px 0 32px;
-  min-height: 55vh;
+  padding: 32px 0 16px;
+  min-height: auto;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
 }
 
 :global(.topbar__inner) {
