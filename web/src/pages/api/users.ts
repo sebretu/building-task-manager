@@ -1,6 +1,7 @@
 import { createServerSupabaseClient, isAuthRequiredError } from "@/lib/supabaseServer";
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin";
 import { NextApiRequest, NextApiResponse } from "next";
+import { randomUUID } from "crypto";
 
 type ApiOk<T> = { ok: true; data: T };
 type ApiErr = { ok: false; error: { message: string; code?: string; meta?: any } };
@@ -27,10 +28,17 @@ export default async function handler(
     const { client, userId } = await createServerSupabaseClient(req);
 
     if (req.method === "GET") {
-      const { data, error } = await client
+      const includeInactive = req.query.includeInactive === "true";
+
+      let query = client
         .from("profiles")
-        .select("id, full_name, email, role, company_id, is_active, created_at")
-        .order("created_at", { ascending: false });
+        .select("id, full_name, email, role, company_id, is_active, created_at");
+
+      if (!includeInactive) {
+        query = query.eq("is_active", true);
+      }
+
+      const { data, error } = await query.order("created_at", { ascending: false });
 
       if (error) {
         return res.status(400).json({ ok: false, error: { message: error.message, code: error.code, meta: error.details } });
@@ -165,6 +173,117 @@ export default async function handler(
       return res.status(201).json({ ok: true, data });
     }
 
+    if (req.method === "DELETE") {
+      const targetId = typeof req.query.id === "string" ? req.query.id.trim() : "";
+
+      if (!targetId || !isUuid(targetId)) {
+        return res.status(400).json({
+          ok: false,
+          error: { message: "Missing or invalid user id", code: "BAD_REQUEST" },
+        });
+      }
+
+      if (!userId) {
+        return res.status(401).json({ ok: false, error: { message: "Missing auth user", code: "AUTH_INVALID" } });
+      }
+
+      const { data: requester, error: requesterError } = await client
+        .from("profiles")
+        .select("id, role")
+        .eq("id", userId)
+        .single();
+
+      if (requesterError) {
+        return res.status(requesterError.status || 400).json({
+          ok: false,
+          error: { message: requesterError.message, code: requesterError.code, meta: requesterError.details },
+        });
+      }
+
+      if (requester?.role !== "ADMIN") {
+        return res.status(403).json({ ok: false, error: { message: "Only admins can delete users", code: "FORBIDDEN" } });
+      }
+
+      if (targetId === userId) {
+        return res.status(400).json({ ok: false, error: { message: "You cannot delete your own account", code: "SELF_DELETE" } });
+      }
+
+      const adminClient = getSupabaseAdminClient();
+
+      const { data: targetProfile, error: targetProfileError } = await adminClient
+        .from("profiles")
+        .select("id, full_name, email, role, company_id, is_active, created_at")
+        .eq("id", targetId)
+        .single();
+
+      if (targetProfileError) {
+        return res.status(targetProfileError.status || 400).json({
+          ok: false,
+          error: { message: targetProfileError.message, code: targetProfileError.code, meta: targetProfileError.details },
+        });
+      }
+
+      await adminClient.from("project_members").delete().eq("user_id", targetId);
+
+      const scrubbedEmail = `deleted+${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.invalid`;
+      let softDeleted = false;
+
+      const { error: authDeleteError } = await adminClient.auth.admin.deleteUser(targetId);
+      if (authDeleteError) {
+        const normalizedMessage = authDeleteError.message?.toLowerCase() || "";
+        const isCascadeFailure =
+          normalizedMessage.includes("database error deleting user") || authDeleteError.code === "unexpected_failure";
+
+        if (!isCascadeFailure) {
+          return res.status(authDeleteError.status || 400).json({
+            ok: false,
+            error: { message: authDeleteError.message || "Failed to delete auth user", code: authDeleteError.code || "AUTH_DELETE" },
+          });
+        }
+
+        softDeleted = true;
+
+        const { error: profileUpdateError } = await adminClient
+          .from("profiles")
+          .update({
+            email: scrubbedEmail,
+            full_name: "Deleted User",
+            company_id: null,
+            is_active: false,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", targetId);
+
+        if (profileUpdateError) {
+          return res.status(profileUpdateError.status || 400).json({
+            ok: false,
+            error: { message: profileUpdateError.message, code: profileUpdateError.code, meta: profileUpdateError.details },
+          });
+        }
+
+        const bannedUntil = new Date("9999-12-31T23:59:59.000Z").toISOString();
+        const randomPassword = `x_${randomUUID().replace(/-/g, "")}`;
+        const { error: authUpdateError } = await adminClient.auth.admin.updateUserById(targetId, {
+          email: scrubbedEmail,
+          password: randomPassword,
+          email_confirm: false,
+          banned_until: bannedUntil,
+          user_metadata: { full_name: "Deleted User" },
+        });
+
+        if (authUpdateError) {
+          return res.status(authUpdateError.status || 400).json({
+            ok: false,
+            error: { message: authUpdateError.message || "Failed to scrub auth user", code: authUpdateError.code || "AUTH_SCRUB" },
+          });
+        }
+      } else {
+        await adminClient.from("profiles").delete().eq("id", targetId);
+      }
+
+      return res.status(200).json({ ok: true, data: { ...targetProfile, softDeleted } });
+    }
+
     if (req.method === "PATCH") {
       const { id, full_name, role, company_id, is_active, password, confirm_email } = req.body || {};
 
@@ -255,7 +374,7 @@ export default async function handler(
       return res.status(200).json({ ok: true, data: profileData });
     }
 
-    res.setHeader("Allow", "GET, POST, PATCH");
+    res.setHeader("Allow", "GET, POST, PATCH, DELETE");
     return res.status(405).json({ ok: false, error: { message: "Method not allowed", code: "METHOD_NOT_ALLOWED" } });
   } catch (err) {
     if (isAuthRequiredError(err)) {

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { apiGet, apiPatch, apiPost } from "@/lib/apiClient";
+import { apiDelete, apiGet, apiPatch, apiPost } from "@/lib/apiClient";
 import { supabase } from "@/lib/supabase";
 
 type User = {
@@ -56,6 +56,11 @@ export default function UsersPage() {
   const [editSaving, setEditSaving] = useState(false);
   const [confirmingEmail, setConfirmingEmail] = useState(false);
   const [sessionChecked, setSessionChecked] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
+  const isAdmin = currentUserRole === "ADMIN";
 
   const handleAuthRedirect = useCallback(
     (message: string) => {
@@ -104,6 +109,7 @@ export default function UsersPage() {
           router.replace("/auth/login");
           return;
         }
+        setCurrentUserId(data.session.user.id);
         setSessionChecked(true);
       })
       .catch(() => {
@@ -119,6 +125,14 @@ export default function UsersPage() {
     if (!sessionChecked) return;
     loadData();
   }, [sessionChecked, loadData]);
+
+  useEffect(() => {
+    if (!currentUserId) return;
+    const me = users.find((u) => u.id === currentUserId);
+    if (me && me.role !== currentUserRole) {
+      setCurrentUserRole(me.role);
+    }
+  }, [currentUserId, currentUserRole, users]);
 
   async function handleInvite(e: React.FormEvent) {
     e.preventDefault();
@@ -250,6 +264,26 @@ export default function UsersPage() {
     }
   }
 
+  const canDeleteUser = (user: User) => isAdmin && user.id !== currentUserId;
+
+  async function handleDeleteUser(user: User) {
+    if (!canDeleteUser(user)) return;
+    if (!confirm(`Usunąć użytkownika ${user.full_name}?`)) return;
+
+    try {
+      setDeletingUserId(user.id);
+      setDeleteError(null);
+      await apiDelete(`/api/users?id=${encodeURIComponent(user.id)}`);
+      setUsers((prev) => prev.filter((u) => u.id !== user.id));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Nie udało się usunąć użytkownika";
+      if (handleAuthRedirect(message)) return;
+      setDeleteError(message);
+    } finally {
+      setDeletingUserId(null);
+    }
+  }
+
   const filteredUsers = users.filter(
     (u) =>
       u.full_name.toLowerCase().includes(search.toLowerCase()) ||
@@ -272,6 +306,12 @@ export default function UsersPage() {
       {error && (
         <div style={{ background: "#fee", color: "#c33", padding: "10px", borderRadius: "4px", marginBottom: "20px" }}>
           {error}
+        </div>
+      )}
+
+      {deleteError && (
+        <div style={{ background: "#fff3cd", color: "#856404", padding: "10px", borderRadius: "4px", marginBottom: "20px" }}>
+          {deleteError}
         </div>
       )}
 
@@ -348,20 +388,40 @@ export default function UsersPage() {
                   )}
                 </td>
                 <td style={{ padding: "12px" }}>
-                  <button
-                    style={{
-                      padding: "6px 12px",
-                      background: "#6c757d",
-                      color: "white",
-                      border: "none",
-                      borderRadius: "3px",
-                      cursor: "pointer",
-                      fontSize: "12px",
-                    }}
-                    onClick={() => openEditModal(user)}
-                  >
-                    Edytuj
-                  </button>
+                  <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                    <button
+                      style={{
+                        padding: "6px 12px",
+                        background: "#6c757d",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "3px",
+                        cursor: "pointer",
+                        fontSize: "12px",
+                      }}
+                      onClick={() => openEditModal(user)}
+                    >
+                      Edytuj
+                    </button>
+                    {isAdmin && (
+                      <button
+                        style={{
+                          padding: "6px 12px",
+                          background: "#dc3545",
+                          color: "white",
+                          border: "none",
+                          borderRadius: "3px",
+                          cursor: canDeleteUser(user) ? "pointer" : "not-allowed",
+                          fontSize: "12px",
+                          opacity: canDeleteUser(user) ? 1 : 0.7,
+                        }}
+                        disabled={!canDeleteUser(user) || deletingUserId === user.id}
+                        onClick={() => handleDeleteUser(user)}
+                      >
+                        {deletingUserId === user.id ? "Usuwanie..." : "Usuń"}
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}

@@ -2,8 +2,17 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { apiGet, apiPost } from "@/lib/apiClient";
+import { apiDelete, apiGet, apiPost } from "@/lib/apiClient";
 import { supabase } from "@/lib/supabase";
+
+function slugify(input: string) {
+  return input
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .replace(/--+/g, "-");
+}
 
 type Company = {
   id: string;
@@ -31,6 +40,16 @@ export default function CompaniesPage() {
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState("");
   const [sessionChecked, setSessionChecked] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
+  const [newCompanyName, setNewCompanyName] = useState("");
+  const [newCompanySlug, setNewCompanySlug] = useState("");
+  const [slugEdited, setSlugEdited] = useState(false);
+  const [newCompanyActive, setNewCompanyActive] = useState(true);
+  const [companySaving, setCompanySaving] = useState(false);
+  const [companyError, setCompanyError] = useState<string | null>(null);
+  const [deleteCompanyLoading, setDeleteCompanyLoading] = useState(false);
+  const isAdmin = currentUserRole === "ADMIN";
 
   const handleAuthRedirect = useCallback(
     (message: string) => {
@@ -77,6 +96,7 @@ export default function CompaniesPage() {
           router.replace("/auth/login");
           return;
         }
+        setCurrentUserId(data.session.user.id);
         setSessionChecked(true);
       })
       .catch(() => {
@@ -92,6 +112,75 @@ export default function CompaniesPage() {
     if (!sessionChecked) return;
     loadData();
   }, [sessionChecked, loadData]);
+
+  useEffect(() => {
+    if (!currentUserId) return;
+    const me = users.find((u) => u.id === currentUserId);
+    if (me && me.role !== currentUserRole) {
+      setCurrentUserRole(me.role);
+    }
+  }, [currentUserId, currentUserRole, users]);
+
+  useEffect(() => {
+    if (slugEdited) return;
+    setNewCompanySlug(slugify(newCompanyName));
+  }, [newCompanyName, slugEdited]);
+
+  async function handleCreateCompany(e: React.FormEvent) {
+    e.preventDefault();
+    if (!isAdmin) return;
+
+    const trimmedName = newCompanyName.trim();
+    if (!trimmedName) {
+      setCompanyError("Nazwa firmy jest wymagana");
+      return;
+    }
+
+    try {
+      setCompanySaving(true);
+      setCompanyError(null);
+      const payload: Record<string, any> = {
+        name: trimmedName,
+        is_active: newCompanyActive,
+      };
+      if (newCompanySlug.trim()) {
+        payload.slug = newCompanySlug.trim();
+      }
+
+      const created = await apiPost<Company>("/api/companies", payload);
+      await loadData();
+      setSelectedCompanyId(created.id);
+      setNewCompanyName("");
+      setNewCompanySlug("");
+      setSlugEdited(false);
+      setNewCompanyActive(true);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Nie udało się utworzyć firmy";
+      if (handleAuthRedirect(message)) return;
+      setCompanyError(message);
+    } finally {
+      setCompanySaving(false);
+    }
+  }
+
+  async function handleDeleteCompany(company: Company) {
+    if (!isAdmin) return;
+    if (!confirm(`Usunąć firmę ${company.name}? Członkowie zostaną odłączeni.`)) return;
+
+    try {
+      setDeleteCompanyLoading(true);
+      setCompanyError(null);
+      await apiDelete(`/api/companies?id=${encodeURIComponent(company.id)}`);
+      await loadData();
+      setSelectedCompanyId((prev) => (prev === company.id ? null : prev));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Nie udało się usunąć firmy";
+      if (handleAuthRedirect(message)) return;
+      setCompanyError(message);
+    } finally {
+      setDeleteCompanyLoading(false);
+    }
+  }
 
   async function handleAddUser(e: React.FormEvent) {
     e.preventDefault();
@@ -141,6 +230,68 @@ export default function CompaniesPage() {
       <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: "20px" }}>
         {/* List of companies */}
         <div style={{ borderRight: "1px solid #eee", paddingRight: "20px" }}>
+          {isAdmin && (
+            <div style={{ marginBottom: "24px", padding: "16px", border: "1px solid #e0e0e0", borderRadius: "8px", background: "#f8f9fa" }}>
+              <h3 style={{ marginTop: 0 }}>Dodaj firmę</h3>
+              {companyError && (
+                <div style={{ background: "#fff3cd", color: "#856404", padding: "8px", borderRadius: 4, marginBottom: 12 }}>
+                  {companyError}
+                </div>
+              )}
+              <form onSubmit={handleCreateCompany} style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                <label style={{ fontSize: "13px", fontWeight: 600 }}>
+                  Nazwa
+                  <input
+                    type="text"
+                    value={newCompanyName}
+                    onChange={(e) => setNewCompanyName(e.target.value)}
+                    style={{ width: "100%", padding: "8px", border: "1px solid #ccc", borderRadius: 4, marginTop: 4 }}
+                    placeholder="Np. Elektro Sp. z o.o."
+                  />
+                </label>
+
+                <label style={{ fontSize: "13px", fontWeight: 600 }}>
+                  Slug
+                  <input
+                    type="text"
+                    value={newCompanySlug}
+                    onChange={(e) => {
+                      setSlugEdited(true);
+                      setNewCompanySlug(e.target.value);
+                    }}
+                    style={{ width: "100%", padding: "8px", border: "1px solid #ccc", borderRadius: 4, marginTop: 4 }}
+                    placeholder="np. elektro-sp"
+                  />
+                </label>
+
+                <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", fontWeight: 600 }}>
+                  <input
+                    type="checkbox"
+                    checked={newCompanyActive}
+                    onChange={(e) => setNewCompanyActive(e.target.checked)}
+                  />
+                  Aktywna
+                </label>
+
+                <button
+                  type="submit"
+                  disabled={companySaving || !newCompanyName.trim()}
+                  style={{
+                    padding: "10px 14px",
+                    background: companySaving ? "#6c757d" : "#007bff",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "4px",
+                    cursor: companySaving || !newCompanyName.trim() ? "not-allowed" : "pointer",
+                    fontWeight: 600,
+                  }}
+                >
+                  {companySaving ? "Dodawanie..." : "Dodaj firmę"}
+                </button>
+              </form>
+            </div>
+          )}
+
           <h2>Lista firm</h2>
           {loading ? (
             <p>Ładowanie...</p>
@@ -200,6 +351,23 @@ export default function CompaniesPage() {
                     <span style={{ color: "gray" }}>⏸️ Nieaktywna</span>
                   )}
                 </p>
+                {isAdmin && (
+                  <button
+                    onClick={() => handleDeleteCompany(selectedCompany)}
+                    disabled={deleteCompanyLoading}
+                    style={{
+                      padding: "8px 14px",
+                      background: "#dc3545",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "4px",
+                      cursor: deleteCompanyLoading ? "not-allowed" : "pointer",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {deleteCompanyLoading ? "Usuwanie..." : "Usuń firmę"}
+                  </button>
+                )}
               </div>
 
               <div>
