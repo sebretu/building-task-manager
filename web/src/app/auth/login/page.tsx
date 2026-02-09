@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -10,8 +11,8 @@ import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 export default function LoginPage() {
   const router = useRouter();
   const { t } = useLanguage();
-  const [email, setEmail] = useState("admin@demo.local");
-  const [password, setPassword] = useState("Password123!");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -72,27 +73,26 @@ export default function LoginPage() {
           <LanguageSwitcher />
         </div>
 
-        <h1
-          style={{
-            textAlign: "center",
-            marginBottom: "10px",
-            color: "#333",
-            fontSize: "28px",
-          }}
-        >
-          🔓 {t("auth", "title")}
-        </h1>
-
-        <p
-          style={{
-            textAlign: "center",
-            color: "#666",
-            marginBottom: "30px",
-            fontSize: "14px",
-          }}
-        >
-          {t("auth", "subtitle")}
-        </p>
+        <div style={{ textAlign: "center", marginBottom: "24px" }}>
+          <Image
+            src="/inspecthero-logo.png"
+            alt="InspectHero logo"
+            width={72}
+            height={72}
+            priority
+            style={{ display: "inline-block", marginBottom: "16px" }}
+          />
+          <h1
+            style={{
+              margin: 0,
+              color: "#1f2933",
+              fontSize: "30px",
+              letterSpacing: "0.5px",
+            }}
+          >
+            {t("auth", "title")}
+          </h1>
+        </div>
 
         {error && (
           <div
@@ -212,23 +212,6 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div
-          style={{
-            marginTop: "20px",
-            padding: "15px",
-            background: "#f0f4ff",
-            borderRadius: "6px",
-            fontSize: "12px",
-            color: "#555",
-            lineHeight: "1.6",
-          }}
-        >
-          <strong>Demo credentials:</strong>
-          <br />
-          Email: <code>admin@demo.local</code>
-          <br />
-          Password: <code>Password123!</code>
-        </div>
       </div>
       </div>
     </>

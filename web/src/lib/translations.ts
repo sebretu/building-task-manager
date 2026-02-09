@@ -24,8 +24,8 @@ export const translations = {
       companies: "Companies",
     },
     auth: {
-      title: "Task Manager",
-      subtitle: "Task Manager v1.0",
+      title: "InspectHero",
+      subtitle: "InspectHero Portal",
       loginButton: "Sign In",
       loggingIn: "Signing in...",
       demoEmail: "Email",
@@ -250,8 +250,8 @@ export const translations = {
       companies: "Firmy",
     },
     auth: {
-      title: "Task Manager",
-      subtitle: "Task Manager v1.0",
+      title: "InspectHero",
+      subtitle: "InspectHero Portal",
       loginButton: "✅ Zaloguj się",
       loggingIn: "⏳ Logowanie...",
       demoEmail: "📧 Email",
@@ -476,8 +476,8 @@ export const translations = {
       companies: "Unternehmen",
     },
     auth: {
-      title: "Task Manager",
-      subtitle: "Task Manager v1.0",
+      title: "InspectHero",
+      subtitle: "InspectHero Portal",
       loginButton: "✅ Anmelden",
       loggingIn: "⏳ Wird angemeldet...",
       demoEmail: "📧 E-Mail",
@@ -702,8 +702,8 @@ export const translations = {
       companies: "Spoločnosti",
     },
     auth: {
-      title: "Task Manager",
-      subtitle: "Task Manager v1.0",
+      title: "InspectHero",
+      subtitle: "InspectHero Portal",
       loginButton: "✅ Prihlásiť sa",
       loggingIn: "⏳ Prihlasovanie...",
       demoEmail: "📧 Email",
