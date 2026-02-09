@@ -940,6 +940,14 @@ export default function TaskDrawer({
                     onClick={() => {
                       if (!ensureAfterPhotoPresent()) return;
                       setStatus("DONE_WAITING_APPROVAL");
+                      // Dispatch event for admin notification
+                      setTimeout(() => {
+                        window.dispatchEvent(
+                          new CustomEvent("task-submitted-for-approval", {
+                            detail: { title: title || (task && task.title) || "" },
+                          })
+                        );
+                      }, 0);
                     }}
                     style={{
                       padding: "8px 14px",

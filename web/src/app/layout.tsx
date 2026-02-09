@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import UnifiedLayoutClient from "@/components/UnifiedLayoutClient";
+import { NotificationProvider } from "@/contexts/NotificationContext";
+import { NotificationBar } from "@/components/NotificationBar";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -52,7 +54,10 @@ export default function RootLayout({
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <LanguageProvider>
-          <UnifiedLayoutClient>{children}</UnifiedLayoutClient>
+          <NotificationProvider>
+            <NotificationBar />
+            <UnifiedLayoutClient>{children}</UnifiedLayoutClient>
+          </NotificationProvider>
         </LanguageProvider>
       </body>
     </html>

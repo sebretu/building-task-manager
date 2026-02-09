@@ -1,5 +1,6 @@
 "use client";
 import React, { useMemo, useState, useEffect } from "react";
+import { useNotification } from "@/contexts/NotificationContext";
 import Link from "next/link";
 import styles from "./UnifiedLayout.module.css";
 import { usePathname } from "next/navigation";
@@ -12,12 +13,14 @@ import { supabase } from "@/lib/supabase";
 
 export default function UnifiedLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { showNotification } = useNotification();
   const hideChrome = pathname?.startsWith("/task/");
   const [menuOpen, setMenuOpen] = useState(false);
   const { t } = useLanguage();
   const currentYear = new Date().getFullYear();
   const footerTagline = t("footer", "tagline", "Inspection and reporting platform");
   const [userRole, setUserRole] = useState<string | null>(null);
+  const isAdmin = (userRole || "").toUpperCase() === "ADMIN";
 
   useEffect(() => {
     let active = true;
@@ -37,10 +40,27 @@ export default function UnifiedLayout({ children }: { children: React.ReactNode 
       }
     }
     fetchRole();
-    return () => { active = false; };
-  }, []);
 
-  const isAdmin = (userRole || "").toUpperCase() === "ADMIN";
+    // Listen for task submitted for approval event
+    function handleTaskSubmitted(e: CustomEvent) {
+      if (isAdmin) {
+        const taskTitle = e.detail?.title || "";
+        showNotification(
+          taskTitle
+            ? `Zadanie "${taskTitle}" zgłoszone do akceptacji.`
+            : "Zadanie zgłoszone do akceptacji.",
+          "info"
+        );
+      }
+    }
+    window.addEventListener("task-submitted-for-approval", handleTaskSubmitted as EventListener);
+    return () => {
+      active = false;
+      window.removeEventListener("task-submitted-for-approval", handleTaskSubmitted as EventListener);
+    };
+  }, [isAdmin, showNotification]);
+
+
 
   const navLinks = useMemo(() => {
     const links = [

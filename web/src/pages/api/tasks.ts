@@ -455,6 +455,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
           }
         }
 
+
         if (toStatus === "DONE_WAITING_APPROVAL") {
           const { data: afterPhotos, error: afterError } = await supabase
             .from("task_photos")
@@ -482,6 +483,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
                 message: "Dodaj zdjęcie po wykonaniu pracy zanim zgłosisz zadanie do akceptacji.",
               },
             });
+          }
+
+          // Notify all admins in the project
+          const { data: admins } = await supabase
+            .from("profiles")
+            .select("email, notification_settings")
+            .eq("role", "ADMIN")
+            .eq("company_id", prevTask.assigned_company_id || null);
+
+          if (admins && Array.isArray(admins)) {
+            for (const admin of admins) {
+              const settings = (admin as any)?.notification_settings || DEFAULT_NOTIFICATION_SETTINGS;
+              if (admin.email && settings.notify_on_status !== false) {
+                await sendNotificationEmail({
+                  to: admin.email,
+                  subject: "Zadanie zgłoszone do akceptacji",
+                  html: `<p>Użytkownik zgłosił zadanie <b>${prevTask.title}</b> do akceptacji.</p>`
+                });
+              }
+            }
           }
         }
 
