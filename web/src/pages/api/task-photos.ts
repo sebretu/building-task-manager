@@ -40,6 +40,15 @@ function supaErr(res: NextApiResponse<ApiOk | ApiErr>, error: any) {
   });
 }
 
+type PhotoType = "BEFORE" | "AFTER";
+
+function normalizePhotoType(input: any): PhotoType | null {
+  if (typeof input !== "string") return null;
+  const value = input.trim().toUpperCase();
+  if (value === "BEFORE" || value === "AFTER") return value;
+  return null;
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse<ApiOk | ApiErr>) {
   let supabase;
   let userId: string | null = null;
@@ -62,8 +71,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
 
   const isAdmin = isAdminRole(requester.role);
 
-  async function ensureTaskAccess(taskId: string) {
-    if (isAdmin) return;
+  async function getTaskAssignment(taskId: string): Promise<string | null> {
     const { data, error } = await supabase
       .from("tasks")
       .select("assigned_user_id")
@@ -79,9 +87,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       };
     }
 
-    if (data?.assigned_user_id !== requester.id) {
-      throw { status: 403, code: "FORBIDDEN", message: "You do not have access to this task" };
-    }
+    return data?.assigned_user_id ?? null;
+  }
+
+  async function assertCanManagePhotos(taskId: string) {
+    if (isAdmin) return;
+    const assignedUserId = await getTaskAssignment(taskId);
+    if (!assignedUserId || assignedUserId === requester.id) return;
+    throw { status: 403, code: "FORBIDDEN", message: "Only the assignee or an admin may modify task photos" };
   }
 
   // ------------------------
@@ -91,18 +104,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     const taskId = String(req.query.taskId || "").trim();
     if (!taskId) return bad(res, "Missing query: taskId");
 
+    const rawPhase = typeof req.query.phase === "string" ? req.query.phase : typeof req.query.photoType === "string" ? req.query.photoType : "";
+    const phase = normalizePhotoType(rawPhase);
+    const limitRaw = Number(req.query.limit);
+    const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(Math.trunc(limitRaw), 1), 200) : null;
+
     try {
-      await ensureTaskAccess(taskId);
+      await getTaskAssignment(taskId);
     } catch (err: any) {
       const status = err?.status || 400;
       return res.status(status).json({ ok: false, error: { code: err?.code || "FORBIDDEN", message: err?.message || "Access denied", meta: err?.meta } });
     }
 
-    const { data, error } = await supabase
+    let query = supabase
       .from("task_photos")
       .select("*")
       .eq("task_id", taskId)
       .order("created_at", { ascending: false });
+
+    if (phase) {
+      query = query.eq("photo_type", phase);
+    }
+    if (limit) {
+      query = query.limit(limit);
+    }
+
+    const { data, error } = await query;
 
     if (error) return supaErr(res, error);
     // In development, rewrite public URLs that point to localhost so the
@@ -139,14 +166,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     const uploaded_by = userId; // auth.uid() z JWT
     const file_name = String(body?.file_name || "").trim() || "photo.jpg";
     const caption = body?.caption == null ? null : String(body.caption);
+    const rawPhotoType = body?.photo_type ?? body?.photoType;
+    const photo_type = normalizePhotoType(rawPhotoType) || "BEFORE";
     const base64 = String(body?.base64 || "").trim();
 
     if (!task_id) return bad(res, "Missing task_id");
     if (!uploaded_by) return bad(res, "Cannot determine user from token");
     if (!base64) return bad(res, "Missing base64");
+    if (!photo_type) return bad(res, "Invalid photo_type");
 
     try {
-      await ensureTaskAccess(task_id);
+      await assertCanManagePhotos(task_id);
     } catch (err: any) {
       const status = err?.status || 400;
       return res.status(status).json({ ok: false, error: { code: err?.code || "FORBIDDEN", message: err?.message || "Access denied", meta: err?.meta } });
@@ -231,6 +261,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         url: publicUrl,
         storage_bucket: bucket,
         storage_path,
+        photo_type,
       } as any)
       .select("*")
       .single();

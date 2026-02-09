@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiGet, apiPost } from "@/lib/apiClient";
@@ -122,11 +122,13 @@ export default function Home() {
     return u.replace(/^http:\/\/[^/]+:54321/i, `${proto}//${host}:54321`);
   }
 
-  type TaskPhotoRow = { id: string; url?: string | null };
+  type TaskPhotoRow = { id: string; url?: string | null; photo_type?: "BEFORE" | "AFTER" | null };
 
-  async function loadThumb(taskId: string) {
+  const loadThumb = useCallback(async (taskId: string) => {
     try {
-      const photos = await apiGet<TaskPhotoRow[]>(`/api/task-photos?taskId=${encodeURIComponent(taskId)}`);
+      const photos = await apiGet<TaskPhotoRow[]>(
+        `/api/task-photos?taskId=${encodeURIComponent(taskId)}&phase=AFTER&limit=1`
+      );
       const raw = Array.isArray(photos) && photos.length > 0 ? photos[0]?.url || null : null;
       const fixed = raw ? fixStorageUrl(raw) : null;
       setThumbByTask((prev) => ({ ...prev, [taskId]: fixed }));
@@ -134,7 +136,7 @@ export default function Home() {
       console.warn("[home] loadThumb failed", loadErr);
       setThumbByTask((prev) => ({ ...prev, [taskId]: null }));
     }
-  }
+  }, []);
 
   async function loadPlanMeta(planId: string) {
     const r = await fetch(`/api/tiles/${encodeURIComponent(planId)}/meta`, { cache: "no-store" });
@@ -340,7 +342,19 @@ export default function Home() {
         loadPlanMeta(planId).catch(() => {});
       }
     });
-  }, [tasks, thumbByTask, metaByPlan]);
+  }, [tasks, thumbByTask, metaByPlan, loadThumb]);
+
+  useEffect(() => {
+    function handlePhotoAdded(event: Event) {
+      const detail = (event as CustomEvent)?.detail;
+      const taskIdFromEvent = detail?.taskId;
+      if (!taskIdFromEvent) return;
+      loadThumb(taskIdFromEvent).catch(() => {});
+    }
+
+    window.addEventListener("task-photo-added", handlePhotoAdded as EventListener);
+    return () => window.removeEventListener("task-photo-added", handlePhotoAdded as EventListener);
+  }, [loadThumb]);
 
   function getTileUrl(task: Task) {
     if (!task.plan_id) return null;

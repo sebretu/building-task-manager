@@ -34,6 +34,7 @@ type ProfileRow = {
 type TaskPhotoRow = {
   id: string;
   url: string;
+  photo_type?: "BEFORE" | "AFTER" | null;
 };
 
 const CRS = L.CRS.Simple;
@@ -179,7 +180,7 @@ export default function PlanMap({
   async function loadThumb(taskId: string) {
     try {
       const photos = await apiGet<TaskPhotoRow[]>(
-        `/api/task-photos?taskId=${encodeURIComponent(taskId)}&limit=1`
+        `/api/task-photos?taskId=${encodeURIComponent(taskId)}&phase=AFTER&limit=1`
       );
       const raw: string | null = photos && photos.length > 0 ? photos[0].url : null;
       const fixed = raw ? fixStorageUrl(raw) : null;

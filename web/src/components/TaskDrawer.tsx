@@ -5,6 +5,8 @@ import { apiGet, apiPost, apiPatch, apiDelete } from "@/lib/apiClient";
 import { useLanguage } from "@/contexts/LanguageContext";
 import type { Language } from "@/lib/translations";
 
+type PhotoType = "BEFORE" | "AFTER";
+
 type ApiOk<T> = { ok: true; data: T };
 type ApiErr = { ok: false; error: { code: string; message: string; meta?: any } };
 
@@ -27,6 +29,7 @@ type TaskPhoto = {
   url: string;
   caption: string | null;
   created_at: string;
+  photo_type?: PhotoType | null;
 };
 
 type ProfileRow = {
@@ -68,6 +71,7 @@ type PendingPhoto = {
   file: File;
   previewUrl: string;
   caption: string | null;
+  photoType: PhotoType;
 };
 
 function isUuid(v: string) {
@@ -127,6 +131,7 @@ export default function TaskDrawer({
   const [comments, setComments] = useState<TaskComment[]>([]);
   const [history, setHistory] = useState<TaskHistoryRow[]>([]);
   const [pendingPhotos, setPendingPhotos] = useState<PendingPhoto[]>([]);
+  const [photosLoaded, setPhotosLoaded] = useState<boolean>(isCreate);
   const [err, setErr] = useState<string | null>(null);
 
   const [title, setTitle] = useState("");
@@ -139,6 +144,7 @@ export default function TaskDrawer({
   const [assignedUserId, setAssignedUserId] = useState("");
 
   const [caption, setCaption] = useState(""); // caption dla kolejnego dodawanego pliku
+  const [nextPhotoType, setNextPhotoType] = useState<PhotoType>("BEFORE");
   const [newComment, setNewComment] = useState(""); // nowy komentarz
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -170,6 +176,12 @@ export default function TaskDrawer({
 
   const canShow = open && (!!taskId || !!createDraft);
 
+  const hasAfterPhoto = useMemo(() => {
+    const uploadedAfter = photos.some((p) => (p.photo_type || "BEFORE") === "AFTER");
+    const pendingAfter = pendingPhotos.some((p) => p.photoType === "AFTER");
+    return uploadedAfter || pendingAfter;
+  }, [photos, pendingPhotos]);
+
   const headerTitle = useMemo(() => {
     if (isCreate) return t("taskDrawer", "newTask");
     if (!taskId) return t("home", "title");
@@ -188,6 +200,7 @@ export default function TaskDrawer({
 
   async function loadAll(id: string) {
     setErr(null);
+    setPhotosLoaded(false);
     try {
       const taskData = await apiGet<TaskRow>(`/api/task?id=${encodeURIComponent(id)}`);
       setTask(taskData);
@@ -223,6 +236,8 @@ export default function TaskDrawer({
       setHistory(historyData || []);
     } catch (e: any) {
       setErr(e?.message || String(e));
+    } finally {
+      setPhotosLoaded(true);
     }
   }
 
@@ -265,6 +280,7 @@ export default function TaskDrawer({
         setAssignedUserId("");
       }
       setCaption("");
+      setPhotosLoaded(true);
       // pendingPhotos zostawiamy — user może dodać zdjęcia przed zapisem
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -404,12 +420,22 @@ export default function TaskDrawer({
     lineHeight: 1.5,
   };
 
+  function ensureAfterPhotoPresent() {
+    if (!photosLoaded) {
+      setErr(t("taskDrawer", "afterPhotoLoading", "Ładuję zdjęcia zadania, spróbuj ponownie za chwilę."));
+      return false;
+    }
+    if (hasAfterPhoto) return true;
+    setErr(t("taskDrawer", "afterPhotoRequired", "Dodaj zdjęcie po wykonaniu prac."));
+    return false;
+  }
+
   function addPending(file: File) {
     const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const previewUrl = URL.createObjectURL(file);
     const cap = caption.trim() === "" ? null : caption.trim();
     setCaption("");
-    setPendingPhotos((prev) => [{ id, file, previewUrl, caption: cap }, ...prev]);
+    setPendingPhotos((prev) => [{ id, file, previewUrl, caption: cap, photoType: nextPhotoType }, ...prev]);
   }
 
   const makeTranslationKey = (scope: string, entityId?: string | null) => {
@@ -444,7 +470,7 @@ export default function TaskDrawer({
     });
   }
 
-  async function uploadOne(task_id: string, file: File, cap: string | null) {
+  async function uploadOne(task_id: string, file: File, cap: string | null, photoType: PhotoType) {
     const base64 = await fileToBase64(file);
 
     const data = await apiPost<TaskPhoto>("/api/task-photos", {
@@ -452,6 +478,7 @@ export default function TaskDrawer({
       file_name: file.name || "photo.jpg",
       caption: cap,
       base64,
+      photo_type: photoType,
     });
 
     const newPhoto: TaskPhoto = { ...data, url: fixStorageUrl(data.url) };
@@ -477,6 +504,11 @@ export default function TaskDrawer({
 
     if (!isCreate && !canUpdateStatus) {
       return setErr(t("taskDrawer", "noPermission", "Brak uprawnień"));
+    }
+
+    const requestingApproval = status === "DONE_WAITING_APPROVAL" && (isCreate || task?.status !== "DONE_WAITING_APPROVAL");
+    if (requestingApproval && !ensureAfterPhotoPresent()) {
+      return;
     }
 
     setSaving(true);
@@ -507,7 +539,7 @@ export default function TaskDrawer({
           try {
             const uploaded: TaskPhoto[] = [];
             for (const p of pendingPhotos) {
-              const ph = await uploadOne(newId, p.file, p.caption);
+              const ph = await uploadOne(newId, p.file, p.caption, p.photoType);
               uploaded.push(ph);
             }
 
@@ -893,7 +925,10 @@ export default function TaskDrawer({
 
                 {status === "IN_PROGRESS" && (
                   <button
-                    onClick={() => setStatus("DONE_WAITING_APPROVAL")}
+                    onClick={() => {
+                      if (!ensureAfterPhotoPresent()) return;
+                      setStatus("DONE_WAITING_APPROVAL");
+                    }}
                     style={{
                       padding: "8px 14px",
                       borderRadius: 10,
@@ -950,6 +985,20 @@ export default function TaskDrawer({
                   </div>
                 )}
               </div>
+              {!hasAfterPhoto && status === "IN_PROGRESS" && (
+                <div
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: "#b45309",
+                    background: "rgba(251,191,36,0.25)",
+                    padding: "8px 12px",
+                    borderRadius: 12,
+                  }}
+                >
+                  {t("taskDrawer", "afterPhotoHint", "Dodaj zdjęcie po wykonaniu prac, aby zgłosić zadanie do akceptacji.")}
+                </div>
+              )}
             </div>
           )}
 
@@ -995,10 +1044,18 @@ export default function TaskDrawer({
           <div style={{ display: "grid", gap: 10 }}>
             <div style={{ fontWeight: 900 }}>{t("taskDrawer", "photos")}</div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, alignItems: "end" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10, alignItems: "end" }}>
               <label style={labelStyle}>
                 <span style={{ fontWeight: 800 }}>{t("taskDrawer", "captionLabel")}</span>
                 <input value={caption} onChange={(e) => setCaption(e.target.value)} style={inputStyle} />
+              </label>
+
+              <label style={labelStyle}>
+                <span style={{ fontWeight: 800 }}>{t("taskDrawer", "photoPhase", "Rodzaj zdjęcia")}</span>
+                <select value={nextPhotoType} onChange={(e) => setNextPhotoType(e.target.value as PhotoType)} style={inputStyle}>
+                  <option value="BEFORE">{t("taskDrawer", "photoPhaseBefore", "Przed pracą")}</option>
+                  <option value="AFTER">{t("taskDrawer", "photoPhaseAfter", "Po pracy")}</option>
+                </select>
               </label>
 
               <label style={{ ...labelStyle, cursor: uploading || !canManagePhotos ? "not-allowed" : "pointer" }}>
@@ -1023,7 +1080,7 @@ export default function TaskDrawer({
                     setUploading(true);
                     (async () => {
                       try {
-                        const ph = await uploadOne(taskId, f, caption.trim() === "" ? null : caption.trim());
+                        const ph = await uploadOne(taskId, f, caption.trim() === "" ? null : caption.trim(), nextPhotoType);
                         setCaption("");
                         setPhotos((prev) => [ph, ...prev]);
                         window.dispatchEvent(new CustomEvent("task-photo-added", { detail: { taskId } }));
@@ -1048,6 +1105,24 @@ export default function TaskDrawer({
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
                   {pendingPhotos.map((p) => (
                     <div key={p.id} style={{ position: "relative" }}>
+                      <span
+                        style={{
+                          position: "absolute",
+                          top: 6,
+                          left: 6,
+                          padding: "2px 8px",
+                          borderRadius: 999,
+                          fontSize: 10,
+                          fontWeight: 800,
+                          background: p.photoType === "AFTER" ? "rgba(34,197,94,0.85)" : "rgba(59,130,246,0.85)",
+                          color: "#fff",
+                          zIndex: 2,
+                        }}
+                      >
+                        {p.photoType === "AFTER"
+                          ? t("taskDrawer", "photoPhaseAfter", "Po pracy")
+                          : t("taskDrawer", "photoPhaseBefore", "Przed pracą")}
+                      </span>
                       <img
                         src={p.previewUrl}
                         alt=""
@@ -1084,20 +1159,58 @@ export default function TaskDrawer({
             {photos.length > 0 && (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
                 {photos.map((p) => (
-                  <a key={p.id} href={p.url} target="_blank" rel="noreferrer" style={{ textDecoration: "none" }}>
-                    <img
-                      src={p.url}
-                      alt={p.caption || ""}
-                      style={{ width: "100%", height: 92, objectFit: "cover", borderRadius: 12, border: "1px solid rgba(17,24,39,0.10)" }}
-                      loading="lazy"
-                    />
-                  </a>
+                  <div key={p.id} style={{ position: "relative" }}>
+                    <span
+                      style={{
+                        position: "absolute",
+                        top: 6,
+                        left: 6,
+                        padding: "2px 8px",
+                        borderRadius: 999,
+                        fontSize: 10,
+                        fontWeight: 800,
+                        background: (p.photo_type || "BEFORE") === "AFTER" ? "rgba(34,197,94,0.85)" : "rgba(59,130,246,0.85)",
+                        color: "#fff",
+                        zIndex: 2,
+                      }}
+                    >
+                      {(p.photo_type || "BEFORE") === "AFTER"
+                        ? t("taskDrawer", "photoPhaseAfter", "Po pracy")
+                        : t("taskDrawer", "photoPhaseBefore", "Przed pracą")}
+                    </span>
+                    <a href={p.url} target="_blank" rel="noreferrer" style={{ textDecoration: "none" }}>
+                      <img
+                        src={p.url}
+                        alt={p.caption || ""}
+                        style={{ width: "100%", height: 92, objectFit: "cover", borderRadius: 12, border: "1px solid rgba(17,24,39,0.10)" }}
+                        loading="lazy"
+                      />
+                    </a>
+                    {p.caption && (
+                      <div style={{ marginTop: 4, fontSize: 11, opacity: 0.85, wordBreak: "break-word" }}>{p.caption}</div>
+                    )}
+                  </div>
                 ))}
               </div>
             )}
 
             {photos.length === 0 && pendingPhotos.length === 0 && (
               <div style={{ fontSize: 12, opacity: 0.75 }}>{t("taskDrawer", "photos")}: 0</div>
+            )}
+
+            {!hasAfterPhoto && (
+              <div
+                style={{
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: "#9a3412",
+                  background: "rgba(251,191,36,0.2)",
+                  padding: "6px 10px",
+                  borderRadius: 10,
+                }}
+              >
+                {t("taskDrawer", "afterPhotoMissing", "Brak zdjęcia po wykonaniu prac.")}
+              </div>
             )}
           </div>
 

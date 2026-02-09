@@ -436,20 +436,53 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         });
       }
 
-      if (!isAdmin && patch.status !== undefined) {
+      if (patch.status !== undefined) {
         const fromStatus = (prevTask.status || "").toUpperCase();
         const toStatus = String(patch.status || "").toUpperCase();
-        const allowedTransitions: Record<string, string[]> = {
-          OPEN: ["IN_PROGRESS"],
-          IN_PROGRESS: ["DONE_WAITING_APPROVAL"],
-        };
 
-        const sameStatus = fromStatus === toStatus;
-        if (!sameStatus && !allowedTransitions[fromStatus]?.includes(toStatus)) {
-          return res.status(403).json({
-            ok: false,
-            error: { code: "FORBIDDEN", message: "Status change not allowed" },
-          });
+        if (!isAdmin) {
+          const allowedTransitions: Record<string, string[]> = {
+            OPEN: ["IN_PROGRESS"],
+            IN_PROGRESS: ["DONE_WAITING_APPROVAL"],
+          };
+
+          const sameStatus = fromStatus === toStatus;
+          if (!sameStatus && !allowedTransitions[fromStatus]?.includes(toStatus)) {
+            return res.status(403).json({
+              ok: false,
+              error: { code: "FORBIDDEN", message: "Status change not allowed" },
+            });
+          }
+        }
+
+        if (toStatus === "DONE_WAITING_APPROVAL") {
+          const { data: afterPhotos, error: afterError } = await supabase
+            .from("task_photos")
+            .select("id")
+            .eq("task_id", id)
+            .eq("photo_type", "AFTER")
+            .limit(1);
+
+          if (afterError) {
+            return res.status((afterError as any)?.status || 400).json({
+              ok: false,
+              error: {
+                code: "SUPABASE",
+                message: afterError.message,
+                meta: { code: (afterError as any)?.code, details: (afterError as any)?.details },
+              },
+            });
+          }
+
+          if (!afterPhotos || afterPhotos.length === 0) {
+            return res.status(400).json({
+              ok: false,
+              error: {
+                code: "AFTER_PHOTO_REQUIRED",
+                message: "Dodaj zdjęcie po wykonaniu pracy zanim zgłosisz zadanie do akceptacji.",
+              },
+            });
+          }
         }
 
         patch.status = toStatus;
