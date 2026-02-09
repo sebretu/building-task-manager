@@ -126,9 +126,18 @@ export default function Home() {
 
   const loadThumb = useCallback(async (taskId: string) => {
     try {
-      const photos = await apiGet<TaskPhotoRow[]>(
-        `/api/task-photos?taskId=${encodeURIComponent(taskId)}&phase=AFTER&limit=1`
-      );
+      const fetchPhotos = async (phase?: "AFTER" | "BEFORE") => {
+        const phaseParam = phase ? `&phase=${phase}` : "";
+        return apiGet<TaskPhotoRow[]>(
+          `/api/task-photos?taskId=${encodeURIComponent(taskId)}${phaseParam}&limit=1`
+        );
+      };
+
+      let photos = await fetchPhotos("AFTER");
+      if (!Array.isArray(photos) || photos.length === 0) {
+        photos = await fetchPhotos();
+      }
+
       const raw = Array.isArray(photos) && photos.length > 0 ? photos[0]?.url || null : null;
       const fixed = raw ? fixStorageUrl(raw) : null;
       setThumbByTask((prev) => ({ ...prev, [taskId]: fixed }));
