@@ -430,6 +430,14 @@ export default function TaskDrawer({
     return false;
   }
 
+  function ensureBeforePhotoForCreate() {
+    if (!isCreate) return true;
+    const pendingBefore = pendingPhotos.some((p) => p.photoType === "BEFORE");
+    if (pendingBefore) return true;
+    setErr(t("taskDrawer", "beforePhotoRequired", "Dodaj zdjęcie przed rozpoczęciem pracy (BEFORE)."));
+    return false;
+  }
+
   function addPending(file: File) {
     const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const previewUrl = URL.createObjectURL(file);
@@ -508,6 +516,10 @@ export default function TaskDrawer({
 
     const requestingApproval = status === "DONE_WAITING_APPROVAL" && (isCreate || task?.status !== "DONE_WAITING_APPROVAL");
     if (requestingApproval && !ensureAfterPhotoPresent()) {
+      return;
+    }
+
+    if (isCreate && !ensureBeforePhotoForCreate()) {
       return;
     }
 
