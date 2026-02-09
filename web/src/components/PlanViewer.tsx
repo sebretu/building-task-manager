@@ -178,7 +178,7 @@ export default function PlanViewer({
 
   const effectiveUserId = currentUserId ?? viewerProfile?.id ?? null;
   const effectiveUserRole = currentUserRole ?? viewerProfile?.role ?? null;
-  const allowCreateResolved = typeof allowCreate === "boolean" ? allowCreate : (effectiveUserRole || "").toUpperCase() === "ADMIN";
+  const allowCreateResolved = typeof allowCreate === "boolean" ? allowCreate : !!effectiveUserId;
 
   // ------------------------------------------------------------------
   // 1) META JESZCZE NIE MA → POKAZUJ PDF (ZERO LEAFLET, ZERO SSR PROBLEMÓW)

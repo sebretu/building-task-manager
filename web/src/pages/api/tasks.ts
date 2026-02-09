@@ -194,22 +194,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
   // POST /api/tasks (create)
   // ------------------------
   if (req.method === "POST") {
-    if (!isAdmin) {
-      return res.status(403).json({
-        ok: false,
-        error: { code: "FORBIDDEN", message: "Only admins can create tasks" },
-      });
-    }
-
     const body = readJsonBody(req);
 
     const project_id = String(body?.project_id || "").trim();
     const plan_id = String(body?.plan_id || "").trim();
     const title = String(body?.title || "").trim();
     const description = body?.description == null ? null : String(body.description);
+    const due_date_raw = body?.due_date;
+    const due_date = due_date_raw == null ? null : String(due_date_raw).trim() || null;
 
     const priority = String(body?.priority || "MEDIUM").trim();
     const status = String(body?.status || "OPEN").trim();
+    const assigned_raw = typeof body?.assigned_user_id === "string" ? body.assigned_user_id.trim() : "";
+    if (assigned_raw && !isUuid(assigned_raw)) {
+      res.status(400).json({ ok: false, error: { code: "BAD_REQUEST", message: "assigned_user_id must be uuid" } });
+      return;
+    }
 
     const x_norm_raw = body?.x_norm;
     const y_norm_raw = body?.y_norm;
@@ -247,6 +247,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       return;
     }
 
+    const assigned_user_id = isAdmin ? assigned_raw || null : requester.id;
+    if (!isAdmin && !assigned_user_id) {
+      res.status(403).json({
+        ok: false,
+        error: { code: "FORBIDDEN", message: "Only authenticated users can create tasks" },
+      });
+      return;
+    }
+
     const payload: any = {
       project_id,
       plan_id,
@@ -257,6 +266,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       priority,
       status,
       created_by,
+      assigned_user_id,
+      due_date,
     };
 
     const { data, error } = await supabase.from("tasks").insert(payload).select("*").single();
@@ -328,14 +339,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     if (body.assigned_user_id !== undefined) patch.assigned_user_id = body.assigned_user_id || "";
     if (body.assigned_company_id !== undefined) patch.assigned_company_id = body.assigned_company_id || "";
 
+    const patchKeys = Object.keys(patch);
     if (!isAdmin) {
-      const forbiddenFields = ["title", "description", "priority", "due_date", "assigned_user_id", "assigned_company_id"].filter(
-        (field) => body?.[field] !== undefined
-      );
+      const allowedUserFields = new Set(["status", "priority", "due_date"]);
+      const forbiddenFields = patchKeys.filter((field) => !allowedUserFields.has(field));
       if (forbiddenFields.length > 0) {
         return res.status(403).json({
           ok: false,
-          error: { code: "FORBIDDEN", message: "Users can only update status" },
+          error: { code: "FORBIDDEN", message: "Users can only update status, priority or due_date" },
+        });
+      }
+
+      if (!patchKeys.some((field) => allowedUserFields.has(field))) {
+        return res.status(400).json({
+          ok: false,
+          error: { code: "BAD_REQUEST", message: "No editable fields provided" },
         });
       }
     }
@@ -365,14 +383,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         });
       }
 
-      if (!isAdmin) {
-        if (patch.status === undefined) {
-          return res.status(400).json({
-            ok: false,
-            error: { code: "BAD_REQUEST", message: "Status update is required" },
-          });
-        }
-
+      if (!isAdmin && patch.status !== undefined) {
         const fromStatus = (prevTask.status || "").toUpperCase();
         const toStatus = String(patch.status || "").toUpperCase();
         const allowedTransitions: Record<string, string[]> = {

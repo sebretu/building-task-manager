@@ -161,8 +161,10 @@ export default function TaskDrawer({
   const isAssignedToCurrentUser = !!currentUserId && !!task && task.assigned_user_id === currentUserId;
   const canUpdateStatus = isAdmin || isAssignedToCurrentUser;
   const canEditFields = isAdmin || isCreate;
-  const canManagePhotos = isAdmin || isAssignedToCurrentUser;
-  const canSubmit = isCreate ? isAdmin : canUpdateStatus;
+  const canEditPriority = isAdmin || isCreate || isAssignedToCurrentUser;
+  const canEditDueDate = canEditPriority;
+  const canManagePhotos = isAdmin || isAssignedToCurrentUser || isCreate;
+  const canSubmit = isCreate ? !!currentUserId : canUpdateStatus;
 
   const canShow = open && (!!taskId || !!createDraft);
 
@@ -248,7 +250,14 @@ export default function TaskDrawer({
       setStatus("OPEN");
       setPriority("MEDIUM");
       setDueDate("");
-      setAssignedUserId("");
+      const draftCreator = createDraft?.created_by;
+      if (draftCreator && isUuid(draftCreator)) {
+        setAssignedUserId(draftCreator);
+      } else if (currentUserId && isUuid(currentUserId)) {
+        setAssignedUserId(currentUserId);
+      } else {
+        setAssignedUserId("");
+      }
       setCaption("");
       // pendingPhotos zostawiamy — user może dodać zdjęcia przed zapisem
     }
@@ -430,8 +439,14 @@ export default function TaskDrawer({
     const trimmedTitle = title.trim();
     if (!trimmedTitle) return setErr(t("taskDrawer", "errorTitleRequired"));
 
-    const trimmedAssigned = assignedUserId.trim();
+    let trimmedAssigned = assignedUserId.trim();
+    if (!isAdmin && !trimmedAssigned && currentUserId) {
+      trimmedAssigned = currentUserId;
+    }
     if (trimmedAssigned && !isUuid(trimmedAssigned)) return setErr(t("taskDrawer", "errorAssignedUser"));
+    if (isCreate && !isAdmin && !trimmedAssigned) {
+      return setErr(t("taskDrawer", "errorAssignedUser"));
+    }
 
     if (!isCreate && !canUpdateStatus) {
       return setErr(t("taskDrawer", "noPermission", "Brak uprawnień"));
@@ -441,7 +456,6 @@ export default function TaskDrawer({
     try {
       // CREATE
       if (isCreate) {
-        if (!isAdmin) throw new Error(t("taskDrawer", "noPermission", "Brak uprawnień"));
         const d = createDraft!;
 
         const newData = await apiPost<TaskRow>("/api/tasks", {
@@ -459,14 +473,6 @@ export default function TaskDrawer({
 
         const newId = newData?.id as string | undefined;
         if (!newId) throw new Error(t("taskDrawer", "errorCreateMissingId"));
-
-        // ✅ FIX #1: ustaw assigned_user_id po CREATE przez PATCH (żeby działało jak w edit)
-        if (trimmedAssigned) {
-          await apiPatch<TaskRow>("/api/tasks", {
-            id: newId,
-            assigned_user_id: trimmedAssigned,
-          });
-        }
 
         // 🚀 upload pending zdjęć po utworzeniu taska
         if (pendingPhotos.length) {
@@ -788,7 +794,7 @@ export default function TaskDrawer({
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <label style={labelStyle}>
               <span style={{ fontWeight: 800 }}>{t("taskDrawer", "priority")}</span>
-              <select value={priority} onChange={(e) => setPriority(e.target.value as any)} style={inputStyle} disabled={!isAdmin}>
+              <select value={priority} onChange={(e) => setPriority(e.target.value as any)} style={inputStyle} disabled={!canEditPriority}>
                 <option value="LOW">{t("taskPriority", "LOW")}</option>
                 <option value="MEDIUM">{t("taskPriority", "MEDIUM")}</option>
                 <option value="HIGH">{t("taskPriority", "HIGH")}</option>
@@ -803,7 +809,7 @@ export default function TaskDrawer({
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
                 style={inputStyle}
-                disabled={!isAdmin}
+                disabled={!canEditDueDate}
               />
             </label>
           </div>
