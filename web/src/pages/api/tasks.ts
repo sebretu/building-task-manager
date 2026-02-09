@@ -302,6 +302,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       }
     }
 
+    const creationHistoryClient = getAdminClientSafely();
+    if (creationHistoryClient && data?.id) {
+      try {
+        await creationHistoryClient.from("task_history").insert({
+          task_id: data.id,
+          changed_by: created_by,
+          action: "Task created",
+          new_value: {
+            title: data.title,
+            description: data.description,
+            status: data.status,
+            priority: data.priority,
+            due_date: data.due_date,
+            assigned_user_id: data.assigned_user_id,
+          },
+        });
+      } catch (historyErr) {
+        console.error("[tasks api] failed to log creation history", historyErr);
+      }
+    } else if (!creationHistoryClient) {
+      console.warn("[tasks api] cannot log creation history - admin client missing");
+    }
+
     res.status(200).json({ ok: true, data });
     return;
   }
@@ -331,10 +354,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
 
     // patch jako jsonb (tylko pola, które chcesz zmienić)
     const patch: any = {};
-    if (body.title !== undefined) patch.title = String(body.title);
+    if (body.title !== undefined) {
+      const nextTitle = String(body.title).trim();
+      if (!nextTitle) {
+        return res.status(400).json({
+          ok: false,
+          error: { code: "BAD_REQUEST", message: "Title cannot be empty" },
+        });
+      }
+      patch.title = nextTitle;
+    }
     if (body.description !== undefined) {
-      const desc = body.description == null ? null : String(body.description);
-      patch.description = desc;
+      if (body.description === null) {
+        patch.description = null;
+      } else {
+        const nextDescription = String(body.description).trim();
+        patch.description = nextDescription === "" ? null : nextDescription;
+      }
     }
     if (body.priority !== undefined) patch.priority = String(body.priority);
     if (body.status !== undefined) patch.status = String(body.status);
@@ -358,12 +394,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
 
     const patchKeys = Object.keys(patch);
     if (!isAdmin) {
-      const allowedUserFields = new Set(["status", "priority", "due_date"]);
+      const allowedUserFields = new Set(["status", "priority", "due_date", "title", "description"]);
       const forbiddenFields = patchKeys.filter((field) => !allowedUserFields.has(field));
       if (forbiddenFields.length > 0) {
         return res.status(403).json({
           ok: false,
-          error: { code: "FORBIDDEN", message: "Users can only update status, priority or due_date" },
+          error: { code: "FORBIDDEN", message: "Users can only update status, priority, due_date, title or description" },
         });
       }
 
@@ -464,10 +500,45 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         const adminClient = getAdminClientSafely();
         if (adminClient) {
           try {
+            const fieldLabels: Record<string, string> = {
+              title: "Title",
+              description: "Description",
+              status: "Status",
+              priority: "Priority",
+              due_date: "Due date",
+              assigned_user_id: "Assignee",
+              assigned_company_id: "Company",
+            };
+
+            const friendlyFields = changedFields.map((field) => fieldLabels[field] || field);
+
+            const preview = (value: any, max = 140) => {
+              if (value === null || value === undefined) return "";
+              const str = String(value).trim();
+              if (!str) return "";
+              return str.length > max ? `${str.slice(0, max)}...` : str;
+            };
+
+            const summaryParts: string[] = [];
+            if (changedFields.includes("title")) {
+              const titlePreview = preview(newValue.title, 80);
+              summaryParts.push(titlePreview ? `Title -> ${titlePreview}` : "Title updated");
+            }
+            if (changedFields.includes("description")) {
+              const descriptionPreview = preview(newValue.description, 140);
+              summaryParts.push(descriptionPreview ? `Description updated: ${descriptionPreview}` : "Description cleared");
+            }
+
+            const actionText = summaryParts.length
+              ? summaryParts.join(" | ")
+              : friendlyFields.length === 1
+              ? `${friendlyFields[0]} updated`
+              : `Updated ${friendlyFields.join(", ")}`;
+
             await adminClient.from("task_history").insert({
               task_id: id,
               changed_by,
-              action: `Updated ${changedFields.join(", ")}`,
+              action: actionText,
               old_value: Object.keys(oldValue).length ? oldValue : null,
               new_value: Object.keys(newValue).length ? newValue : null,
             });
@@ -504,7 +575,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
           await sendNotificationEmail({
             to: profile.email,
             subject: "Task status changed",
-            html: `<p>Status updated for <b>${nextTask.title}</b>: ${prevTask?.status} → ${nextTask.status}</p>`,
+            html: `<p>Status updated for <b>${nextTask.title}</b>: ${prevTask?.status} -> ${nextTask.status}</p>`,
           });
         }
       }
