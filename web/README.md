@@ -34,3 +34,14 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Automated Task Translation
+
+Dynamic task content (title, description, comments, history) can now be translated on demand via `/api/translate`. The handler proxies requests to LibreTranslate by default, but you can point it to any compatible service via environment variables:
+
+```
+TRANSLATE_API_URL=https://libretranslate.de/translate
+TRANSLATE_API_KEY=your-optional-key
+```
+
+Leave `TRANSLATE_API_KEY` unset for public instances that do not require authentication. Each language switch in the task drawer will call this endpoint and cache results in memory on the server for faster repeat lookups.

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import { apiGet, apiPost, apiPatch, apiDelete } from "@/lib/apiClient";
 import { useLanguage } from "@/contexts/LanguageContext";
+import type { Language } from "@/lib/translations";
 
 type ApiOk<T> = { ok: true; data: T };
 type ApiErr = { ok: false; error: { code: string; message: string; meta?: any } };
@@ -139,6 +140,10 @@ export default function TaskDrawer({
   const [newComment, setNewComment] = useState(""); // nowy komentarz
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [translationMap, setTranslationMap] = useState<Record<string, string>>({});
+  const [translationLang, setTranslationLang] = useState<Language | null>(null);
+  const [translatingContent, setTranslatingContent] = useState(false);
+  const [translationError, setTranslationError] = useState<string | null>(null);
 
   // ⭐ lista profili do dropdown
   const [profiles, setProfiles] = useState<ProfileRow[]>([]);
@@ -266,6 +271,77 @@ export default function TaskDrawer({
     setTileStatus("unknown");
   }, [plan?.id]);
 
+  useEffect(() => {
+    if (!taskId || !task || isCreate) {
+      setTranslationMap({});
+      setTranslationLang(language);
+      setTranslationError(null);
+      setTranslatingContent(false);
+      return;
+    }
+
+    const items: { key: string; text: string }[] = [];
+    if (task.title?.trim()) {
+      items.push({ key: `task.title:${task.id}`, text: task.title });
+    }
+    if (task.description?.trim()) {
+      items.push({ key: `task.description:${task.id}`, text: task.description });
+    }
+    comments.forEach((c) => {
+      if (c.comment?.trim()) {
+        items.push({ key: `comment:${c.id}`, text: c.comment });
+      }
+    });
+    history.forEach((h) => {
+      const historyText = (h.action || h.summary)?.trim();
+      if (historyText) {
+        items.push({ key: `history:${h.id}`, text: historyText });
+      }
+    });
+
+    if (items.length === 0) {
+      setTranslationMap({});
+      setTranslationLang(language);
+      setTranslationError(null);
+      setTranslatingContent(false);
+      return;
+    }
+
+    let alive = true;
+    setTranslatingContent(true);
+    setTranslationError(null);
+
+    apiPost<{ translations: string[] }>("/api/translate", {
+      targetLang: language,
+      texts: items.map((i) => i.text),
+    })
+      .then((payload) => {
+        if (!alive) return;
+        const next: Record<string, string> = {};
+        (payload.translations || []).forEach((value, idx) => {
+          const key = items[idx]?.key;
+          if (key && typeof value === "string") {
+            next[key] = value;
+          }
+        });
+        setTranslationMap(next);
+        setTranslationLang(language);
+      })
+      .catch((e: any) => {
+        if (!alive) return;
+        setTranslationError(e?.message || String(e));
+        setTranslationMap({});
+      })
+      .finally(() => {
+        if (!alive) return;
+        setTranslatingContent(false);
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [language, taskId, task?.id, task?.title, task?.description, comments, history, isCreate]);
+
   const inputStyle: React.CSSProperties = {
     width: "100%",
     padding: "10px 12px",
@@ -284,6 +360,14 @@ export default function TaskDrawer({
     color: "#111827",
   };
 
+  const translationNoteStyle: React.CSSProperties = {
+    marginTop: 6,
+    fontSize: 12,
+    color: "rgba(17,24,39,0.75)",
+    fontStyle: "italic",
+    lineHeight: 1.5,
+  };
+
   function addPending(file: File) {
     const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const previewUrl = URL.createObjectURL(file);
@@ -291,6 +375,26 @@ export default function TaskDrawer({
     setCaption("");
     setPendingPhotos((prev) => [{ id, file, previewUrl, caption: cap }, ...prev]);
   }
+
+  const makeTranslationKey = (scope: string, entityId?: string | null) => {
+    if (!entityId) return null;
+    return `${scope}:${entityId}`;
+  };
+
+  const renderTranslationSegment = (key: string | null, original?: string | null) => {
+    if (!key || translationLang !== language) return null;
+    const translated = translationMap[key];
+    if (!translated) return null;
+    const trimmedTranslated = translated.trim();
+    if (!trimmedTranslated) return null;
+    const trimmedOriginal = (original ?? "").trim();
+    if (trimmedOriginal && trimmedOriginal === trimmedTranslated) return null;
+    return (
+      <div style={translationNoteStyle}>
+        <span style={{ fontWeight: 700 }}>{t("taskDrawer", "autoTranslateLabel", "Auto translation")}:</span> {trimmedTranslated}
+      </div>
+    );
+  };
 
   function removePending(id: string) {
     setPendingPhotos((prev) => {
@@ -627,10 +731,23 @@ export default function TaskDrawer({
             </div>
           )}
 
+          {!isCreate && translatingContent && (
+            <div style={{ background: "rgba(59,130,246,0.08)", color: "#1e3a8a", padding: 10, borderRadius: 12, fontSize: 12, fontWeight: 600 }}>
+              {t("taskDrawer", "autoTranslateLoading", "Translating content...")} ({language.toUpperCase()})
+            </div>
+          )}
+
+          {!isCreate && translationError && (
+            <div style={{ background: "rgba(251,191,36,0.15)", color: "#b45309", padding: 10, borderRadius: 12, fontSize: 12, fontWeight: 600 }}>
+              {t("taskDrawer", "autoTranslateError", "Auto translation failed")}: {translationError}
+            </div>
+          )}
+
           <label style={labelStyle}>
             <span style={{ fontWeight: 800 }}>{t("taskDrawer", "title")}</span>
             <input value={title} onChange={(e) => setTitle(e.target.value)} style={inputStyle} disabled={!canEditFields} />
           </label>
+          {!isCreate && renderTranslationSegment(makeTranslationKey("task.title", task?.id), task?.title || title)}
 
           <label style={labelStyle}>
             <span style={{ fontWeight: 800 }}>{t("taskDrawer", "description")}</span>
@@ -641,6 +758,7 @@ export default function TaskDrawer({
               disabled={!canEditFields}
             />
           </label>
+          {!isCreate && renderTranslationSegment(makeTranslationKey("task.description", task?.id), task?.description || description)}
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <label style={labelStyle}>
@@ -999,6 +1117,7 @@ export default function TaskDrawer({
                             <div style={{ fontSize: 11, opacity: 0.6 }}>{timestamp}</div>
                           </div>
                           <div style={{ fontSize: 13, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{c.comment}</div>
+                          {renderTranslationSegment(makeTranslationKey("comment", c.id), c.comment)}
                         </div>
                       );
                     })}
@@ -1044,6 +1163,7 @@ export default function TaskDrawer({
                             <div style={{ fontSize: 11, opacity: 0.6 }}>{timestamp}</div>
                           </div>
                           <div style={{ fontSize: 13, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{action}</div>
+                          {renderTranslationSegment(makeTranslationKey("history", h.id), action)}
                         </div>
                       );
                     })}

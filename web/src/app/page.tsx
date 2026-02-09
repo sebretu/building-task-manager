@@ -12,6 +12,7 @@ type Project = { id: string; name: string };
 type Task = {
   id: string;
   title: string;
+  description: string | null;
   status: string;
   priority: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
   due_date: string | null;
@@ -88,6 +89,13 @@ export default function Home() {
   }, [profiles]);
 
   const kanbanColumns = ["OPEN", "IN_PROGRESS", "DONE_WAITING_APPROVAL", "APPROVED", "REJECTED"] as const;
+  const statusBadgeClassByCode: Record<string, string> = {
+    OPEN: "task-card__badge--open",
+    IN_PROGRESS: "task-card__badge--in-progress",
+    DONE_WAITING_APPROVAL: "task-card__badge--waiting",
+    APPROVED: "task-card__badge--approved",
+    REJECTED: "task-card__badge--rejected",
+  };
 
   function fixStorageUrl(u: string) {
     if (!u) return u;
@@ -535,11 +543,17 @@ export default function Home() {
                 const thumb = thumbByTask[task.id];
                 const tileUrl = getTileUrl(task);
                 const statusLabel = t("taskStatus", task.status, task.status);
+                const statusClassName = statusBadgeClassByCode[task.status] || "task-card__badge--default";
                 const priorityLabel = t("taskPriority", task.priority, task.priority);
                 const dueLabel = task.due_date ? new Date(task.due_date).toLocaleDateString() : "—";
                 const assignee = task.assigned_user_id ? profileById[task.assigned_user_id] : undefined;
                 const assigneeLabel = assignee?.full_name || assignee?.email || t("taskDrawer", "assignedUser");
                 const assigneeText = assignee ? assigneeLabel : `${t("taskDrawer", "assignedUser")}: —`;
+                const descriptionRaw = task.description?.trim() || "";
+                const hasDescription = descriptionRaw.length > 0;
+                const descriptionPreview = hasDescription && descriptionRaw.length > 220 ? `${descriptionRaw.slice(0, 220)}…` : descriptionRaw;
+                const descriptionClasses = ["task-card__description", hasDescription ? "" : "task-card__description--muted"].filter(Boolean).join(" ");
+                const descriptionContent = hasDescription ? descriptionPreview : t("home", "noDescription");
 
                 return (
                   <article key={task.id} className="task-card">
@@ -556,10 +570,11 @@ export default function Home() {
 
                     <div className="task-card__body">
                       <div className="task-card__status-row">
-                        <span className="task-card__badge">{statusLabel}</span>
+                        <span className={`task-card__badge ${statusClassName}`.trim()}>{statusLabel}</span>
                         <span className="task-card__pill">{priorityLabel}</span>
                       </div>
                       <h3>{task.title}</h3>
+                      <p className={descriptionClasses}>{descriptionContent}</p>
                       <p className="task-card__note">
                         {assigneeText} · {t("taskDrawer", "dueDate")}: {dueLabel}
                       </p>
