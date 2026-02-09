@@ -96,3 +96,20 @@ export function getUserIdFromRequest(req: NextApiRequest | Request): string | nu
 
   return null;
 }
+
+export function createServiceSupabaseClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
+
+  if (!serviceKey) {
+    throw new Error("Missing Supabase service role key");
+  }
+
+  return createClient(url, serviceKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  });
+}

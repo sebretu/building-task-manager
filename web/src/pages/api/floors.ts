@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { createServerSupabaseClient } from "@/lib/supabaseServer";
+import { createServerSupabaseClient, createServiceSupabaseClient } from "@/lib/supabaseServer";
 
 type ApiOk = { ok: true; data: any[] };
 type ApiErr = { ok: false; error: { code: string; message: string; meta?: any } };
@@ -11,8 +11,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
   }
 
   let supabase;
+  let userId: string | null = null;
   try {
-    ({ client: supabase } = createServerSupabaseClient(req));
+    ({ client: supabase, userId } = createServerSupabaseClient(req));
   } catch (e: any) {
     return res.status(401).json({ ok: false, error: { code: "AUTH_INVALID", message: "Missing Bearer token" } });
   }
@@ -66,20 +67,61 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     return res.status(400).json({ ok: false, error: { code: "BAD_REQUEST", message: "name is required" } });
   }
 
-  if (!projectId && !bodyBuildingId) {
+  const normalizedProjectId = typeof projectId === "string" ? projectId : "";
+  const normalizedBuildingId = typeof bodyBuildingId === "string" ? bodyBuildingId : "";
+
+  if (!normalizedProjectId && !normalizedBuildingId) {
     return res
       .status(400)
       .json({ ok: false, error: { code: "BAD_REQUEST", message: "Provide projectId or buildingId" } });
   }
 
-  let buildingId = bodyBuildingId as string | undefined;
-  if (!buildingId) {
-    const { data: buildingRows, error: buildingLookupError } = await supabase
+  if (!userId) {
+    return res.status(401).json({ ok: false, error: { code: "AUTH_INVALID", message: "Missing Bearer token" } });
+  }
+
+  const adminSupabase = createServiceSupabaseClient();
+  type BuildingRecord = { id: string; project_id: string };
+  let buildingRecord: BuildingRecord | null = null;
+
+  if (normalizedBuildingId) {
+    const { data: building, error: buildingFetchError } = await adminSupabase
       .from("buildings")
-      .select("id")
-      .eq("project_id", projectId)
+      .select("id, project_id")
+      .eq("id", normalizedBuildingId)
+      .maybeSingle();
+
+    if (buildingFetchError) {
+      return res.status((buildingFetchError as any).status || 400).json({
+        ok: false,
+        error: {
+          code: "SUPABASE",
+          message: buildingFetchError.message,
+          meta: { code: (buildingFetchError as any).code, details: (buildingFetchError as any).details },
+        },
+      });
+    }
+
+    if (!building) {
+      return res.status(404).json({ ok: false, error: { code: "NOT_FOUND", message: "Building not found" } });
+    }
+
+    if (normalizedProjectId && building.project_id !== normalizedProjectId) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: "BAD_REQUEST", message: "Building does not belong to provided project" },
+      });
+    }
+
+    buildingRecord = building;
+  } else {
+    const { data: building, error: buildingLookupError } = await adminSupabase
+      .from("buildings")
+      .select("id, project_id")
+      .eq("project_id", normalizedProjectId)
       .order("created_at", { ascending: true })
-      .limit(1);
+      .limit(1)
+      .maybeSingle();
 
     if (buildingLookupError) {
       return res.status((buildingLookupError as any).status || 400).json({
@@ -92,21 +134,46 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       });
     }
 
-    const building = buildingRows?.[0];
     if (!building) {
       return res
         .status(400)
         .json({ ok: false, error: { code: "BAD_REQUEST", message: "Project has no buildings to attach floors to" } });
     }
-    buildingId = building.id;
+
+    buildingRecord = building;
+  }
+
+  const targetProjectId = buildingRecord.project_id;
+  const { data: membership, error: membershipError } = await adminSupabase
+    .from("project_members")
+    .select("id")
+    .eq("project_id", targetProjectId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (membershipError) {
+    return res.status((membershipError as any).status || 400).json({
+      ok: false,
+      error: {
+        code: "SUPABASE",
+        message: membershipError.message,
+        meta: { code: (membershipError as any).code, details: (membershipError as any).details },
+      },
+    });
+  }
+
+  if (!membership) {
+    return res
+      .status(403)
+      .json({ ok: false, error: { code: "FORBIDDEN", message: "You are not a member of this project" } });
   }
 
   async function resolveLevelValue(): Promise<number> {
     if (level === undefined || level === null || String(level).trim() === "") {
-      const { data: latestLevel, error: latestError } = await supabase
+      const { data: latestLevel, error: latestError } = await adminSupabase
         .from("floors")
         .select("level")
-        .eq("building_id", buildingId)
+        .eq("building_id", buildingRecord!.id)
         .order("level", { ascending: false })
         .limit(1);
 
@@ -135,10 +202,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     return res.status(status).json({ ok: false, error: { code: levelErr?.code || "LEVEL", message } });
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await adminSupabase
     .from("floors")
     .insert({
-      building_id: buildingId,
+      building_id: buildingRecord.id,
       name,
       level: levelValue,
     })
@@ -148,10 +215,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
   if (error) {
     const pgCode = (error as any).code;
     if (pgCode === "23505") {
-      const { data: existing } = await supabase
+      const { data: existing } = await adminSupabase
         .from("floors")
         .select("id,name,level")
-        .eq("building_id", buildingId)
+        .eq("building_id", buildingRecord.id)
         .eq("level", levelValue)
         .maybeSingle();
 

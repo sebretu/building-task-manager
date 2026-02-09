@@ -442,7 +442,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
 
         if (!isAdmin) {
           const allowedTransitions: Record<string, string[]> = {
-            OPEN: ["IN_PROGRESS"],
+            OPEN: ["IN_PROGRESS", "DONE_WAITING_APPROVAL"],
             IN_PROGRESS: ["DONE_WAITING_APPROVAL"],
           };
 

@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { apiGet } from "@/lib/apiClient";
 import { supabase } from "@/lib/supabase";
+import { usePlanPdfUrl } from "@/hooks/usePlanPdfUrl";
 
 type Meta = {
   tileSize: number;
@@ -176,6 +177,104 @@ export default function PlanViewer({
     };
   }, [currentUserId, currentUserRole]);
 
+  const { url: pdfUrl, status: pdfUrlStatus, error: pdfUrlError, reload: reloadPdfUrl } = usePlanPdfUrl(planId);
+  const isPdfUrlLoading = pdfUrlStatus === "idle" || pdfUrlStatus === "loading";
+
+  const renderPdfObject = () => {
+    if (pdfUrl) {
+      return (
+        <object
+          data={`${pdfUrl}#view=FitH`}
+          type="application/pdf"
+          style={{ width: "100%", height: "100%", border: 0 }}
+        >
+          <div style={{ padding: 12 }}>
+            Ten browser nie potrafi osadzić PDF.
+            <div style={{ marginTop: 8 }}>
+              <a href={pdfUrl} target="_blank" rel="noreferrer">
+                Otwórz PDF w nowej karcie
+              </a>
+            </div>
+          </div>
+        </object>
+      );
+    }
+
+    return (
+      <div
+        style={{
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 16,
+          fontSize: 14,
+        }}
+      >
+        {isPdfUrlLoading ? (
+          <>Ładuję autoryzowany link do PDF…</>
+        ) : (
+          <>
+            <div>Nie udało się pobrać pliku PDF.</div>
+            {pdfUrlError ? <div style={{ marginTop: 4, fontSize: 12 }}>{pdfUrlError}</div> : null}
+            <button
+              type="button"
+              style={{ marginTop: 10 }}
+              onClick={reloadPdfUrl}
+              disabled={isPdfUrlLoading}
+            >
+              Spróbuj ponownie
+            </button>
+          </>
+        )}
+      </div>
+    );
+  };
+
+  const renderPdfFrame = () => {
+    if (pdfUrl) {
+      return (
+        <iframe
+          title="Plan PDF"
+          src={`${pdfUrl}#view=FitH`}
+          style={{ width: "100%", height: "100%", border: 0 }}
+        />
+      );
+    }
+
+    return (
+      <div
+        style={{
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 16,
+          fontSize: 14,
+        }}
+      >
+        {isPdfUrlLoading ? (
+          <>Ładuję autoryzowany link do PDF…</>
+        ) : (
+          <>
+            <div>Nie udało się pobrać PDF.</div>
+            {pdfUrlError ? <div style={{ marginTop: 4, fontSize: 12 }}>{pdfUrlError}</div> : null}
+            <button
+              type="button"
+              style={{ marginTop: 10 }}
+              onClick={reloadPdfUrl}
+              disabled={isPdfUrlLoading}
+            >
+              Spróbuj ponownie
+            </button>
+          </>
+        )}
+      </div>
+    );
+  };
+
   const effectiveUserId = currentUserId ?? viewerProfile?.id ?? null;
   const effectiveUserRole = currentUserRole ?? viewerProfile?.role ?? null;
   const allowCreateResolved = typeof allowCreate === "boolean" ? allowCreate : !!effectiveUserId;
@@ -208,24 +307,7 @@ export default function PlanViewer({
         </div>
 
         <div style={{ borderTop: "1px solid rgba(0,0,0,0.08)" }}>
-          <object
-            data={`/api/plans/pdf?id=${encodeURIComponent(planId)}#view=FitH`}
-            type="application/pdf"
-            style={{ width: "100%", height: "100%", border: 0 }}
-          >
-            <div style={{ padding: 12 }}>
-              Ten browser nie potrafi osadzić PDF.
-              <div style={{ marginTop: 8 }}>
-                <a
-                  href={`/api/plans/pdf?id=${encodeURIComponent(planId)}`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Otwórz PDF w nowej karcie
-                </a>
-              </div>
-            </div>
-          </object>
+          {renderPdfObject()}
         </div>
       </div>
     );
@@ -241,11 +323,7 @@ export default function PlanViewer({
         <div style={{ marginTop: 6, fontFamily: "monospace" }}>{metaErr}</div>
 
         <div style={{ marginTop: 12, height: pdfHeight }}>
-          <iframe
-            title="Plan PDF"
-            src={`/api/plans/pdf?id=${encodeURIComponent(planId)}#view=FitH`}
-            style={{ width: "100%", height: "100%", border: 0 }}
-          />
+          {renderPdfFrame()}
         </div>
       </div>
     );

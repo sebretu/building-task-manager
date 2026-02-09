@@ -215,15 +215,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
               ? "image/heic"
               : "image/jpeg";
 
-    // Upload do Storage
-    const up = await supabase.storage.from(bucket).upload(storage_path, buf, {
-      upsert: false,
-      contentType,
-      cacheControl: "3600",
-    });
-
-    if (up.error) return supaErr(res, up.error);
-
     // Public URL (bucket public)
     // Choose NEXT_PUBLIC_SUPABASE_URL when available. For local dev, avoid
     // generating URLs that point at localhost/127.0.0.1 — rewrite to the
@@ -251,8 +242,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
 
     if (!publicUrl) return bad(res, "Failed to create public URL");
 
-    // Insert do task_photos (kolumny zgodne z Twoją tabelą)
-    const ins = await (supabase as any)
+    // Najpierw insert do task_photos, aby RLS w storage.objects widział wpis
+    const inserted = await (supabase as any)
       .from("task_photos")
       .insert({
         task_id,
@@ -266,9 +257,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       .select("*")
       .single();
 
-    if (ins.error) return supaErr(res, ins.error);
+    if (inserted.error) return supaErr(res, inserted.error);
 
-    return res.status(200).json({ ok: true, data: ins.data });
+    // Upload do Storage (po zapisaniu rekordu, żeby polityka RLS mogła przejść)
+    const uploadResult = await supabase.storage.from(bucket).upload(storage_path, buf, {
+      upsert: false,
+      contentType,
+      cacheControl: "3600",
+    });
+
+    if (uploadResult.error) {
+      // Spróbuj posprzątać rekord, żeby nie zostawić martwego wpisu
+      await (supabase as any)
+        .from("task_photos")
+        .delete()
+        .eq("id", inserted.data?.id)
+        .catch(() => undefined);
+      return supaErr(res, uploadResult.error);
+    }
+
+    return res.status(200).json({ ok: true, data: inserted.data });
   }
 
   res.setHeader("Allow", "GET, POST");
