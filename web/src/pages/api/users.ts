@@ -248,7 +248,7 @@ export default async function handler(
           .update({
             email: scrubbedEmail,
             full_name: "Deleted User",
-            company_id: null,
+            company_id: targetProfile.company_id,
             is_active: false,
             updated_at: new Date().toISOString(),
           })
