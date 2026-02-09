@@ -37,11 +37,19 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 
 ## Automated Task Translation
 
-Dynamic task content (title, description, comments, history) can now be translated on demand via `/api/translate`. The handler proxies requests to LibreTranslate by default, but you can point it to any compatible service via environment variables:
+Dynamic task content (title, description, comments, history) can now be translated on demand via `/api/translate`. By default the handler uses the free [MyMemory](https://mymemory.translated.net/doc/spec.php) API which works without an API key but has daily limits. You can provide a contact email to unlock a slightly higher quota:
 
 ```
-TRANSLATE_API_URL=https://libretranslate.de/translate
-TRANSLATE_API_KEY=your-optional-key
+MYMEMORY_EMAIL=alerts@example.com
+MYMEMORY_FALLBACK_SOURCE=en
 ```
 
-Leave `TRANSLATE_API_KEY` unset for public instances that do not require authentication. Each language switch in the task drawer will call this endpoint and cache results in memory on the server for faster repeat lookups.
+If you want to point the feature at a self-hosted LibreTranslate instance instead, switch the provider and supply the endpoint (along with an API key when required):
+
+```
+TRANSLATE_PROVIDER=libretranslate
+TRANSLATE_API_URL=https://your-instance/translate
+TRANSLATE_API_KEY=optional-key
+```
+
+Each language switch in the task drawer calls this endpoint and caches results in memory on the server for faster repeat lookups. When using MyMemory, the server will attempt to auto-detect the source language (currently tuned for English, Polish, German, and Slovak) and fall back to `MYMEMORY_FALLBACK_SOURCE` (defaults to `en`). Set that variable to whatever language your task data is authored in (for example `pl`) to guarantee valid `langpair` requests.
