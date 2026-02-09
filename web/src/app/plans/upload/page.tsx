@@ -311,49 +311,23 @@ export default function PlansUploadPage() {
   }
 
   return (
-    <>
-      <div className="home-hero upload-hero">
-        <section className="home-hero-content upload-hero-content">
-          <div className="home-hero-text">
-            <div className="home-hero-kicker">{t("planUpload", "kicker", "Upload")}</div>
-            <h1 className="home-hero-title">{t("planUpload", "title", "Upload plan (PDF)")}</h1>
-            <p className="home-hero-subtitle">
-              {t(
-                "planUpload",
-                "subtitle",
-                "Select the project and floor, attach the PDF, and we will version it automatically."
-              )}
-            </p>
-            <div className="home-hero-actions">
-              <Link href="/plans" className="home-hero-secondary">
-                {t("planUpload", "back", "Back to plans")}
-              </Link>
-            </div>
-          </div>
-          <div className="home-hero-media upload-hero-media">
-            <div className="home-hero-panel">
-              <div className="home-hero-panel-title">Gotowy do wysyłki</div>
-              <div className="home-hero-panel-body">
-                Uzupełnij dane i wybierz PDF, aby rozpocząć import.
-              </div>
-              <div className="upload-hero-tags">
-                <span>PDF</span>
-                <span>Tiles</span>
-                <span>Auto-redirect</span>
-              </div>
-            </div>
-            <div className="home-hero-grid" />
-          </div>
-        </section>
-      </div>
-
-      <main className="home-main upload-main">
+    <main className="home-main upload-main">
         <section className="home-task-panel upload-panel">
           <div className="home-section-header">
-            <h2>{t("planUpload", "formTitle", "New plan")}</h2>
-            <p>
-              {t("planUpload", "formDescription", "Fill in the details and preview the PDF before uploading.")}
-            </p>
+            <div>
+              <div className="home-hero-kicker">{t("planUpload", "kicker", "Upload")}</div>
+              <h2>{t("planUpload", "title", "Upload plan (PDF)")}</h2>
+              <p>
+                {t(
+                  "planUpload",
+                  "subtitle",
+                  "Select the project and floor, attach the PDF, and we will version it automatically."
+                )}
+              </p>
+            </div>
+            <Link href="/plans" className="home-hero-secondary">
+              {t("planUpload", "back", "Back to plans")}
+            </Link>
           </div>
 
           <div className="upload-grid">
@@ -448,6 +422,5 @@ export default function PlansUploadPage() {
           </div>
         </section>
       </main>
-    </>
   );
 }

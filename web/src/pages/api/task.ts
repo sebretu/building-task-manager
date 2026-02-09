@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { createServerSupabaseClient } from "@/lib/supabaseServer";
 import { requireRequesterProfile, isAdminRole } from "@/lib/requesterProfile";
+import { getSupabaseAdminClient } from "@/lib/supabaseAdmin";
 
 type ApiOk = { ok: true; data: any };
 type ApiErr = { ok: false; error: { code: string; message: string; meta?: any } };
@@ -63,20 +64,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       });
     }
 
-    // bezpieczeństwo: jeśli nie ma service key, to nie kasujemy
-    const service = process.env.SUPABASE_SERVICE_ROLE_KEY || null;
-    if (!service) {
-      return res.status(400).json({
+    let adminClient;
+    try {
+      adminClient = getSupabaseAdminClient();
+    } catch (err: any) {
+      return res.status(500).json({
         ok: false,
-        error: { code: "BAD_REQUEST", message: "DELETE requires SUPABASE_SERVICE_ROLE_KEY" },
+        error: { code: "CONFIG_ERROR", message: err?.message || "Missing Supabase service role env" },
       });
     }
 
-    const del = await supabase.from("tasks").delete().eq("id", id).select("id").single();
+    const del = await adminClient.from("tasks").delete().eq("id", id).select("id").maybeSingle();
     if (del.error) {
       return res.status((del.error as any).status || 400).json({
         ok: false,
         error: { code: "SUPABASE", message: del.error.message, meta: { code: (del.error as any).code, details: (del.error as any).details } },
+      });
+    }
+
+    if (!del.data) {
+      return res.status(404).json({
+        ok: false,
+        error: { code: "NOT_FOUND", message: "Task not found or already deleted" },
       });
     }
 

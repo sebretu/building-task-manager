@@ -155,7 +155,7 @@ export default function CompaniesPage() {
 
     const trimmedName = newCompanyName.trim();
     if (!trimmedName) {
-      setCompanyError("Nazwa firmy jest wymagana");
+      setCompanyError(t("companies", "nameRequired", "Company name is required."));
       return;
     }
 
@@ -178,7 +178,8 @@ export default function CompaniesPage() {
       setSlugEdited(false);
       setNewCompanyActive(true);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Nie udało się utworzyć firmy";
+      const fallback = t("companies", "createError", "Failed to create company.");
+      const message = err instanceof Error ? err.message : fallback;
       if (handleAuthRedirect(message)) return;
       setCompanyError(message);
     } finally {
@@ -188,7 +189,11 @@ export default function CompaniesPage() {
 
   async function handleDeleteCompany(company: Company) {
     if (!isAdmin) return;
-    if (!confirm(`Usunąć firmę ${company.name}? Członkowie zostaną odłączeni.`)) return;
+    const confirmMessage = t("companies", "deleteConfirm", "Delete company {name}? Members will be detached.").replace(
+      "{name}",
+      company.name
+    );
+    if (!confirm(confirmMessage)) return;
 
     try {
       setDeleteCompanyLoading(true);
@@ -197,7 +202,8 @@ export default function CompaniesPage() {
       await loadData();
       setSelectedCompanyId((prev) => (prev === company.id ? null : prev));
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Nie udało się usunąć firmy";
+      const fallback = t("companies", "deleteError", "Failed to delete company.");
+      const message = err instanceof Error ? err.message : fallback;
       if (handleAuthRedirect(message)) return;
       setCompanyError(message);
     } finally {
@@ -208,7 +214,7 @@ export default function CompaniesPage() {
   async function handleAddUser(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedCompanyId || !selectedUserId) {
-      alert("Wybierz firmę i użytkownika");
+      alert(t("companies", "chooseUserAndCompany", "Select a company and user first."));
       return;
     }
 
@@ -222,7 +228,8 @@ export default function CompaniesPage() {
       setShowAddUserModal(false);
       setSelectedUserId("");
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Error adding user";
+      const fallback = t("companies", "addUserError", "Failed to add user.");
+      const message = err instanceof Error ? err.message : fallback;
       if (handleAuthRedirect(message)) return;
       alert(message);
     }
@@ -251,7 +258,9 @@ export default function CompaniesPage() {
 
   return (
     <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
-      <h1>🏢 Firmy</h1>
+      <h1>
+        🏢 {t("companies", "title", "Companies")}
+      </h1>
 
       {error && (
         <div style={{ background: "#fee", color: "#c33", padding: "10px", borderRadius: "4px", marginBottom: "20px" }}>
@@ -264,7 +273,7 @@ export default function CompaniesPage() {
         <div style={{ borderRight: "1px solid #eee", paddingRight: "20px" }}>
           {isAdmin && (
             <div style={{ marginBottom: "24px", padding: "16px", border: "1px solid #e0e0e0", borderRadius: "8px", background: "#f8f9fa" }}>
-              <h3 style={{ marginTop: 0 }}>Dodaj firmę</h3>
+              <h3 style={{ marginTop: 0 }}>{t("companies", "createTitle", "Add company")}</h3>
               {companyError && (
                 <div style={{ background: "#fff3cd", color: "#856404", padding: "8px", borderRadius: 4, marginBottom: 12 }}>
                   {companyError}
@@ -272,18 +281,18 @@ export default function CompaniesPage() {
               )}
               <form onSubmit={handleCreateCompany} style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                 <label style={{ fontSize: "13px", fontWeight: 600 }}>
-                  Nazwa
+                  {t("companies", "nameLabel", "Name")}
                   <input
                     type="text"
                     value={newCompanyName}
                     onChange={(e) => setNewCompanyName(e.target.value)}
                     style={{ width: "100%", padding: "8px", border: "1px solid #ccc", borderRadius: 4, marginTop: 4 }}
-                    placeholder="Np. Elektro Sp. z o.o."
+                    placeholder={t("companies", "namePlaceholder", "e.g. Elektro Sp. z o.o.")}
                   />
                 </label>
 
                 <label style={{ fontSize: "13px", fontWeight: 600 }}>
-                  Slug
+                  {t("companies", "slug", "Slug")}
                   <input
                     type="text"
                     value={newCompanySlug}
@@ -292,7 +301,7 @@ export default function CompaniesPage() {
                       setNewCompanySlug(e.target.value);
                     }}
                     style={{ width: "100%", padding: "8px", border: "1px solid #ccc", borderRadius: 4, marginTop: 4 }}
-                    placeholder="np. elektro-sp"
+                    placeholder={t("companies", "slugPlaceholder", "e.g. elektro-sp")}
                   />
                 </label>
 
@@ -302,7 +311,7 @@ export default function CompaniesPage() {
                     checked={newCompanyActive}
                     onChange={(e) => setNewCompanyActive(e.target.checked)}
                   />
-                  Aktywna
+                  {t("companies", "active", "Active")}
                 </label>
 
                 <button
@@ -318,17 +327,19 @@ export default function CompaniesPage() {
                     fontWeight: 600,
                   }}
                 >
-                  {companySaving ? "Dodawanie..." : "Dodaj firmę"}
+                  {companySaving
+                    ? t("companies", "creating", "Creating...")
+                    : t("companies", "createButton", "Add company")}
                 </button>
               </form>
             </div>
           )}
 
-          <h2>Lista firm</h2>
+          <h2>{t("companies", "companyList", "Company list")}</h2>
           {loading ? (
-            <p>Ładowanie...</p>
+            <p>{t("common", "loading", "Loading...")}</p>
           ) : companies.length === 0 ? (
-            <p>Brak firm</p>
+            <p>{t("companies", "noCompanies", "No companies")}</p>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
               {companies.map((company) => (
@@ -358,7 +369,9 @@ export default function CompaniesPage() {
                       marginTop: "4px",
                     }}
                   >
-                    {company.is_active ? "✅ Aktywna" : "⏸️ Nieaktywna"}
+                      {company.is_active
+                        ? `✅ ${t("companies", "active", "Active")}`
+                        : `⏸️ ${t("companies", "inactive", "Inactive")}`}
                   </div>
                 </button>
               ))}
@@ -373,14 +386,14 @@ export default function CompaniesPage() {
               <div style={{ marginBottom: "20px" }}>
                 <h2>{selectedCompany.name}</h2>
                 <p style={{ color: "#666" }}>
-                  Slug: <code>{selectedCompany.slug}</code>
+                  {t("companies", "slug", "Slug")}: <code>{selectedCompany.slug}</code>
                 </p>
                 <p style={{ color: "#666" }}>
-                  Status:{" "}
+                  {t("companies", "status", "Status")}: {" "}
                   {selectedCompany.is_active ? (
-                    <span style={{ color: "green" }}>✅ Aktywna</span>
+                    <span style={{ color: "green" }}>✅ {t("companies", "active", "Active")}</span>
                   ) : (
-                    <span style={{ color: "gray" }}>⏸️ Nieaktywna</span>
+                    <span style={{ color: "gray" }}>⏸️ {t("companies", "inactive", "Inactive")}</span>
                   )}
                 </p>
                 {isAdmin && (
@@ -397,7 +410,9 @@ export default function CompaniesPage() {
                       fontWeight: 600,
                     }}
                   >
-                    {deleteCompanyLoading ? "Usuwanie..." : "Usuń firmę"}
+                    {deleteCompanyLoading
+                      ? t("companies", "deleting", "Deleting...")
+                      : t("companies", "deleteButton", "Delete company")}
                   </button>
                 )}
               </div>
@@ -411,7 +426,12 @@ export default function CompaniesPage() {
                     marginBottom: "15px",
                   }}
                 >
-                  <h3>Członkowie ({companyMembers.length})</h3>
+                  <h3>
+                    {t("companies", "members", "Members ({count})").replace(
+                      "{count}",
+                      String(companyMembers.length)
+                    )}
+                  </h3>
                   <button
                     onClick={() => setShowAddUserModal(true)}
                     style={{
@@ -424,12 +444,12 @@ export default function CompaniesPage() {
                       fontSize: "12px",
                     }}
                   >
-                    ➕ Dodaj użytkownika
+                    {t("companies", "addUser", "➕ Add User")}
                   </button>
                 </div>
 
                 {companyMembers.length === 0 ? (
-                  <p style={{ color: "#999" }}>Brak członków w tej firmie</p>
+                  <p style={{ color: "#999" }}>{t("companies", "noMembers", "No members in this company")}</p>
                 ) : (
                   <div
                     style={{
@@ -474,7 +494,7 @@ export default function CompaniesPage() {
               </div>
             </div>
           ) : (
-            <p style={{ color: "#999" }}>Wybierz firmę, aby zobaczyć szczegóły</p>
+            <p style={{ color: "#999" }}>{t("companies", "selectCompany", "Select a company to see details")}</p>
           )}
         </div>
       </div>
@@ -504,11 +524,11 @@ export default function CompaniesPage() {
               maxWidth: "400px",
             }}
           >
-            <h2>➕ Dodaj użytkownika do firmy</h2>
+            <h2>{t("companies", "addUserModalTitle", "Add user to company")}</h2>
             <form onSubmit={handleAddUser}>
               <div style={{ marginBottom: "15px" }}>
                 <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>
-                  Użytkownik
+                  {t("companies", "userLabel", "User")}
                 </label>
                 <select
                   value={selectedUserId}
@@ -522,7 +542,7 @@ export default function CompaniesPage() {
                   }}
                   required
                 >
-                  <option value="">-- Wybierz użytkownika --</option>
+                  <option value="">{t("companies", "selectUserPlaceholder", "-- Select user --")}</option>
                   {availableUsers.map((u) => (
                     <option key={u.id} value={u.id}>
                       {u.full_name} ({u.email})
@@ -545,7 +565,7 @@ export default function CompaniesPage() {
                     fontWeight: "bold",
                   }}
                 >
-                  Dodaj
+                  {t("companies", "addUserSubmit", "Add")}
                 </button>
                 <button
                   type="button"
@@ -560,7 +580,7 @@ export default function CompaniesPage() {
                     cursor: "pointer",
                   }}
                 >
-                  Anuluj
+                  {t("common", "cancel", "Cancel")}
                 </button>
               </div>
             </form>

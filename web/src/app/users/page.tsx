@@ -160,15 +160,15 @@ export default function UsersPage() {
   async function handleInvite(e: React.FormEvent) {
     e.preventDefault();
     if (!inviteEmail || !inviteName) {
-      setInviteError("Email i imię są wymagane");
+      setInviteError(t("users", "inviteErrorMissingFields", "Email and full name are required."));
       return;
     }
     if (invitePassword !== invitePasswordConfirm) {
-      setInviteError("Hasła muszą być takie same");
+      setInviteError(t("users", "inviteErrorPasswordsMismatch", "Passwords must match."));
       return;
     }
     if (invitePassword.length < 8) {
-      setInviteError("Hasło musi mieć minimum 8 znaków");
+      setInviteError(t("users", "inviteErrorPasswordLength", "Password must be at least 8 characters."));
       return;
     }
 
@@ -201,7 +201,8 @@ export default function UsersPage() {
       setInvitePassword("");
       setInvitePasswordConfirm("");
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Błąd podczas zapraszania";
+      const fallback = t("users", "inviteErrorGeneric", "Failed to send invitation.");
+      const message = err instanceof Error ? err.message : fallback;
       if (handleAuthRedirect(message)) return;
       setInviteError(message);
     } finally {
@@ -235,11 +236,11 @@ export default function UsersPage() {
 
     if (editPassword || editPasswordConfirm) {
       if (editPassword !== editPasswordConfirm) {
-        setEditError("Hasła muszą być takie same");
+        setEditError(t("users", "editErrorPasswordsMismatch", "Passwords must match."));
         return;
       }
       if (editPassword.length < 8) {
-        setEditError("Hasło musi mieć minimum 8 znaków");
+        setEditError(t("users", "editErrorPasswordLength", "Password must be at least 8 characters."));
         return;
       }
     }
@@ -259,7 +260,8 @@ export default function UsersPage() {
       setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
       closeEditModal();
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Error updating user";
+      const fallback = t("users", "editErrorGeneric", "Error updating user.");
+      const message = err instanceof Error ? err.message : fallback;
       if (handleAuthRedirect(message)) return;
       setEditError(message);
     } finally {
@@ -279,7 +281,8 @@ export default function UsersPage() {
       setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
       setEditUser(updated);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Nie udało się potwierdzić emaila";
+      const fallback = t("users", "confirmEmailError", "Failed to confirm email.");
+      const message = err instanceof Error ? err.message : fallback;
       if (handleAuthRedirect(message)) return;
       setEditError(message);
     } finally {
@@ -291,7 +294,8 @@ export default function UsersPage() {
 
   async function handleDeleteUser(user: User) {
     if (!canDeleteUser(user)) return;
-    if (!confirm(`Usunąć użytkownika ${user.full_name}?`)) return;
+    const confirmMessage = t("users", "deleteConfirm", "Delete user {name}?").replace("{name}", user.full_name);
+    if (!confirm(confirmMessage)) return;
 
     try {
       setDeletingUserId(user.id);
@@ -299,7 +303,8 @@ export default function UsersPage() {
       await apiDelete(`/api/users?id=${encodeURIComponent(user.id)}`);
       setUsers((prev) => prev.filter((u) => u.id !== user.id));
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Nie udało się usunąć użytkownika";
+      const fallback = t("users", "deleteError", "Failed to delete user.");
+      const message = err instanceof Error ? err.message : fallback;
       if (handleAuthRedirect(message)) return;
       setDeleteError(message);
     } finally {
@@ -333,7 +338,9 @@ export default function UsersPage() {
 
   return (
     <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
-      <h1>👥 Użytkownicy</h1>
+      <h1>
+        👥 {t("users", "title", "Users")}
+      </h1>
 
       {error && (
         <div style={{ background: "#fee", color: "#c33", padding: "10px", borderRadius: "4px", marginBottom: "20px" }}>
@@ -350,7 +357,7 @@ export default function UsersPage() {
       <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
         <input
           type="text"
-          placeholder="🔍 Szukaj użytkownika..."
+          placeholder={t("users", "searchPlaceholder", "🔍 Search users...")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           style={{
@@ -373,24 +380,24 @@ export default function UsersPage() {
             fontWeight: "bold",
           }}
         >
-          ➕ Zaproś użytkownika
+          {t("users", "invite", "➕ Invite user")}
         </button>
       </div>
 
       {loading ? (
-        <p>Ładowanie...</p>
+        <p>{t("common", "loading", "Loading...")}</p>
       ) : filteredUsers.length === 0 ? (
-        <p>Brak użytkowników</p>
+        <p>{t("users", "noUsers", "No users")}</p>
       ) : (
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ background: "#f5f5f5", borderBottom: "2px solid #ddd" }}>
-              <th style={{ padding: "12px", textAlign: "left" }}>Nazwa</th>
-              <th style={{ padding: "12px", textAlign: "left" }}>Email</th>
-              <th style={{ padding: "12px", textAlign: "left" }}>Rola</th>
-              <th style={{ padding: "12px", textAlign: "left" }}>Firma</th>
-              <th style={{ padding: "12px", textAlign: "left" }}>Status</th>
-              <th style={{ padding: "12px", textAlign: "left" }}>Akcje</th>
+              <th style={{ padding: "12px", textAlign: "left" }}>{t("users", "name", "Name")}</th>
+              <th style={{ padding: "12px", textAlign: "left" }}>{t("users", "email", "Email")}</th>
+              <th style={{ padding: "12px", textAlign: "left" }}>{t("users", "role", "Role")}</th>
+              <th style={{ padding: "12px", textAlign: "left" }}>{t("users", "company", "Company")}</th>
+              <th style={{ padding: "12px", textAlign: "left" }}>{t("users", "status", "Status")}</th>
+              <th style={{ padding: "12px", textAlign: "left" }}>{t("users", "actions", "Actions")}</th>
             </tr>
           </thead>
           <tbody>
@@ -414,9 +421,9 @@ export default function UsersPage() {
                 <td style={{ padding: "12px" }}>{getCompanyName(user.company_id)}</td>
                 <td style={{ padding: "12px" }}>
                   {user.is_active ? (
-                    <span style={{ color: "green" }}>✅ Aktywny</span>
+                    <span style={{ color: "green" }}>✅ {t("users", "active", "Active")}</span>
                   ) : (
-                    <span style={{ color: "gray" }}>⏸️ Nieaktywny</span>
+                    <span style={{ color: "gray" }}>⏸️ {t("users", "inactive", "Inactive")}</span>
                   )}
                 </td>
                 <td style={{ padding: "12px" }}>
@@ -433,7 +440,7 @@ export default function UsersPage() {
                       }}
                       onClick={() => openEditModal(user)}
                     >
-                      Edytuj
+                      {t("users", "edit", "Edit")}
                     </button>
                     {isAdmin && (
                       <button
@@ -450,7 +457,9 @@ export default function UsersPage() {
                         disabled={!canDeleteUser(user) || deletingUserId === user.id}
                         onClick={() => handleDeleteUser(user)}
                       >
-                        {deletingUserId === user.id ? "Usuwanie..." : "Usuń"}
+                        {deletingUserId === user.id
+                          ? t("users", "deleteInProgress", "Deleting...")
+                          : t("common", "delete", "Delete")}
                       </button>
                     )}
                   </div>
@@ -487,7 +496,7 @@ export default function UsersPage() {
               boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
             }}
           >
-            <h2>➕ Zaproś użytkownika</h2>
+            <h2>{t("users", "inviteTitle", "Invite User")}</h2>
             {inviteError && (
               <div style={{ background: "#fee", color: "#c33", padding: "8px", borderRadius: 4, marginBottom: 12 }}>
                 {inviteError}
@@ -496,7 +505,7 @@ export default function UsersPage() {
             <form onSubmit={handleInvite}>
               <div style={{ marginBottom: "15px" }}>
                 <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>
-                  Email
+                  {t("users", "email", "Email")}
                 </label>
                 <input
                   type="email"
@@ -515,7 +524,7 @@ export default function UsersPage() {
 
               <div style={{ marginBottom: "15px" }}>
                 <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>
-                  Imię i nazwisko
+                  {t("users", "fullName", "Full Name")}
                 </label>
                 <input
                   type="text"
@@ -534,7 +543,7 @@ export default function UsersPage() {
 
               <div style={{ marginBottom: "15px" }}>
                 <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>
-                  Rola
+                  {t("users", "role", "Role")}
                 </label>
                 <select
                   value={inviteRole}
@@ -554,7 +563,7 @@ export default function UsersPage() {
 
               <div style={{ marginBottom: "15px" }}>
                 <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>
-                  Hasło (min. 8 znaków)
+                  {t("users", "passwordLabel", "Password (min. 8 chars)")}
                 </label>
                 <input
                   type="password"
@@ -573,7 +582,7 @@ export default function UsersPage() {
 
               <div style={{ marginBottom: "15px" }}>
                 <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>
-                  Powtórz hasło
+                  {t("users", "passwordConfirmLabel", "Repeat password")}
                 </label>
                 <input
                   type="password"
@@ -592,7 +601,7 @@ export default function UsersPage() {
 
               <div style={{ marginBottom: "15px" }}>
                 <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>
-                  Firma (opcjonalnie)
+                  {t("users", "companyOptional", "Company (optional)")}
                 </label>
                 <select
                   value={inviteCompanyId}
@@ -605,7 +614,7 @@ export default function UsersPage() {
                     boxSizing: "border-box",
                   }}
                 >
-                  <option value="">-- Wybierz firmę --</option>
+                  <option value="">{t("users", "selectCompanyPlaceholder", "-- Select company --")}</option>
                   {companies.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
@@ -616,7 +625,7 @@ export default function UsersPage() {
 
               <div style={{ marginBottom: "15px" }}>
                 <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>
-                  Projekt (opcjonalnie)
+                  {t("users", "projectOptional", "Project (optional)")}
                 </label>
                 <select
                   value={inviteProjectId}
@@ -629,7 +638,7 @@ export default function UsersPage() {
                     boxSizing: "border-box",
                   }}
                 >
-                  <option value="">-- Wybierz projekt --</option>
+                  <option value="">{t("users", "selectProjectPlaceholder", "-- Select project --")}</option>
                   {projects.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.name}
@@ -641,7 +650,7 @@ export default function UsersPage() {
               {inviteProjectId && (
                 <div style={{ marginBottom: "15px" }}>
                   <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>
-                    Rola w projekcie
+                    {t("users", "projectRole", "Project role")}
                   </label>
                   <select
                     value={inviteProjectRole}
@@ -654,9 +663,9 @@ export default function UsersPage() {
                       boxSizing: "border-box",
                     }}
                   >
-                    <option value="USER">Członek</option>
-                    <option value="MODERATOR">Moderator</option>
-                    <option value="ADMIN">Administrator</option>
+                    <option value="USER">{t("users", "projectRoleMember", "Member")}</option>
+                    <option value="MODERATOR">{t("users", "projectRoleModerator", "Moderator")}</option>
+                    <option value="ADMIN">{t("users", "projectRoleAdmin", "Administrator")}</option>
                   </select>
                 </div>
               )}
@@ -676,7 +685,9 @@ export default function UsersPage() {
                     fontWeight: "bold",
                   }}
                 >
-                  {inviteSaving ? "Zapraszanie..." : "Zaproś"}
+                  {inviteSaving
+                    ? t("users", "inviteSaving", "Inviting...")
+                    : t("users", "inviteSubmit", "Invite")}
                 </button>
                 <button
                   type="button"
@@ -698,7 +709,7 @@ export default function UsersPage() {
                     cursor: "pointer",
                   }}
                 >
-                  Anuluj
+                  {t("common", "cancel", "Cancel")}
                 </button>
               </div>
             </form>
@@ -731,7 +742,7 @@ export default function UsersPage() {
               boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
             }}
           >
-            <h2>Edytuj użytkownika</h2>
+            <h2>{t("users", "editTitle", "Edit user")}</h2>
             {editError && (
               <div style={{ background: "#fee", color: "#c33", padding: "8px", borderRadius: 4, marginBottom: 12 }}>
                 {editError}
@@ -739,7 +750,9 @@ export default function UsersPage() {
             )}
             <form onSubmit={handleEditSubmit}>
               <div style={{ marginBottom: "12px" }}>
-                <label style={{ display: "block", marginBottom: 5, fontWeight: "bold" }}>Imię i nazwisko</label>
+                <label style={{ display: "block", marginBottom: 5, fontWeight: "bold" }}>
+                  {t("users", "fullName", "Full Name")}
+                </label>
                 <input
                   type="text"
                   value={editName}
@@ -750,7 +763,9 @@ export default function UsersPage() {
               </div>
 
               <div style={{ marginBottom: "12px" }}>
-                <label style={{ display: "block", marginBottom: 5, fontWeight: "bold" }}>Rola</label>
+                <label style={{ display: "block", marginBottom: 5, fontWeight: "bold" }}>
+                  {t("users", "role", "Role")}
+                </label>
                 <select
                   value={editRole}
                   onChange={(e) => setEditRole(e.target.value)}
@@ -762,13 +777,15 @@ export default function UsersPage() {
               </div>
 
               <div style={{ marginBottom: "12px" }}>
-                <label style={{ display: "block", marginBottom: 5, fontWeight: "bold" }}>Firma</label>
+                <label style={{ display: "block", marginBottom: 5, fontWeight: "bold" }}>
+                  {t("users", "company", "Company")}
+                </label>
                 <select
                   value={editCompanyId}
                   onChange={(e) => setEditCompanyId(e.target.value)}
                   style={{ width: "100%", padding: 10, border: "1px solid #ccc", borderRadius: 4 }}
                 >
-                  <option value="">-- Wybierz firmę --</option>
+                  <option value="">{t("users", "selectCompanyPlaceholder", "-- Select company --")}</option>
                   {companies.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
@@ -779,22 +796,26 @@ export default function UsersPage() {
 
               <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
                 <input type="checkbox" checked={editActive} onChange={(e) => setEditActive(e.target.checked)} />
-                Aktywny
+                {t("users", "active", "Active")}
               </label>
 
               <div style={{ marginBottom: "12px" }}>
-                <label style={{ display: "block", marginBottom: 5, fontWeight: "bold" }}>Nowe hasło (opcjonalnie)</label>
+                <label style={{ display: "block", marginBottom: 5, fontWeight: "bold" }}>
+                  {t("users", "editPasswordOptional", "New password (optional)")}
+                </label>
                 <input
                   type="password"
                   value={editPassword}
                   onChange={(e) => setEditPassword(e.target.value)}
-                  placeholder="Minimum 8 znaków"
+                  placeholder={t("users", "editPasswordPlaceholder", "Minimum 8 characters")}
                   style={{ width: "100%", padding: 10, border: "1px solid #ccc", borderRadius: 4 }}
                 />
               </div>
 
               <div style={{ marginBottom: "12px" }}>
-                <label style={{ display: "block", marginBottom: 5, fontWeight: "bold" }}>Powtórz hasło</label>
+                <label style={{ display: "block", marginBottom: 5, fontWeight: "bold" }}>
+                  {t("users", "editPasswordConfirm", "Repeat password")}
+                </label>
                 <input
                   type="password"
                   value={editPasswordConfirm}
@@ -818,7 +839,7 @@ export default function UsersPage() {
                     fontWeight: "bold",
                   }}
                 >
-                  {editSaving ? "Zapisywanie..." : "Zapisz"}
+                  {editSaving ? t("users", "editSaving", "Saving...") : t("common", "save", "Save")}
                 </button>
                 <button
                   type="button"
@@ -833,7 +854,7 @@ export default function UsersPage() {
                     cursor: "pointer",
                   }}
                 >
-                  Anuluj
+                  {t("common", "cancel", "Cancel")}
                 </button>
               </div>
 
@@ -853,7 +874,9 @@ export default function UsersPage() {
                   fontWeight: "bold",
                 }}
               >
-                {confirmingEmail ? "Potwierdzanie..." : "Potwierdź email"}
+                {confirmingEmail
+                  ? t("users", "confirmingEmail", "Confirming...")
+                  : t("users", "confirmEmail", "Confirm email")}
               </button>
             </form>
           </div>
