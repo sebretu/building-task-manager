@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabase";
 import type { Language } from "@/lib/translations";
 import { PWAInstallBanner } from "@/components/PWAInstallBanner";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { getTaskNumericLabel } from "@/lib/taskNumber";
 
 type Project = { id: string; name: string };
 type Task = {
@@ -628,6 +629,7 @@ export default function Home() {
               {tasks.map((task) => {
                 const thumb = thumbByTask[task.id];
                 const tileUrl = getTileUrl(task);
+                const taskNumberLabel = getTaskNumericLabel(task.id);
                 const statusLabel = t("taskStatus", task.status, task.status);
                 const statusClassName = statusBadgeClassByCode[task.status] || "task-card__badge--default";
                 const priorityLabel = t("taskPriority", task.priority, task.priority);
@@ -676,6 +678,9 @@ export default function Home() {
                           <span aria-hidden="true">📍</span>
                           <small>{t("home", "noTile")}</small>
                         </div>
+                      )}
+                      {taskNumberLabel && (
+                        <span className="task-card__map-marker task-marker task-marker--thumb">{taskNumberLabel}</span>
                       )}
                     </div>
 

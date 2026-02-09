@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import TaskDrawer from "./TaskDrawer";
 import { apiGet } from "@/lib/apiClient";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { getTaskNumericLabel } from "@/lib/taskNumber";
 
 type Meta = {
   tileSize: number;
@@ -113,6 +114,7 @@ export default function PlanMap({
   const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [thumbByTask, setThumbByTask] = useState<Record<string, string | null>>({});
   const [drawerTaskId, setDrawerTaskId] = useState<string | null>(null);
+  const markerIconCache = useRef<Record<string, L.DivIcon>>({});
 
   // ✅ create-mode: klik w mapę -> draft, a task tworzy się dopiero po "Zapisz" w TaskDrawer
   const [createDraft, setCreateDraft] = useState<any>(null);
@@ -249,6 +251,23 @@ export default function PlanMap({
 
   const mapHeight = fullHeight ? "100vh" : "calc(100vh - 120px)";
 
+  const getIconForLabel = useCallback(
+    (label: string) => {
+      if (!label) return undefined;
+      if (!markerIconCache.current[label]) {
+        markerIconCache.current[label] = L.divIcon({
+          className: "",
+          html: `<div class="task-marker task-marker--map">${label}</div>`,
+          iconSize: [56, 72],
+          iconAnchor: [28, 58],
+          popupAnchor: [0, -44],
+        });
+      }
+      return markerIconCache.current[label];
+    },
+    []
+  );
+
   function FocusOnTask({ target }: { target: L.LatLng | null }) {
     const map = useMap();
     const focusZoom = Math.min(meta.maxZoom, Math.max(meta.minZoom, START_ZOOM + 1));
@@ -283,90 +302,93 @@ export default function PlanMap({
         {tasks
           .filter((task) => (!focusTaskId ? true : task.id === focusTaskId))
           .map((task) => {
-          const ll = CRS.pointToLatLng(L.point(task.x_norm * worldPxW, task.y_norm * worldPxH), meta.maxZoom);
-          const thumb = thumbByTask[task.id];
+            const ll = CRS.pointToLatLng(L.point(task.x_norm * worldPxW, task.y_norm * worldPxH), meta.maxZoom);
+            const thumb = thumbByTask[task.id];
+            const taskNumberLabel = getTaskNumericLabel(task.id);
+            const markerIcon = getIconForLabel(taskNumberLabel);
 
-          return (
-            <Marker
-              key={task.id}
-              position={ll}
-              eventHandlers={{
-                click: () => {
-                  ensureThumb(task.id);
-                  setCreateDraft(null);
-                  setDrawerTaskId(task.id);
-                },
-              }}
-            >
-              {/* react-leaflet Popup props typing differs across versions; ignore here */}
-              {/* @ts-ignore */}
-              <Popup autoPan closeButton offset={[0, 30]}>
-                <div style={{ width: 240, color: "#111827" }}>
-                  {thumb ? (
-                    <img
-                      src={thumb}
-                      alt=""
-                      style={{ width: "100%", height: 90, objectFit: "cover", borderRadius: 10, display: "block" }}
-                    />
-                  ) : (
-                    <div
+            return (
+              <Marker
+                key={task.id}
+                position={ll}
+                icon={markerIcon ?? undefined}
+                eventHandlers={{
+                  click: () => {
+                    ensureThumb(task.id);
+                    setCreateDraft(null);
+                    setDrawerTaskId(task.id);
+                  },
+                }}
+              >
+                {/* react-leaflet Popup props typing differs across versions; ignore here */}
+                {/* @ts-ignore */}
+                <Popup autoPan closeButton offset={[0, 30]}>
+                  <div style={{ width: 240, color: "#111827" }}>
+                    {thumb ? (
+                      <img
+                        src={thumb}
+                        alt=""
+                        style={{ width: "100%", height: 90, objectFit: "cover", borderRadius: 10, display: "block" }}
+                      />
+                    ) : (
+                      <div
+                        style={{
+                          height: 90,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          opacity: 0.7,
+                          borderRadius: 10,
+                          border: "1px dashed rgba(17,24,39,0.25)",
+                        }}
+                      >
+                        Brak zdjęcia
+                      </div>
+                    )}
+
+                    <div style={{ fontWeight: 900, marginTop: 8 }}>{task.title}</div>
+
+                    <div style={{ marginTop: 6, display: "grid", gap: 6 }}>
+                      {statusBadge(task.status)}
+                      <div style={{ fontSize: 12 }}>
+                        <b>Przydzielony:</b>{" "}
+                        {task.assigned_user_id ? profiles[task.assigned_user_id] || shortId(task.assigned_user_id) : "—"}
+                      </div>
+                    </div>
+
+                    <button
                       style={{
-                        height: 90,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        opacity: 0.7,
+                        marginTop: 10,
+                        width: "100%",
+                        padding: "8px 10px",
                         borderRadius: 10,
-                        border: "1px dashed rgba(17,24,39,0.25)",
+                        border: "1px solid rgba(17,24,39,0.25)",
+                        background: "#fff",
+                        color: "#111827",
+                        cursor: "pointer",
+                        fontWeight: 800,
+                      }}
+                      onClick={() => {
+                        setCreateDraft(null);
+                        setDrawerTaskId(task.id);
                       }}
                     >
-                      Brak zdjęcia
-                    </div>
-                  )}
-
-                  <div style={{ fontWeight: 900, marginTop: 8 }}>{task.title}</div>
-
-                  <div style={{ marginTop: 6, display: "grid", gap: 6 }}>
-                    {statusBadge(task.status)}
-                    <div style={{ fontSize: 12 }}>
-                      <b>Przydzielony:</b>{" "}
-                      {task.assigned_user_id ? profiles[task.assigned_user_id] || shortId(task.assigned_user_id) : "—"}
+                      {t("planMap", "openTaskButton", "Open task")}
+                    </button>
+                    <div
+                      style={{
+                        marginTop: 4,
+                        fontSize: 12,
+                        color: "rgba(17,24,39,0.7)",
+                      }}
+                    >
+                      {t("planMap", "openTaskHint", "Click to expand the side panel")}
                     </div>
                   </div>
-
-                  <button
-                    style={{
-                      marginTop: 10,
-                      width: "100%",
-                      padding: "8px 10px",
-                      borderRadius: 10,
-                      border: "1px solid rgba(17,24,39,0.25)",
-                      background: "#fff",
-                      color: "#111827",
-                      cursor: "pointer",
-                      fontWeight: 800,
-                    }}
-                    onClick={() => {
-                      setCreateDraft(null);
-                      setDrawerTaskId(task.id);
-                    }}
-                  >
-                    {t("planMap", "openTaskButton", "Open task")}
-                  </button>
-                  <div
-                    style={{
-                      marginTop: 4,
-                      fontSize: 12,
-                      color: "rgba(17,24,39,0.7)",
-                    }}
-                  >
-                    {t("planMap", "openTaskHint", "Click to expand the side panel")}
-                  </div>
-                </div>
-              </Popup>
-            </Marker>
-          );
-        })}
+                </Popup>
+              </Marker>
+            );
+          })}
       </MapContainerAny>
 
       {/* createDraft is accepted by TaskDrawer at runtime */}

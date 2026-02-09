@@ -885,6 +885,64 @@ a:hover, a:focus {
   overflow: hidden;
   min-height: 240px;
   background: #f9fbff;
+  position: relative;
+}
+
+.task-card__map-marker {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.task-marker {
+  --marker-bg: #ffffff;
+  --marker-border: rgba(31, 79, 130, 0.95);
+  --marker-color: #1f4f82;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 3px solid var(--marker-border);
+  background: var(--marker-bg);
+  color: var(--marker-color);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 1rem;
+  box-shadow: 0 18px 32px rgba(13, 24, 51, 0.35);
+}
+
+.task-marker--map {
+  width: 54px;
+  height: 54px;
+  font-size: 1.05rem;
+  position: relative;
+  z-index: 1;
+}
+
+.task-marker--map::after {
+  content: "";
+  position: absolute;
+  bottom: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-top: 14px solid var(--marker-bg);
+  filter: drop-shadow(0 4px 10px rgba(13, 24, 51, 0.35));
+}
+
+.task-marker--thumb {
+  width: 64px;
+  height: 64px;
+  font-size: 1.3rem;
+  border-width: 4px;
+  box-shadow: 0 25px 45px rgba(13, 24, 51, 0.3);
 }
 
 .task-card__footer {
