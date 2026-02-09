@@ -1147,6 +1147,10 @@ export default function TaskDrawer({
                         minute: "2-digit",
                       });
                       const action = h.action || h.summary || t("taskDrawer", "historyUpdate");
+                      const historyMetaTemplate = t("taskDrawer", "historyMeta", "{date} • {user}");
+                      const historyMeta = historyMetaTemplate
+                        .replace("{date}", timestamp)
+                        .replace("{user}", actorName);
 
                       return (
                         <div
@@ -1158,11 +1162,8 @@ export default function TaskDrawer({
                             background: "rgba(17,24,39,0.02)",
                           }}
                         >
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                            <div style={{ fontWeight: 800, fontSize: 12 }}>{actorName}</div>
-                            <div style={{ fontSize: 11, opacity: 0.6 }}>{timestamp}</div>
-                          </div>
-                          <div style={{ fontSize: 13, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{action}</div>
+                          <div style={{ fontSize: 13, fontWeight: 700, whiteSpace: "pre-wrap", wordBreak: "break-word", marginBottom: 4 }}>{action}</div>
+                          <div style={{ fontSize: 11, opacity: 0.65, marginBottom: 6 }}>{historyMeta}</div>
                           {renderTranslationSegment(makeTranslationKey("history", h.id), action)}
                         </div>
                       );
