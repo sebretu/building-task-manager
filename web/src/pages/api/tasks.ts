@@ -332,12 +332,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     // patch jako jsonb (tylko pola, które chcesz zmienić)
     const patch: any = {};
     if (body.title !== undefined) patch.title = String(body.title);
-    if (body.description !== undefined) patch.description = body.description == null ? "" : String(body.description);
+    if (body.description !== undefined) {
+      const desc = body.description == null ? null : String(body.description);
+      patch.description = desc;
+    }
     if (body.priority !== undefined) patch.priority = String(body.priority);
     if (body.status !== undefined) patch.status = String(body.status);
-    if (body.due_date !== undefined) patch.due_date = body.due_date == null ? "" : String(body.due_date);
-    if (body.assigned_user_id !== undefined) patch.assigned_user_id = body.assigned_user_id || "";
-    if (body.assigned_company_id !== undefined) patch.assigned_company_id = body.assigned_company_id || "";
+    if (body.due_date !== undefined) {
+      const rawDue = body.due_date;
+      let due: string | null = null;
+      if (rawDue !== null && rawDue !== undefined) {
+        const str = String(rawDue).trim();
+        due = str === "" ? null : str;
+      }
+      patch.due_date = due;
+    }
+    if (body.assigned_user_id !== undefined) {
+      const assigned = typeof body.assigned_user_id === "string" ? body.assigned_user_id.trim() : "";
+      patch.assigned_user_id = assigned ? assigned : null;
+    }
+    if (body.assigned_company_id !== undefined) {
+      const assignedCompany = typeof body.assigned_company_id === "string" ? body.assigned_company_id.trim() : "";
+      patch.assigned_company_id = assignedCompany ? assignedCompany : null;
+    }
 
     const patchKeys = Object.keys(patch);
     if (!isAdmin) {
@@ -361,7 +378,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     try {
       const { data: prevTask, error: prevTaskError } = await supabase
         .from("tasks")
-        .select("status, assigned_user_id, title, project_id")
+        .select("status, assigned_user_id, title, project_id, priority, due_date, assigned_company_id, description")
         .eq("id", id)
         .single();
 
@@ -412,12 +429,55 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
 
       const { data: nextTask } = await supabase
         .from("tasks")
-        .select("status, assigned_user_id, title, project_id")
+        .select("status, assigned_user_id, title, project_id, priority, due_date, assigned_company_id, description")
         .eq("id", id)
         .single();
 
       const statusChanged = prevTask?.status && nextTask?.status && prevTask.status !== nextTask.status;
       const assignedChanged = prevTask?.assigned_user_id !== nextTask?.assigned_user_id;
+
+      const trackedFields = [
+        "title",
+        "description",
+        "status",
+        "priority",
+        "due_date",
+        "assigned_user_id",
+        "assigned_company_id",
+      ] as const;
+
+      const changedFields: string[] = [];
+      const oldValue: Record<string, any> = {};
+      const newValue: Record<string, any> = {};
+
+      for (const field of trackedFields) {
+        const before = (prevTask as any)?.[field] ?? null;
+        const after = (nextTask as any)?.[field] ?? null;
+        const same = before === after;
+        if (same) continue;
+        changedFields.push(field);
+        oldValue[field] = before;
+        newValue[field] = after;
+      }
+
+      if (changedFields.length > 0) {
+        const adminClient = getAdminClientSafely();
+        if (adminClient) {
+          try {
+            await adminClient.from("task_history").insert({
+              task_id: id,
+              changed_by,
+              action: `Updated ${changedFields.join(", ")}`,
+              old_value: Object.keys(oldValue).length ? oldValue : null,
+              new_value: Object.keys(newValue).length ? newValue : null,
+            });
+          } catch (historyErr) {
+            console.error("[tasks api] failed to log history", historyErr);
+          }
+        } else {
+          console.warn("[tasks api] cannot log history - admin client missing");
+        }
+      }
 
       if (assignedChanged && nextTask?.assigned_user_id) {
         await ensureProjectMembership(nextTask.project_id, nextTask.assigned_user_id, requester.id);

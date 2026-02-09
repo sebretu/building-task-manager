@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { createServerSupabaseClient } from "@/lib/supabaseServer";
 import { requireRequesterProfile, isAdminRole } from "@/lib/requesterProfile";
+import { getSupabaseAdminClient } from "@/lib/supabaseAdmin";
 
 type ApiOk = { ok: true; data: any };
 type ApiErr = { ok: false; error: { code: string; message: string; meta?: any } };
@@ -69,12 +70,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     return res.status(status).json({ ok: false, error: { code: err?.code || "FORBIDDEN", message: err?.message || "Access denied", meta: err?.meta } });
   }
 
-  const { data, error } = await supabase
+  let historyClient = supabase;
+  let adminError: Error | null = null;
+  try {
+    historyClient = getSupabaseAdminClient();
+  } catch (err: any) {
+    adminError = err;
+  }
+
+  const { data, error } = await historyClient
     .from("task_history")
     .select("*")
     .eq("task_id", taskId)
     .order("created_at", { ascending: false })
     .limit(200);
+
+  if (error && adminError) {
+    console.error("[task-history] admin client missing", adminError);
+  }
 
   if (error) {
     return res.status((error as any).status || 400).json({

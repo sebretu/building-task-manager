@@ -51,6 +51,8 @@ type TaskHistoryRow = {
   summary?: string | null;
   meta?: any;
   created_at: string;
+  old_value?: Record<string, any> | null;
+  new_value?: Record<string, any> | null;
 };
 
 type PlanRow = {
@@ -155,6 +157,78 @@ export default function TaskDrawer({
     de: "de-DE",
     sk: "sk-SK",
   };
+
+  const profileNameById = useMemo(() => {
+    const map: Record<string, string> = {};
+    profiles.forEach((p) => {
+      if (p.id) map[p.id] = p.full_name;
+    });
+    return map;
+  }, [profiles]);
+
+  function shortUser(id?: string | null) {
+    if (!id) return "—";
+    if (id.length <= 8) return id;
+    return `${id.slice(0, 4)}…${id.slice(-4)}`;
+  }
+
+  function historyFieldLabel(field: string) {
+    switch (field) {
+      case "title":
+        return t("taskDrawer", "title", "Title");
+      case "description":
+        return t("taskDrawer", "description", "Description");
+      case "status":
+        return t("taskDrawer", "status", "Status");
+      case "priority":
+        return t("taskDrawer", "priority", "Priority");
+      case "due_date":
+        return t("taskDrawer", "dueDate", "Due date");
+      case "assigned_user_id":
+        return t("taskDrawer", "assignedUser", "Assigned to");
+      case "assigned_company_id":
+        return t("users", "company", "Company");
+      default:
+        return field;
+    }
+  }
+
+  function formatHistoryValue(field: string, value: any) {
+    if (value === null || value === undefined || value === "") return "—";
+
+    if (field === "status") {
+      const code = String(value).toUpperCase();
+      return t("taskStatus", code, code);
+    }
+
+    if (field === "priority") {
+      const code = String(value).toUpperCase();
+      return t("taskPriority", code, code);
+    }
+
+    if (field === "due_date") {
+      const date = new Date(value);
+      if (!Number.isNaN(date.getTime())) {
+        return date.toLocaleDateString(localeByLang[language] || "en-US", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        });
+      }
+      return String(value);
+    }
+
+    if (field === "assigned_user_id") {
+      const id = String(value);
+      return profileNameById[id] || shortUser(id);
+    }
+
+    if (field === "assigned_company_id") {
+      return String(value);
+    }
+
+    return String(value);
+  }
 
   const normalizedRole = (currentUserRole || "").toUpperCase();
   const isAdmin = normalizedRole === "ADMIN";
@@ -512,17 +586,27 @@ export default function TaskDrawer({
       if (!taskId) throw new Error(t("taskDrawer", "errorMissingTaskId"));
       if (!isUuid(taskId)) throw new Error(t("taskDrawer", "errorInvalidTaskId"));
 
+      const nextDescription = description.trim() === "" ? null : description.trim();
+      const nextDueDate = dueDate.trim() === "" ? null : dueDate.trim();
+      const nextAssigned = trimmedAssigned ? trimmedAssigned : null;
+
       const patchBody: Record<string, any> = { id: taskId };
 
       if (isAdmin) {
         patchBody.title = trimmedTitle;
-        patchBody.description = description.trim() === "" ? null : description.trim();
+        patchBody.description = nextDescription;
         patchBody.status = status;
         patchBody.priority = priority;
-        patchBody.due_date = dueDate.trim() === "" ? null : dueDate.trim();
-        patchBody.assigned_user_id = trimmedAssigned ? trimmedAssigned : null;
+        patchBody.due_date = nextDueDate;
+        patchBody.assigned_user_id = nextAssigned;
       } else {
         patchBody.status = status;
+        if (canEditPriority) {
+          patchBody.priority = priority;
+        }
+        if (canEditDueDate) {
+          patchBody.due_date = nextDueDate;
+        }
       }
 
       await apiPatch<TaskRow>("/api/tasks", patchBody);
@@ -1152,11 +1236,29 @@ export default function TaskDrawer({
                         hour: "2-digit",
                         minute: "2-digit",
                       });
-                      const action = h.action || h.summary || t("taskDrawer", "historyUpdate");
+                      const baseAction = h.action || h.summary || t("taskDrawer", "historyUpdate");
+                      const oldVals = (h.old_value ?? {}) as Record<string, any>;
+                      const newVals = (h.new_value ?? {}) as Record<string, any>;
+                      const derivedChanges: string[] = [];
+
+                      if (newVals && typeof newVals === "object") {
+                        Object.keys(newVals).forEach((field) => {
+                          const before = oldVals?.[field];
+                          const after = newVals?.[field];
+                          if (before === after) return;
+                          const label = historyFieldLabel(field);
+                          const beforeText = formatHistoryValue(field, before);
+                          const afterText = formatHistoryValue(field, after);
+                          derivedChanges.push(`${label}: ${beforeText} → ${afterText}`);
+                        });
+                      }
+
+                      const actionText = derivedChanges.length > 0 ? derivedChanges.join(" • ") : baseAction;
                       const historyMetaTemplate = t("taskDrawer", "historyMeta", "{date} • {user}");
                       const historyMeta = historyMetaTemplate
                         .replace("{date}", timestamp)
                         .replace("{user}", actorName);
+                      const translationKey = derivedChanges.length > 0 ? null : makeTranslationKey("history", h.id);
 
                       return (
                         <div
@@ -1168,15 +1270,15 @@ export default function TaskDrawer({
                             background: "rgba(17,24,39,0.02)",
                           }}
                         >
-                          <div style={{ fontSize: 13, fontWeight: 700, whiteSpace: "pre-wrap", wordBreak: "break-word", marginBottom: 4 }}>{action}</div>
+                          <div style={{ fontSize: 13, fontWeight: 700, whiteSpace: "pre-wrap", wordBreak: "break-word", marginBottom: 4 }}>{actionText}</div>
                           <div style={{ fontSize: 11, opacity: 0.65, marginBottom: 6 }}>{historyMeta}</div>
-                          {renderTranslationSegment(makeTranslationKey("history", h.id), action)}
+                          {translationKey && renderTranslationSegment(translationKey, baseAction)}
                         </div>
                       );
                     })}
                   </div>
                 ) : (
-                  <div style={{ fontSize: 12, opacity: 0.75 }}>{t("taskDrawer", "noHistory")}</div>
+                    <div style={{ fontSize: 12, opacity: 0.75 }}>{t("taskDrawer", "noHistory", "No history yet")}</div>
                 )}
               </div>
             </>
