@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { Geist, Geist_Mono } from "next/font/google";
 import { LanguageProvider } from "@/contexts/LanguageContext";
-import UnifiedLayout from "@/components/UnifiedLayout";
+import UnifiedLayoutClient from "@/components/UnifiedLayoutClient";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -52,7 +52,7 @@ export default function RootLayout({
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <LanguageProvider>
-          <UnifiedLayout>{children}</UnifiedLayout>
+          <UnifiedLayoutClient>{children}</UnifiedLayoutClient>
         </LanguageProvider>
       </body>
     </html>

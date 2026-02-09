@@ -1,6 +1,7 @@
 export type RequesterProfile = {
   id: string;
   role: string | null;
+  company_id: string | null;
 };
 
 export async function requireRequesterProfile(client: any, userId: string | null): Promise<RequesterProfile> {
@@ -13,7 +14,7 @@ export async function requireRequesterProfile(client: any, userId: string | null
 
   const { data, error } = await client
     .from("profiles")
-    .select("id, role")
+    .select("id, role, company_id")
     .eq("id", userId)
     .single();
 

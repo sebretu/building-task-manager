@@ -12,6 +12,7 @@ function looksLikeJwt(t: string | null | undefined) {
 export async function getToken(): Promise<string | null> {
   const { data } = await supabase.auth.getSession();
   const tok = data.session?.access_token ?? null;
+  console.log('[apiClient] getToken:', tok);
   return looksLikeJwt(tok) ? tok : null;
 }
 
@@ -28,6 +29,7 @@ export async function apiCall<T>(
   }
 ): Promise<T> {
   const token = options?.token !== undefined ? options.token : await getToken();
+  console.log('[apiClient] apiCall:', path, options?.method, 'token:', token);
   
   const headers: Record<string, string> = {
     ...options?.headers,

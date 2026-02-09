@@ -62,7 +62,7 @@ export default function PlansPage() {
   const [err, setErr] = useState<string | null>(null);
   const [deletingPlanId, setDeletingPlanId] = useState<string | null>(null);
   const [sessionChecked, setSessionChecked] = useState(false);
-  const [viewerProfile, setViewerProfile] = useState<{ id: string; role: string | null } | null>(null);
+  const [viewerProfile, setViewerProfile] = useState<{ id: string; role: string | null; company_id: string | null } | null>(null);
   const [newProjectName, setNewProjectName] = useState("");
   const [projectSaving, setProjectSaving] = useState(false);
   const [projectDeletingId, setProjectDeletingId] = useState<string | null>(null);
@@ -153,7 +153,7 @@ export default function PlansPage() {
     try {
       setProjectSaving(true);
       setProjectFormError(null);
-      await apiPost("/api/projects", { name: trimmed });
+      await apiPost("/api/projects", { name: trimmed, company_id: viewerProfile?.company_id });
       setNewProjectName("");
       await loadAll();
     } catch (error: any) {
@@ -201,7 +201,7 @@ export default function PlansPage() {
         const authId = data.session.user.id;
         supabase
           .from("profiles")
-          .select("id, role")
+          .select("id, role, company_id")
           .eq("id", authId)
           .single()
           .then(({ data: profile }) => {

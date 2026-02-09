@@ -53,9 +53,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         });
       }
 
+      const requestedCompanyId = typeof req.body?.company_id === "string" ? req.body.company_id.trim() : "";
+      if (requestedCompanyId && !isUuid(requestedCompanyId)) {
+        return res.status(400).json({
+          ok: false,
+          error: { code: "BAD_REQUEST", message: "Invalid company id" },
+        });
+      }
+
+      const companyIdToUse = requestedCompanyId || requester.company_id || "";
+      if (!companyIdToUse) {
+        return res.status(400).json({
+          ok: false,
+          error: { code: "MISSING_COMPANY", message: "Assign a company before creating a project" },
+        });
+      }
+
       const { data, error } = await serviceClient
         .from("projects")
-        .insert({ name: rawName, is_archived: false })
+        .insert({ name: rawName, company_id: companyIdToUse, is_archived: false })
         .select("id,name,address,is_archived,created_at,updated_at")
         .single();
 

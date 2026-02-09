@@ -1,11 +1,14 @@
 "use client";
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
 import styles from "./UnifiedLayout.module.css";
 import { usePathname } from "next/navigation";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LogoutButton } from "@/components/LogoutButton";
+
+
+import { supabase } from "@/lib/supabase";
 
 export default function UnifiedLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -14,16 +17,44 @@ export default function UnifiedLayout({ children }: { children: React.ReactNode 
   const { t } = useLanguage();
   const currentYear = new Date().getFullYear();
   const footerTagline = t("footer", "tagline", "Inspection and reporting platform");
+  const [userRole, setUserRole] = useState<string | null>(null);
 
-  const navLinks = useMemo(
-    () => [
+  useEffect(() => {
+    let active = true;
+    async function fetchRole() {
+      try {
+        const { data } = await supabase.auth.getUser();
+        const userId = data.user?.id;
+        if (!userId) return;
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", userId)
+          .single();
+        if (active) setUserRole(profile?.role || "USER");
+      } catch {
+        if (active) setUserRole("USER");
+      }
+    }
+    fetchRole();
+    return () => { active = false; };
+  }, []);
+
+  const isAdmin = (userRole || "").toUpperCase() === "ADMIN";
+
+  const navLinks = useMemo(() => {
+    const links = [
       { href: "/", label: t("nav", "tasks", "Aufgaben") },
       { href: "/plans", label: t("nav", "plans", "Pläne") },
-      { href: "/users", label: t("nav", "users", "Benutzer") },
-      { href: "/companies", label: t("nav", "companies", "Unternehmen") },
-    ],
-    [t]
-  );
+    ];
+    if (isAdmin) {
+      links.push(
+        { href: "/users", label: t("nav", "users", "Benutzer") },
+        { href: "/companies", label: t("nav", "companies", "Unternehmen") }
+      );
+    }
+    return links;
+  }, [t, isAdmin]);
 
   if (hideChrome) {
     // Task preview uses its own fullscreen chrome and should not show the global navigation.
@@ -85,9 +116,11 @@ export default function UnifiedLayout({ children }: { children: React.ReactNode 
             })}
           </div>
           <div className={styles.navStripControls}>
-            <Link href="/plans/upload" className={styles.navUpload}>
-              Upload plan
-            </Link>
+            {isAdmin && (
+              <Link href="/plans/upload" className={styles.navUpload}>
+                Upload plan
+              </Link>
+            )}
             <LanguageSwitcher />
             <LogoutButton className={styles.navLogout} />
           </div>
