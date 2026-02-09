@@ -51,6 +51,11 @@ type NotificationSettings = {
   notify_on_assign: boolean;
 };
 
+type TaskThumb = {
+  url: string | null;
+  type: "BEFORE" | "AFTER" | null;
+};
+
 export default function Home() {
   const router = useRouter();
   const [priorityFilter, setPriorityFilter] = useState<string | null>(null);
@@ -73,7 +78,7 @@ export default function Home() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectId, setProjectId] = useState("");
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [thumbByTask, setThumbByTask] = useState<Record<string, string | null>>({});
+  const [thumbByTask, setThumbByTask] = useState<Record<string, TaskThumb>>({});
   const [metaByPlan, setMetaByPlan] = useState<Record<string, PlanMeta | null>>({});
   const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
   const [q, setQ] = useState("");
@@ -138,12 +143,14 @@ export default function Home() {
         photos = await fetchPhotos();
       }
 
-      const raw = Array.isArray(photos) && photos.length > 0 ? photos[0]?.url || null : null;
+      const selected = Array.isArray(photos) && photos.length > 0 ? photos[0] : null;
+      const raw = selected?.url ?? null;
       const fixed = raw ? fixStorageUrl(raw) : null;
-      setThumbByTask((prev) => ({ ...prev, [taskId]: fixed }));
+      const phase = selected?.photo_type ?? null;
+      setThumbByTask((prev) => ({ ...prev, [taskId]: { url: fixed, type: phase } }));
     } catch (loadErr) {
       console.warn("[home] loadThumb failed", loadErr);
-      setThumbByTask((prev) => ({ ...prev, [taskId]: null }));
+      setThumbByTask((prev) => ({ ...prev, [taskId]: { url: null, type: null } }));
     }
   }, []);
 
@@ -651,6 +658,20 @@ export default function Home() {
             <div className="tasks-grid">
               {tasks.map((task) => {
                 const thumb = thumbByTask[task.id];
+                const thumbUrl = thumb?.url || null;
+                const thumbType = thumb?.type || null;
+                const thumbAlt =
+                  thumbType === "AFTER"
+                    ? t("home", "photoLabelAfter", "After photo")
+                    : thumbType === "BEFORE"
+                      ? t("home", "photoLabelBefore", "Before photo")
+                      : t("home", "photoLabel", "Task photo");
+                const thumbBadge =
+                  thumbType === "AFTER"
+                    ? t("home", "photoBadgeAfter", "After")
+                    : thumbType === "BEFORE"
+                      ? t("home", "photoBadgeBefore", "Before")
+                      : null;
                 const tileUrl = getTileUrl(task);
                 const taskNumberLabel = getTaskNumericLabel(task.id);
                 const statusLabel = t("taskStatus", task.status, task.status);
@@ -671,12 +692,23 @@ export default function Home() {
                 return (
                   <article key={task.id} className="task-card">
                     <div className="task-card__media">
-                      {thumb ? (
-                        <img src={thumb} alt={t("home", "photoLabel")} />
+                      {thumbUrl ? (
+                        <>
+                          <img src={thumbUrl} alt={thumbAlt} />
+                          {thumbBadge && (
+                            <span
+                              className={`task-card__media-badge ${
+                                thumbType === "AFTER" ? "task-card__media-badge--after" : "task-card__media-badge--before"
+                              }`.trim()}
+                            >
+                              {thumbBadge}
+                            </span>
+                          )}
+                        </>
                       ) : (
                         <div className="task-card__media-placeholder">
                           <span aria-hidden="true">📷</span>
-                          <p>{t("home", "noPhoto")}</p>
+                          <p>{t("home", "noPhoto", "No photo yet")}</p>
                         </div>
                       )}
                     </div>
