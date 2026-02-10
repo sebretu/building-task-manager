@@ -10,15 +10,45 @@ function isUuid(value: string) {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse<ApiOk | ApiErr>) {
+      // DEBUG: Log incoming request and user info
+      if (req.method === "GET") {
+        console.log("[API/projects] GET called");
+      }
   try {
     const { client, userId } = await createServerSupabaseClient(req);
 
     if (req.method === "GET") {
-      const { data, error } = await client
+      // Get user profile to check role
+      let requester = null;
+      try {
+        const { userId } = await createServerSupabaseClient(req);
+        requester = await requireRequesterProfile(client, userId);
+      } catch (e) {
+        // fallback: no profile, treat as non-admin
+      }
+
+      let query = client
         .from("projects")
         .select("id,name,address,is_archived,created_at,updated_at")
-        .eq("is_archived", false)
-        .order("created_at", { ascending: true });
+        .eq("is_archived", false);
+
+      // DEBUG: Log requester info
+      console.log("[API/projects] requester:", requester);
+
+      // If not admin, filter by company_id
+      if (!requester || !isAdminRole(requester.role)) {
+        if (requester?.company_id) {
+          query = query.eq("company_id", requester.company_id);
+        } else {
+          // No company, return empty
+          return res.status(200).json({ ok: true, data: [] });
+        }
+      }
+
+      const { data, error } = await query.order("created_at", { ascending: true });
+
+  // DEBUG: Log number of projects returned
+  console.log("[API/projects] projects count:", data?.length, data?.map(p => p.name));
 
       if (error) {
         return res.status((error as any).status || 400).json({
@@ -74,6 +104,55 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         .insert({ name: rawName, company_id: companyIdToUse, is_archived: false })
         .select("id,name,address,is_archived,created_at,updated_at")
         .single();
+      if (error) {
+        return res.status((error as any).status || 400).json({
+          ok: false,
+          error: {
+            code: "SUPABASE",
+            message: error.message,
+            meta: { code: (error as any).code, details: (error as any).details },
+          },
+        });
+      }
+      return res.status(201).json({ ok: true, data });
+    }
+
+    // PATCH: update project name (and optionally company_id)
+    if (req.method === "PATCH") {
+      const id = typeof req.body?.id === "string" ? req.body.id.trim() : "";
+      const newName = typeof req.body?.name === "string" ? req.body.name.trim() : "";
+      const newCompanyId = typeof req.body?.company_id === "string" ? req.body.company_id.trim() : undefined;
+      if (!id || !isUuid(id)) {
+        return res.status(400).json({
+          ok: false,
+          error: { code: "BAD_REQUEST", message: "Project id is required for update" },
+        });
+      }
+      if (!newName) {
+        return res.status(400).json({
+          ok: false,
+          error: { code: "BAD_REQUEST", message: "Project name is required" },
+        });
+      }
+      const updateObj: any = { name: newName };
+      if (newCompanyId && isUuid(newCompanyId)) updateObj.company_id = newCompanyId;
+      const { data, error } = await serviceClient
+        .from("projects")
+        .update(updateObj)
+        .eq("id", id)
+        .select("id,name,address,is_archived,created_at,updated_at")
+        .single();
+      if (error) {
+        return res.status((error as any).status || 400).json({
+          ok: false,
+          error: {
+            code: "SUPABASE",
+            message: error.message,
+            meta: { code: (error as any).code, details: (error as any).details },
+          },
+        });
+      }
+      return res.status(200).json({ ok: true, data });
 
       if (error) {
         return res.status((error as any).status || 400).json({

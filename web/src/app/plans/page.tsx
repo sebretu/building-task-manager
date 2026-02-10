@@ -9,6 +9,8 @@ import { supabase } from "@/lib/supabase";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 type Project = { id: string; name: string };
+type EditableProject = Project & { editing?: boolean; newName?: string };
+type EditableFloor = Floor & { editing?: boolean; newName?: string; newLevel?: string };
 
 type Floor = {
   id: string;
@@ -55,9 +57,9 @@ function formatPlanName(rawName: string | null | undefined, level?: number) {
 export default function PlansPage() {
   const router = useRouter();
   const { t } = useLanguage();
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [projects, setProjects] = useState<EditableProject[]>([]);
   const [projectId, setProjectId] = useState("");
-  const [floors, setFloors] = useState<Floor[]>([]);
+  const [floors, setFloors] = useState<EditableFloor[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [deletingPlanId, setDeletingPlanId] = useState<string | null>(null);
@@ -100,20 +102,77 @@ export default function PlansPage() {
     }
 
     const ps = await apiGet<Project[]>("/api/projects", token);
-    setProjects(ps);
+    // Dodaj log do konsoli i do UI
+    window._lastProjects = ps;
+    console.log('[PlansPage] loadAll: projects from API', ps);
+    setProjects(ps.map((p) => ({ ...p })));
 
     const usePid = pid || projectId || ps[0]?.id;
+    console.log('[PlansPage] loadAll: usePid', usePid);
     if (!usePid) return;
     setProjectId(usePid);
 
     const fs = await apiGet<Floor[]>(`/api/floors?projectId=${encodeURIComponent(usePid)}`, token);
-    setFloors(fs);
+    setFloors(fs.map((f) => ({ ...f })));
 
     const pls = await apiGet<Plan[]>(
       `/api/plans?projectId=${encodeURIComponent(usePid)}&current=true`,
       token
     );
     setPlans(pls);
+  }
+
+  // --- Project Editing ---
+  function startEditProject(id: string) {
+    setProjects((prev) => prev.map((p) => p.id === id ? { ...p, editing: true, newName: p.name } : { ...p, editing: false }));
+  }
+  function cancelEditProject(id: string) {
+    setProjects((prev) => prev.map((p) => p.id === id ? { ...p, editing: false, newName: undefined } : p));
+  }
+  async function saveEditProject(id: string) {
+    const proj = projects.find((p) => p.id === id);
+    if (!proj || !proj.newName?.trim()) return;
+    try {
+      const patchRes = await fetch("/api/projects", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, name: proj.newName.trim(), company_id: viewerProfile?.company_id }),
+      });
+      const patchJson = await patchRes.json();
+      console.log("PATCH /api/projects response", patchJson);
+      setProjects((prev) => prev.map((p) => p.id === id ? { ...p, name: proj.newName!.trim(), editing: false, newName: undefined } : p));
+      await loadAll(id);
+      // Log reloaded projects
+      const token = await getToken();
+      const ps = await apiGet<Project[]>("/api/projects", token);
+      console.log("Projects after reload", ps);
+    } catch (e: any) {
+      setProjectFormError(e?.message || "Failed to update project name");
+    }
+  }
+
+  // --- Floor Editing ---
+  function startEditFloor(id: string) {
+    setFloors((prev) => prev.map((f) => f.id === id ? { ...f, editing: true, newName: f.name, newLevel: String(f.level ?? "") } : { ...f, editing: false }));
+  }
+  function cancelEditFloor(id: string) {
+    setFloors((prev) => prev.map((f) => f.id === id ? { ...f, editing: false, newName: undefined, newLevel: undefined } : f));
+  }
+  async function saveEditFloor(id: string) {
+    const floor = floors.find((f) => f.id === id);
+    if (!floor || !floor.newName?.trim() || floor.newLevel === undefined) return;
+    const levelNum = Number(floor.newLevel);
+    if (!Number.isFinite(levelNum)) {
+      setProjectFormError("Invalid floor level");
+      return;
+    }
+    try {
+      await apiPost(`/api/floors`, { id, name: floor.newName.trim(), level: levelNum, projectId });
+      setFloors((prev) => prev.map((f) => f.id === id ? { ...f, name: floor.newName!.trim(), level: levelNum, editing: false, newName: undefined, newLevel: undefined } : f));
+      await loadAll(projectId);
+    } catch (e: any) {
+      setProjectFormError(e?.message || "Failed to update floor");
+    }
   }
 
   async function handleDeletePlan(planId: string) {
@@ -153,9 +212,12 @@ export default function PlansPage() {
     try {
       setProjectSaving(true);
       setProjectFormError(null);
-      await apiPost("/api/projects", { name: trimmed, company_id: viewerProfile?.company_id });
+      const created = await apiPost("/api/projects", { name: trimmed, company_id: viewerProfile?.company_id });
+      console.log('[PlansPage] handleCreateProject: created', created);
       setNewProjectName("");
-      await loadAll();
+      await loadAll(created.id);
+      setProjectId(created.id);
+      console.log('[PlansPage] handleCreateProject: setProjectId', created.id);
     } catch (error: any) {
       // Show backend error, especially for missing company_id
       let msg = error?.message || t("plansPage", "projectCreateError", "Failed to create project.");
@@ -272,7 +334,28 @@ export default function PlansPage() {
                     </option>
                   ))}
                 </select>
+                {isAdmin && selectedProject && (
+                  projects.find((p) => p.id === selectedProject.id)?.editing ? (
+                    <span style={{ marginLeft: 8 }}>
+                      <input
+                        type="text"
+                        value={projects.find((p) => p.id === selectedProject.id)?.newName || ""}
+                        onChange={e => setProjects(prev => prev.map(p => p.id === selectedProject.id ? { ...p, newName: e.target.value } : p))}
+                        style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid #ccc", minWidth: 120 }}
+                      />
+                      <button type="button" onClick={() => saveEditProject(selectedProject.id)} style={{ marginLeft: 4 }}>💾</button>
+                      <button type="button" onClick={() => cancelEditProject(selectedProject.id)} style={{ marginLeft: 2 }}>✖</button>
+                    </span>
+                  ) : (
+                    <button type="button" onClick={() => startEditProject(selectedProject.id)} style={{ marginLeft: 8 }}>{t("plansPage", "editProject", "Edit")}</button>
+                  )
+                )}
               </label>
+              {/* DEBUG: Wyświetl listę projektów */}
+              <div style={{fontSize:12, color:'#888', marginTop:8}}>
+                <b>DEBUG projekty:</b>
+                <pre>{JSON.stringify(projects, null, 2)}</pre>
+              </div>
               {isAdmin && (
                 <div style={{ marginTop: 16 }}>
                   <form onSubmit={handleCreateProject} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -355,7 +438,31 @@ export default function PlansPage() {
                 <ul className="plans-list">
                   {floorsWithPlans.map((f) => (
                     <li key={f.id}>
-                      <span>{floorDisplayNames[f.id] || formatPlanName(f.name, f.level)}</span>
+                      {f.editing ? (
+                        <>
+                          <input
+                            type="text"
+                            value={f.newName || ""}
+                            onChange={e => setFloors(prev => prev.map(fl => fl.id === f.id ? { ...fl, newName: e.target.value } : fl))}
+                            style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid #ccc", minWidth: 80 }}
+                          />
+                          <input
+                            type="number"
+                            value={f.newLevel || ""}
+                            onChange={e => setFloors(prev => prev.map(fl => fl.id === f.id ? { ...fl, newLevel: e.target.value } : fl))}
+                            style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid #ccc", width: 60, marginLeft: 4 }}
+                          />
+                          <button type="button" onClick={() => saveEditFloor(f.id)} style={{ marginLeft: 4 }}>💾</button>
+                          <button type="button" onClick={() => cancelEditFloor(f.id)} style={{ marginLeft: 2 }}>✖</button>
+                        </>
+                      ) : (
+                        <>
+                          <span>{floorDisplayNames[f.id] || formatPlanName(f.name, f.level)}</span>
+                          {isAdmin && (
+                            <button type="button" onClick={() => startEditFloor(f.id)} style={{ marginLeft: 8 }}>{t("plansPage", "editFloor", "Edit")}</button>
+                          )}
+                        </>
+                      )}
                     </li>
                   ))}
                 </ul>
