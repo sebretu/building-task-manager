@@ -157,8 +157,12 @@ export default function PlansPage() {
       setNewProjectName("");
       await loadAll();
     } catch (error: any) {
-      const fallback = t("plansPage", "projectCreateError", "Failed to create project.");
-      setProjectFormError(error?.message || fallback);
+      // Show backend error, especially for missing company_id
+      let msg = error?.message || t("plansPage", "projectCreateError", "Failed to create project.");
+      if (msg.includes("company")) {
+        msg += ` (${t("plansPage", "projectCreateErrorCompany", "Assign a company to your profile before creating a project.")})`;
+      }
+      setProjectFormError(msg);
     } finally {
       setProjectSaving(false);
     }
@@ -244,6 +248,9 @@ export default function PlansPage() {
   return (
     <main className="home-main plans-main">
         {err && <div className="home-card-error plans-error">{err}</div>}
+        {projectFormError && (
+          <div className="home-card-error plans-error" style={{ marginTop: 8 }}>{projectFormError}</div>
+        )}
         <section className="home-task-panel plans-panel">
           <div className="home-section-header">
             <h2>{t("plansPage", "title", "Plans library")}</h2>
