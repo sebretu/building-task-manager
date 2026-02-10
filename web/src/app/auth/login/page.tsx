@@ -36,7 +36,53 @@ export default function LoginPage() {
 
       // Wait a moment for auth state to update
       await new Promise((r) => setTimeout(r, 300));
-      
+
+
+      // --- Ensure profile row exists and sync company_id to user_metadata ---
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        // Try to fetch the profile row
+        let { data: profile, error: profileError } = await supabase
+          .from("profiles")
+          .select("company_id, email, full_name")
+          .eq("id", user.id)
+          .single();
+
+        // If not found, create it
+        if (profileError || !profile) {
+          const { data: inserted, error: insertError } = await supabase
+            .from("profiles")
+            .insert({
+              id: user.id,
+              email: user.email,
+              full_name: user.user_metadata?.full_name || user.email || "",
+              company_id: user.user_metadata?.company_id || null,
+              // role, language, is_active, created_at, updated_at will use defaults
+            })
+            .select("company_id, email, full_name")
+            .single();
+          if (insertError) {
+            // eslint-disable-next-line no-console
+            console.error("[Login] Profile insert error:", insertError);
+          } else if (!inserted) {
+            // eslint-disable-next-line no-console
+            console.error("[Login] Profile insert returned no data");
+          } else {
+            profile = inserted;
+            // Force session refresh after profile creation
+            await supabase.auth.refreshSession();
+          }
+        }
+
+        // Now sync company_id if present
+        if (profile?.company_id) {
+          await supabase.auth.updateUser({
+            data: { company_id: profile.company_id }
+          });
+        }
+      }
+      // --- End profile ensure & sync ---
+
       // Redirect to home
       router.push("/");
       router.refresh();

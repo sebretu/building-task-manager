@@ -7,7 +7,6 @@ ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.task_photos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.floors ENABLE ROW LEVEL SECURITY;
 
--- profiles: user can see their profile; company members can select; users can update own profile
 CREATE POLICY profiles_select_self_or_company
   ON public.profiles FOR SELECT
   USING (auth.uid() IS NOT NULL);
@@ -16,6 +15,11 @@ CREATE POLICY profiles_update_own
   ON public.profiles FOR UPDATE
   USING (auth.uid() IS NOT NULL)
   WITH CHECK (auth.uid() IS NOT NULL);
+
+-- Allow authenticated users to insert their own profile row
+CREATE POLICY profiles_insert_own
+  ON public.profiles FOR INSERT
+  WITH CHECK (auth.uid() IS NOT NULL AND id = auth.uid());
 
 -- tasks: creator, assignee, or same company can read; create allowed if created_by = auth.uid(); update allowed only by allowed actors
 CREATE POLICY tasks_select_allowed
