@@ -18,13 +18,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     const { client, userId } = await createServerSupabaseClient(req);
 
     if (req.method === "GET") {
-      // Get user profile to check role
+      // Get user profile to check role (wymagaj profil i token!)
       let requester = null;
       try {
+        // Loguj token z nagłówka
+        const token = req.headers.authorization || (req.headers.Authorization as string) || null;
+        console.log("[API/projects] Authorization header:", token);
         const { userId } = await createServerSupabaseClient(req);
+        console.log("[API/projects] decoded userId:", userId);
         requester = await requireRequesterProfile(client, userId);
-      } catch (e) {
-        // fallback: no profile, treat as non-admin
+        console.log("[API/projects] loaded requester profile:", requester);
+      } catch (e: any) {
+        // Jeśli nie można pobrać profilu, zwróć 401
+        console.error("[API/projects] requester profile error:", e?.message || e);
+        return res.status(401).json({
+          ok: false,
+          error: { code: "AUTH_INVALID", message: "Missing or invalid user profile/token" },
+        });
       }
 
       let query = client
@@ -36,19 +46,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       console.log("[API/projects] requester:", requester);
 
       // If not admin, filter by company_id
-      if (!requester || !isAdminRole(requester.role)) {
+      if (!isAdminRole(requester.role)) {
         if (requester?.company_id) {
           query = query.eq("company_id", requester.company_id);
         } else {
-          // No company, return empty
+          // Brak company_id – zwróć pustą listę
           return res.status(200).json({ ok: true, data: [] });
         }
       }
 
       const { data, error } = await query.order("created_at", { ascending: true });
 
-  // DEBUG: Log number of projects returned
-  console.log("[API/projects] projects count:", data?.length, data?.map(p => p.name));
+      // DEBUG: Log number of projects returned
+      console.log("[API/projects] projects count:", data?.length, data?.map(p => p.name));
 
       if (error) {
         return res.status((error as any).status || 400).json({
