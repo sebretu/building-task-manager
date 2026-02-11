@@ -9,6 +9,7 @@ import { supabase } from "@/lib/supabase";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 type Project = { id: string; name: string };
+type Building = { id: string; name: string };
 
 type Floor = {
   id: string;
@@ -31,25 +32,6 @@ type Plan = {
   image_height: number | null;
 };
 
-function formatPlanName(rawName: string | null | undefined, level?: number) {
-  const fallback = typeof level === "number" ? `Level ${level}` : "Plan";
-  if (!rawName) return fallback;
-
-  let cleaned = rawName.trim();
-  cleaned = cleaned.replace(/^L\d+[\s_-]*/i, "");
-  cleaned = cleaned.replace(/^Level[\s_-]*\d+[\s_-]*/i, "");
-  cleaned = cleaned.replace(/[_-]+/g, " ");
-
-  const trailingNoise = /(?:[\s_-]*(?:[0-9a-f]{8,}|[0-9]{6,}))$/i;
-  let next = cleaned;
-  while (trailingNoise.test(next)) {
-    next = next.replace(trailingNoise, "");
-  }
-
-  cleaned = next.replace(/\s{2,}/g, " ").trim();
-  return cleaned || fallback;
-}
-
 // use `getToken` and `apiGet` from lib/apiClient
 
 export default function PlansPage() {
@@ -57,38 +39,20 @@ export default function PlansPage() {
   const { t } = useLanguage();
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectId, setProjectId] = useState("");
+  const [buildings, setBuildings] = useState<Building[]>([]);
   const [floors, setFloors] = useState<Floor[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [deletingPlanId, setDeletingPlanId] = useState<string | null>(null);
   const [sessionChecked, setSessionChecked] = useState(false);
   const [viewerProfile, setViewerProfile] = useState<{ id: string; role: string | null; company_id: string | null } | null>(null);
-  const [newProjectName, setNewProjectName] = useState("");
-  const [projectSaving, setProjectSaving] = useState(false);
-  const [projectDeletingId, setProjectDeletingId] = useState<string | null>(null);
-  const [projectFormError, setProjectFormError] = useState<string | null>(null);
 
   const normalizedRole = (viewerProfile?.role || "").toUpperCase();
   const isAdmin = normalizedRole === "ADMIN";
 
-  const floorDisplayNames = useMemo<Record<string, string>>(
-    () =>
-      floors.reduce((acc, floor) => {
-        acc[floor.id] = formatPlanName(floor.name, floor.level);
-        return acc;
-      }, {} as Record<string, string>),
-    [floors]
-  );
-
-  const floorsWithPlans = useMemo(() => {
-    const floorIdsWithPlans = new Set(plans.map((p) => p.floor_id));
-    return floors.filter((f) => floorIdsWithPlans.has(f.id));
-  }, [floors, plans]);
-
-  const selectedProject = useMemo(
-    () => projects.find((p) => p.id === projectId),
-    [projects, projectId]
-  );
+  const selectedProject = useMemo(() => {
+    return projects.find((p) => p.id === projectId);
+  }, [projects, projectId]);
 
   async function loadAll(pid?: string) {
     setErr(null);
@@ -103,16 +67,24 @@ export default function PlansPage() {
     setProjects(ps);
 
     const usePid = pid || projectId || ps[0]?.id;
-    if (!usePid) return;
+    if (!usePid) {
+      setProjectId("");
+      setBuildings([]);
+      setFloors([]);
+      setPlans([]);
+      return;
+    }
     setProjectId(usePid);
 
-    const fs = await apiGet<Floor[]>(`/api/floors?projectId=${encodeURIComponent(usePid)}`, token);
-    setFloors(fs);
+    // Run fetches in parallel for speed
+    const [bs, fs, pls] = await Promise.all([
+      apiGet<Building[]>(`/api/buildings?projectId=${encodeURIComponent(usePid)}`, token),
+      apiGet<Floor[]>(`/api/floors?projectId=${encodeURIComponent(usePid)}`, token),
+      apiGet<Plan[]>(`/api/plans?projectId=${encodeURIComponent(usePid)}&current=true`, token)
+    ]);
 
-    const pls = await apiGet<Plan[]>(
-      `/api/plans?projectId=${encodeURIComponent(usePid)}&current=true`,
-      token
-    );
+    setBuildings(bs);
+    setFloors(fs);
     setPlans(pls);
   }
 
@@ -138,52 +110,6 @@ export default function PlansPage() {
       setErr(e?.message || fallback);
     } finally {
       setDeletingPlanId(null);
-    }
-  }
-
-  async function handleCreateProject(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (!isAdmin) return;
-    const trimmed = newProjectName.trim();
-    if (!trimmed) {
-      setProjectFormError(t("plansPage", "projectNameRequired", "Provide a project name."));
-      return;
-    }
-
-    try {
-      setProjectSaving(true);
-      setProjectFormError(null);
-      await apiPost("/api/projects", { name: trimmed, company_id: viewerProfile?.company_id });
-      setNewProjectName("");
-      await loadAll();
-    } catch (error: any) {
-      const fallback = t("plansPage", "projectCreateError", "Failed to create project.");
-      setProjectFormError(error?.message || fallback);
-    } finally {
-      setProjectSaving(false);
-    }
-  }
-
-  async function handleDeleteProject() {
-    if (!isAdmin || !selectedProject) return;
-    const confirmMessage = t("plansPage", "deleteProjectConfirm", "Delete project {name}?").replace(
-      "{name}",
-      selectedProject.name
-    );
-    const confirmed = typeof window !== "undefined" ? window.confirm(confirmMessage) : false;
-    if (!confirmed) return;
-
-    try {
-      setProjectDeletingId(selectedProject.id);
-      setProjectFormError(null);
-      await apiDelete(`/api/projects?id=${encodeURIComponent(selectedProject.id)}`);
-      setProjectId("");
-      await loadAll();
-    } catch (error: any) {
-      const fallback = t("plansPage", "deleteProjectError", "Failed to delete project.");
-      setProjectFormError(error?.message || fallback);
-    } finally {
-      setProjectDeletingId(null);
     }
   }
 
@@ -241,173 +167,110 @@ export default function PlansPage() {
   }, [sessionChecked, router]);
 
   if (!sessionChecked) {
-    return <div style={{ padding: 32 }}>{t("plansPage", "pageLoading", "Loading plans...")}</div>;
+    return <div style={{ padding: 48, textAlign: "center", color: "var(--home-muted)" }}>{t("plansPage", "pageLoading", "Loading plans...")}</div>;
   }
 
   return (
-    <main className="home-main plans-main">
+    <main className="home-main upload-main">
       {err && <div className="home-card-error plans-error">{err}</div>}
-      <section className="home-task-panel plans-panel">
-        <div className="home-section-header">
-          <h2>{t("plansPage", "title", "Plans library")}</h2>
-          <p>{t("plansPage", "subtitle", "Switch project, review floors, and open the current plan set.")}</p>
+      <section className="upload-panel">
+        <div className="upload-header-centered">
+          <div>
+            <div className="home-hero-kicker">{t("plansPage", "kicker", "Library")}</div>
+            <h2>{t("plansPage", "title", "Plans library")}</h2>
+            <p>{t("plansPage", "subtitle", "Review and manage your project plans.")}</p>
+          </div>
+          <div style={{ marginTop: 16 }}>
+            {/* Optional extra action buttons could go here */}
+          </div>
         </div>
 
-        <div className="plans-grid">
-          <div className="plans-card">
-            <div className="plans-card-title">{t("plansPage", "projectCardTitle", "Project")}</div>
-            <label className="plans-label">
-              {t("plansPage", "projectLabel", "Select project")}
-              <select value={projectId} onChange={(e) => loadAll(e.target.value)} disabled={projects.length === 0}>
-                {projects.length === 0 && (
-                  <option value="">{t("plansPage", "projectSelectPlaceholder", "-- Select project --")}</option>
-                )}
-                {projects.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {isAdmin && (
-              <div style={{ marginTop: 16 }}>
-                <form onSubmit={handleCreateProject} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  <div className="plans-card-title" style={{ fontSize: 16 }}>
-                    {t("plansPage", "createProjectTitle", "Add project")}
-                  </div>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <input
-                      type="text"
-                      value={newProjectName}
-                      onChange={(e) => setNewProjectName(e.target.value)}
-                      placeholder={t("plansPage", "newProjectPlaceholder", "Project name")}
-                      style={{ flex: 1, padding: "8px 10px", borderRadius: 6, border: "1px solid #ccc" }}
-                    />
-                    <button
-                      type="submit"
-                      disabled={projectSaving}
-                      style={{
-                        padding: "8px 14px",
-                        borderRadius: 6,
-                        border: "none",
-                        background: "#1e88e5",
-                        color: "#fff",
-                        fontWeight: 600,
-                        cursor: projectSaving ? "not-allowed" : "pointer",
-                      }}
-                    >
-                      {projectSaving
-                        ? t("plansPage", "addingProject", "Adding...")
-                        : t("plansPage", "addProjectButton", "Add project")}
-                    </button>
-                  </div>
-                </form>
-                {selectedProject && (
-                  <button
-                    type="button"
-                    onClick={handleDeleteProject}
-                    disabled={projectDeletingId === selectedProject.id}
-                    style={{
-                      marginTop: 12,
-                      width: "100%",
-                      padding: "8px 12px",
-                      borderRadius: 6,
-                      border: "1px solid #c62828",
-                      background: projectDeletingId === selectedProject.id ? "#f9d6d5" : "#fff5f5",
-                      color: "#c62828",
-                      fontWeight: 600,
-                      cursor: projectDeletingId === selectedProject.id ? "not-allowed" : "pointer",
-                    }}
-                  >
-                    {projectDeletingId === selectedProject.id
-                      ? t("plansPage", "deletingProject", "Deleting...")
-                      : t("plansPage", "deleteProjectButton", "Delete project")}
-                  </button>
-                )}
-                {projectFormError && (
-                  <div
-                    style={{
-                      marginTop: 12,
-                      background: "#fff3cd",
-                      color: "#856404",
-                      padding: "8px 10px",
-                      borderRadius: 6,
-                      fontSize: 13,
-                    }}
-                  >
-                    {projectFormError}
-                  </div>
-                )}
+        <div className="upload-grid">
+          {/* Project Selection Card */}
+          <div className="upload-card">
+            <div className="upload-section">
+              <div className="upload-section-header">
+                <span className="upload-section-title">{t("plansPage", "projectCardTitle", "Project")}</span>
               </div>
-            )}
+              <div className="upload-field">
+                <div className="upload-input-group">
+                  <select
+                    className="upload-select"
+                    value={projectId}
+                    onChange={(e) => loadAll(e.target.value)}
+                    disabled={projects.length === 0}
+                  >
+                    {projects.length === 0 && (
+                      <option value="">{t("plansPage", "projectSelectPlaceholder", "-- Select project --")}</option>
+                    )}
+                    {projects.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div className="plans-card">
-            <div className="plans-card-title">{t("plansPage", "floorsCardTitle", "Floors")}</div>
-            {floorsWithPlans.length === 0 && (
-              <div className="plans-empty">{t("plansPage", "noFloors", "No floors with current plans")}</div>
-            )}
-            {floorsWithPlans.length > 0 && (
-              <ul className="plans-list">
-                {floorsWithPlans.map((f) => (
-                  <li key={f.id}>
-                    <span>{floorDisplayNames[f.id] || formatPlanName(f.name, f.level)}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          <div className="plans-card">
-            <div className="plans-card-title">{t("plansPage", "plansCardTitle", "Current plans")}</div>
+          {/* Plans Grid */}
+          <div className="plans-display-grid" style={{ gridColumn: "1 / -1", display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 24, marginTop: 24 }}>
             {plans.length === 0 && (
-              <div className="plans-empty">{t("plansPage", "noPlans", "No current plans")}</div>
-            )}
-            {plans.length > 0 && (
-              <div style={{ display: "flex", flexDirection: "row", flexWrap: "wrap", gap: 24 }}>
-                {plans.map((p) => {
-                  const planTitle = floorDisplayNames[p.floor_id] || `Plan v${p.version}`;
-                  return (
-                    <div key={p.id} style={{ border: "1px solid #ddd", borderRadius: 12, padding: 18, width: 520, display: "flex", flexDirection: "column", alignItems: "center", background: "#fff", boxShadow: "0 2px 12px #0001", marginBottom: 24 }}>
-                      <PlanCompositeThumbnail
-                        planId={p.id}
-                        size={480}
-                        alt={t("plansPage", "planAlt", "Plan {name}").replace("{name}", planTitle)}
-                      />
-                      <div style={{ marginTop: 14, fontWeight: 600, fontSize: 20, textAlign: "center" }}>{planTitle}</div>
-                      <div style={{ marginTop: 8, fontSize: 15, color: "#666" }}>
-                        v{p.version} <span style={{ color: "#888", fontWeight: 400 }}>({p.status})</span>
-                      </div>
-                      <div style={{ display: "flex", gap: 12, marginTop: 12 }}>
-                        <Link href={`/plan/${p.id}`} className="plans-link" style={{ fontSize: 16, color: "#1976d2", textDecoration: "underline" }}>
-                          {t("plansPage", "openViewer", "Open viewer")}
-                        </Link>
-                        {isAdmin && (
-                          <button
-                            type="button"
-                            onClick={() => handleDeletePlan(p.id)}
-                            disabled={deletingPlanId === p.id}
-                            style={{
-                              padding: "8px 14px",
-                              borderRadius: 6,
-                              border: "1px solid #d32f2f",
-                              background: deletingPlanId === p.id ? "#f9d6d5" : "#fff5f5",
-                              color: "#c62828",
-                              fontSize: 14,
-                              cursor: deletingPlanId === p.id ? "not-allowed" : "pointer",
-                            }}
-                          >
-                            {deletingPlanId === p.id
-                              ? t("plansPage", "deletingPlan", "Deleting...")
-                              : t("plansPage", "deletePlan", "Delete plan")}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+              <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: 48, color: "var(--home-muted)" }}>
+                {t("plansPage", "noPlans", "No current plans")}
               </div>
             )}
+            {plans.map((p) => {
+              const floor = floors.find(f => f.id === p.floor_id);
+              const building = buildings.find(b => b.id === floor?.building_id);
+              const project = projects.find(proj => proj.id === p.project_id);
+
+              const locationParts = [
+                project?.name,
+                building?.name,
+                floor?.name
+              ].filter(Boolean);
+
+              const locationString = locationParts.join(" - ");
+
+              return (
+                <div key={p.id} className="upload-card" style={{ padding: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+                  <Link href={`/plan/${p.id}`} style={{ padding: 24, flex: 1, display: "flex", flexDirection: "column", alignItems: "center", textDecoration: "none", color: "inherit", cursor: "pointer" }}>
+                    <PlanCompositeThumbnail
+                      planId={p.id}
+                      size={280}
+                      alt={locationString || "Plan"}
+                    />
+                    <div style={{ marginTop: 16, fontWeight: 600, fontSize: 16, textAlign: "center", color: "var(--home-foreground)" }}>
+                      {locationString || `Plan v${p.version}`}
+                    </div>
+                    <div style={{ marginTop: 4, fontSize: 13, color: "var(--home-muted)" }}>
+                      v{p.version} ({p.status})
+                    </div>
+                  </Link>
+                  <div style={{ borderTop: "1px solid var(--border)", padding: 12, display: "flex", justifyContent: "flex-end", alignItems: "center", background: "var(--home-bg-secondary)" }}>
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeletePlan(p.id)}
+                        disabled={deletingPlanId === p.id}
+                        style={{
+                          border: "none",
+                          background: "transparent",
+                          color: "var(--danger)",
+                          fontSize: 13,
+                          cursor: deletingPlanId === p.id ? "not-allowed" : "pointer",
+                          opacity: deletingPlanId === p.id ? 0.5 : 1
+                        }}
+                      >
+                        {deletingPlanId === p.id ? "..." : t("plansPage", "deletePlan", "Delete")}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>

@@ -838,18 +838,28 @@ export default function PlansUploadPage() {
                         </button>
                       </div>
                     ) : (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const f = floors.find((f) => f.id === floorId);
-                          setEditingFloor(floorId);
-                          setEditingFloorName(f?.name || "");
-                        }}
-                        className="upload-btn-secondary"
-                        style={{ fontSize: 12, padding: "4px 10px" }}
-                      >
-                        {t("planUpload", "edit", "Edit Name")}
-                      </button>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const f = floors.find((f) => f.id === floorId);
+                            setEditingFloor(floorId);
+                            setEditingFloorName(f?.name || "");
+                          }}
+                          className="upload-btn-secondary"
+                          style={{ fontSize: 12, padding: "4px 10px" }}
+                        >
+                          {t("planUpload", "edit", "Edit Name")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={deleteFloor}
+                          className="upload-btn-secondary"
+                          style={{ fontSize: 12, padding: "4px 10px", color: "var(--danger)", borderColor: "var(--danger)" }}
+                        >
+                          {t("planUpload", "delete", "Delete")}
+                        </button>
+                      </div>
                     )}
                   </div>
                 )}
