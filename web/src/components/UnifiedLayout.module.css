@@ -1,0 +1,211 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+
+:global(.topbar) {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  justify-content: center;
+  padding: 32px 0 16px;
+  min-height: auto;
+  display: flex;
+  align-items: flex-start;
+}
+
+:global(.topbar__inner) {
+  width: 100%;
+  max-width: 800px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+:global(.topbar__brand) {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  position: relative;
+}
+
+:global(.topbar__logo) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: min(40vw, 300px);
+  height: auto;
+  border-radius: 0;
+  overflow: visible;
+  background: transparent;
+  box-shadow: none;
+}
+
+:global(.topbar__logo:hover),
+:global(.topbar__logo:focus) {
+  background: transparent !important;
+  box-shadow: none;
+  color: inherit;
+}
+
+:global(.topbar__logo img) {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  object-position: center;
+}
+
+:global(.topbar__toggle),
+:global(.topbar__nav),
+:global(.topbar__actions) {
+  display: none !important;
+}
+
+.layoutRoot {
+  min-height: 100vh;
+  background:
+    radial-gradient(900px 500px at 15% -10%, var(--ui-glow-1, rgba(14,165,233,.10)), transparent 60%),
+    radial-gradient(900px 500px at 95% 0%, var(--ui-glow-2, rgba(245,158,11,.10)), transparent 55%),
+    var(--ui-bg, #f6f8fb);
+  color: var(--ui-text, #0f172a);
+  font-family: var(--font-geist-sans, 'Inter', system-ui, sans-serif);
+  display: flex;
+  flex-direction: column;
+}
+
+.navStrip {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.navStripInner {
+  width: min(100%, 1200px);
+  margin: 0 auto;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 58px;
+  gap: 24px;
+}
+
+.navStripLinks {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: 0.01em;
+  flex: 1;
+  flex-wrap: nowrap;
+}
+
+.navStripLink {
+  text-decoration: none;
+  color: var(--ui-text, #0f172a);
+  padding-bottom: 4px;
+  transition: color 0.2s ease;
+}
+
+.navStripLink:hover {
+  color: var(--ui-accent, #2563eb);
+}
+
+.navStripLinkActive {
+  color: var(--ui-accent, #2563eb);
+}
+
+.navStripControls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.navUpload {
+  border: 1px solid rgba(15, 23, 42, 0.15);
+  border-radius: 999px;
+  padding: 8px 18px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--ui-text, #0f172a);
+  text-decoration: none;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+  white-space: nowrap;
+}
+
+.navUpload:hover {
+  background: var(--ui-accent, #2563eb);
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.navLogout {
+  border: none;
+  border-radius: 999px;
+  padding: 8px 18px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  background: var(--ui-text, #0f172a);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.2s ease, opacity 0.2s ease, transform 0.2s ease;
+}
+
+.navLogout:hover:not(:disabled) {
+  background: var(--ui-accent, #2563eb);
+  transform: translateY(-1px);
+}
+
+.navLogout:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.navLogout:focus-visible {
+  outline: 2px solid var(--ui-accent, #2563eb);
+  outline-offset: 3px;
+}
+
+.main {
+  flex: 1;
+  width: 100%;
+  padding: 96px 0 48px;
+}
+
+.footer {
+  margin-top: auto;
+  text-align: center;
+  padding: 32px 16px 48px;
+  color: var(--ui-muted, #64748b);
+  font-size: 0.95rem;
+}
+
+@media (max-width: 768px) {
+  .navStripInner {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 8px 16px;
+    gap: 12px;
+  }
+
+  .navStripLinks {
+    width: 100%;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    gap: 1rem;
+  }
+
+  .navStripControls {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .main {
+    padding-top: 88px;
+  }
+}

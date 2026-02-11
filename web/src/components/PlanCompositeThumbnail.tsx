@@ -1,0 +1,97 @@
+import React, { useEffect, useMemo, useState } from "react";
+
+type TilesMeta = {
+  limits?: Record<string, { maxX: number; maxY: number }>;
+};
+
+interface PlanCompositeThumbnailProps {
+  planId: string;
+  zoom?: number;
+  size?: number;
+  alt?: string;
+}
+
+// Renders a 2x2 grid for zoom 1 (tiles 1/0/0, 1/0/1, 1/1/0, 1/1/1)
+const PlanCompositeThumbnail: React.FC<PlanCompositeThumbnailProps> = ({ planId, zoom = 1, size = 480, alt = "Plan thumbnail" }) => {
+  const [meta, setMeta] = useState<TilesMeta | null>(null);
+  const [metaError, setMetaError] = useState(false);
+  const [tileError, setTileError] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setMeta(null);
+    setMetaError(false);
+    setTileError(false);
+
+    const loadMeta = async () => {
+      try {
+        const res = await fetch(`/tiles/${planId}/meta.json`, { cache: "force-cache" });
+        if (!res.ok) throw new Error(`meta ${res.status}`);
+        const data = (await res.json()) as TilesMeta;
+        if (!cancelled) setMeta(data);
+      } catch (e) {
+        if (!cancelled) setMetaError(true);
+      }
+    };
+
+    loadMeta();
+    return () => {
+      cancelled = true;
+    };
+  }, [planId]);
+
+  const limit = meta?.limits?.[String(zoom)];
+  const columns = Math.max(1, (limit?.maxX ?? 1) + 1);
+  const rows = Math.max(1, (limit?.maxY ?? 1) + 1);
+  const scale = size / Math.max(columns, rows);
+  const cellSize = Number.isFinite(scale) && scale > 0 ? scale : size / 2;
+  const width = columns * cellSize;
+  const height = rows * cellSize;
+  const gridTemplateColumns = `repeat(${columns}, ${cellSize}px)`;
+  const gridTemplateRows = `repeat(${rows}, ${cellSize}px)`;
+
+  const tileSrc = (x: number, y: number) => `/tiles/${planId}/${zoom}/${x}/${y}.png`;
+  const tiles = useMemo(() => {
+    return Array.from({ length: rows }).flatMap((_, y) =>
+      Array.from({ length: columns }).map((__, x) => (
+        <img
+          key={`${x}-${y}`}
+          src={tileSrc(x, y)}
+          alt={alt}
+          style={{ width: cellSize, height: cellSize, objectFit: "contain", background: "#eee" }}
+          onError={() => setTileError(true)}
+        />
+      ))
+    );
+  }, [rows, columns, planId, alt, cellSize, zoom]);
+
+  if (metaError || tileError) {
+    return (
+      <img
+        src="/assets/plan-placeholder.svg"
+        alt={alt}
+        style={{ width: size, height: size, opacity: 0.5, border: "1px solid #ccc", borderRadius: 8 }}
+      />
+    );
+  }
+
+  return (
+    <div
+      style={{
+        width,
+        height,
+        display: "grid",
+        gridTemplateColumns,
+        gridTemplateRows,
+        border: "1px solid #ccc",
+        borderRadius: 8,
+        overflow: "hidden",
+        background: "#f8f8f8",
+      }}
+    >
+      {tiles}
+    </div>
+  );
+};
+
+export default PlanCompositeThumbnail;

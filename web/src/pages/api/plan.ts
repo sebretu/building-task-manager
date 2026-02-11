@@ -1,0 +1,75 @@
+import type { NextApiRequest, NextApiResponse } from "next";
+import { createServerSupabaseClient } from "@/lib/supabaseServer";
+import { requireRequesterProfile, isAdminRole } from "@/lib/requesterProfile";
+
+type ApiOk = { ok: true; data: any };
+type ApiErr = { ok: false; error: { code: string; message: string; meta?: any } };
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse<ApiOk | ApiErr>) {
+  if (req.method !== "GET") {
+    res.setHeader("Allow", "GET");
+    return res.status(405).json({ ok: false, error: { code: "METHOD_NOT_ALLOWED", message: "Use GET" } });
+  }
+
+  let supabase;
+  let userId: string | null = null;
+  try {
+    ({ client: supabase, userId } = createServerSupabaseClient(req));
+  } catch (e: any) {
+    return res.status(401).json({ ok: false, error: { code: "AUTH_INVALID", message: "Missing Bearer token" } });
+  }
+
+  let requester: { id: string; role: string | null };
+  try {
+    requester = await requireRequesterProfile(supabase, userId);
+  } catch (err: any) {
+    return res.status(err?.status || 403).json({
+      ok: false,
+      error: { code: err?.code || "PROFILE_ERROR", message: err?.message || "Unable to load profile" },
+    });
+  }
+
+  const isAdmin = isAdminRole(requester.role);
+
+  const id = (req.query.id as string) || "";
+  if (!id) return res.status(400).json({ ok: false, error: { code: "BAD_REQUEST", message: "Missing query: id" } });
+
+  const { data, error } = await supabase
+    .from("plans")
+    .select("id,project_id,floor_id,version,status,pdf_path,image_path,image_width,image_height,is_current,storage_bucket,storage_path,processing_error,created_at,updated_at")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) {
+    return res.status((error as any).status || 400).json({
+      ok: false,
+      error: { code: "SUPABASE", message: error.message, meta: { code: (error as any).code, details: (error as any).details } },
+    });
+  }
+
+  if (!isAdmin) {
+    const { data: taskAccess, error: taskAccessError } = await supabase
+      .from("tasks")
+      .select("id")
+      .eq("plan_id", id)
+      .eq("assigned_user_id", requester.id)
+      .limit(1);
+
+    if (taskAccessError) {
+      return res.status((taskAccessError as any).status || 400).json({
+        ok: false,
+        error: {
+          code: "SUPABASE",
+          message: taskAccessError.message,
+          meta: { code: (taskAccessError as any).code, details: (taskAccessError as any).details },
+        },
+      });
+    }
+
+    if (!taskAccess || taskAccess.length === 0) {
+      return res.status(403).json({ ok: false, error: { code: "FORBIDDEN", message: "You do not have access to this plan" } });
+    }
+  }
+
+  return res.status(200).json({ ok: true, data });
+}
