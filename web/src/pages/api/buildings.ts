@@ -35,7 +35,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({ ok: true, data });
   }
 
-  let supabase;
+  let supabase: any;
   let userId: string | null = null;
   try {
     ({ client: supabase, userId } = createServerSupabaseClient(req));
@@ -92,6 +92,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     .single();
 
   if (error) {
+    console.error("Building insert error:", error);
+
+    // Handle unique constraint violation (duplicate name for project)
+    if (error.code === "23505") {
+      console.log("Duplicate building detected, fetching existing...");
+      const { data: existing, error: existingError } = await adminSupabase
+        .from("buildings")
+        .select("id, project_id, name, created_at, updated_at")
+        .eq("project_id", project_id)
+        .eq("name", name.trim())
+        .maybeSingle();
+
+      if (existingError) {
+        console.error("Error fetching existing building:", existingError);
+      }
+
+      if (!existingError && existing) {
+        console.log("Returning existing building:", existing);
+        return res.status(200).json({ ok: true, data: existing });
+      }
+    }
+
     return res.status((error as any).status || 400).json({
       ok: false,
       error: { code: "SUPABASE", message: error.message, meta: { code: (error as any).code, details: (error as any).details } },

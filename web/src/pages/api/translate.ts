@@ -15,7 +15,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     return res.status(405).json({ ok: false, error: { code: "METHOD_NOT_ALLOWED", message: "Use POST" } });
   }
 
-  let supabase;
+  let supabase: any;
   let userId: string | null = null;
   try {
     ({ client: supabase, userId } = createServerSupabaseClient(req));
@@ -45,7 +45,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     return res.status(400).json({ ok: false, error: { code: "BAD_REQUEST", message: "texts array is required" } });
   }
 
-  const normalized = texts.map((text) => {
+  const normalized = texts.map((text: any) => {
     if (text === null || text === undefined) return "";
     if (typeof text === "string") return text;
     if (typeof text === "number" || typeof text === "boolean") return String(text);

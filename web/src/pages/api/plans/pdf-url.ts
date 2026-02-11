@@ -16,7 +16,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     return res.status(400).json({ ok: false, error: { code: "BAD_REQUEST", message: "Missing query: id" } });
   }
 
-  let supabase;
+  let supabase: any;
   let userId: string | null = null;
   try {
     ({ client: supabase, userId } = createServerSupabaseClient(req));

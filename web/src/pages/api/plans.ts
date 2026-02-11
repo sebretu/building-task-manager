@@ -20,7 +20,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     return res.status(405).json({ ok: false, error: { code: "METHOD_NOT_ALLOWED", message: "Use GET or DELETE" } });
   }
 
-  let supabase;
+  let supabase: any;
   let userId: string | null = null;
   try {
     ({ client: supabase, userId } = createServerSupabaseClient(req));
@@ -83,7 +83,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       });
     }
 
-    const planIds = Array.from(new Set((userPlans || []).map((t) => t.plan_id).filter(Boolean))) as string[];
+    const planIds = Array.from(new Set((userPlans || []).map((t: any) => t.plan_id).filter(Boolean))) as string[];
     if (planIds.length === 0) {
       return res.status(200).json({ ok: true, data: [] });
     }
@@ -156,11 +156,11 @@ async function handleDelete(req: NextApiRequest, res: NextApiResponse<ApiOk | Ap
   }
 
   if (plan.storage_bucket && plan.storage_path) {
-    await admin.storage.from(plan.storage_bucket).remove([plan.storage_path]).catch(() => {});
+    await admin.storage.from(plan.storage_bucket).remove([plan.storage_path]).catch(() => { });
   }
 
   const tilesDir = path.join(process.cwd(), "public", "tiles", planId);
-  await fs.rm(tilesDir, { recursive: true, force: true }).catch(() => {});
+  await fs.rm(tilesDir, { recursive: true, force: true }).catch(() => { });
 
   const { data: replacement, error: replacementError } = await admin
     .from("plans")

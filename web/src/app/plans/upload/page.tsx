@@ -22,22 +22,28 @@ export default function PlansUploadPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [floors, setFloors] = useState<Floor[]>([]);
-  const handleAuthRedirect = (message: string) => {
+  const [projectsLoading, setProjectsLoading] = useState(true);
+
+  const router = useRouter();
+
+  const handleAuthRedirect = useCallback((message: string) => {
     const msg = message.toLowerCase();
     if (msg.includes("bearer token") || msg.includes("auth_required") || msg.includes("auth invalid")) {
       router.replace("/auth/login");
       return true;
     }
     return false;
-  };
+  }, [router]);
+
   const [sessionChecked, setSessionChecked] = useState(false);
-  const router = useRouter();
   const [projectId, setProjectId] = useState("");
   const [buildingId, setBuildingId] = useState("");
   const [floorId, setFloorId] = useState("");
   const [viewerProfile, setViewerProfile] = useState<{ id: string; role: string | null } | null>(null);
-  // ...existing code...
+
   const [file, setFile] = useState<File | null>(null);
+  const [dragActive, setDragActive] = useState(false);
+
   // UI state for editing project/floor names
   const [editingProject, setEditingProject] = useState<string | null>(null);
   const [editingProjectName, setEditingProjectName] = useState("");
@@ -50,7 +56,38 @@ export default function PlansUploadPage() {
   const [newBuildingName, setNewBuildingName] = useState("");
   const [creatingBuilding, setCreatingBuilding] = useState(false);
 
-  // Save edited project name
+  // Drag and drop handlers
+  const handleDrag = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const droppedFile = e.dataTransfer.files[0];
+      if (droppedFile.type === "application/pdf") {
+        setFile(droppedFile);
+      } else {
+        setErr(t("planUpload", "invalidFile", "Please upload a PDF file."));
+      }
+    }
+  }, [t]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setFile(e.target.files[0]);
+    }
+  };
+
+  // ... (Keep existing save functions: saveProjectNameEdit, saveBuildingNameEdit, saveFloorNameEdit) ...
   async function saveProjectNameEdit() {
     if (!editingProject || !editingProjectName.trim()) return;
     setSavingEdit(true);
@@ -62,7 +99,6 @@ export default function PlansUploadPage() {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ id: editingProject, name: editingProjectName.trim() }),
       });
-      // Update local state
       setProjects((prev) => prev.map((p) => p.id === editingProject ? { ...p, name: editingProjectName.trim() } : p));
       setEditingProject(null);
       setEditingProjectName("");
@@ -73,14 +109,13 @@ export default function PlansUploadPage() {
     }
   }
 
-  // Save edited building name
   async function saveBuildingNameEdit() {
     if (!editingBuilding || !editingBuildingName.trim()) return;
     setSavingEdit(true);
     setErr(null);
     try {
       const token = await getToken();
-      await fetch("/api/buildings", { // Assuming PATCH /api/buildings exists or I need to create it? wait, I didn't check PATCH on buildings.ts
+      await fetch("/api/buildings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ id: editingBuilding, name: editingBuildingName.trim() }),
@@ -95,7 +130,6 @@ export default function PlansUploadPage() {
     }
   }
 
-  // Save edited floor name
   async function saveFloorNameEdit() {
     if (!editingFloor || !editingFloorName.trim()) return;
     setSavingEdit(true);
@@ -107,7 +141,6 @@ export default function PlansUploadPage() {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ id: editingFloor, name: editingFloorName.trim() }),
       });
-      // Update local state
       setFloors((prev) => prev.map((f) => f.id === editingFloor ? { ...f, name: editingFloorName.trim() } : f));
       setEditingFloor(null);
       setEditingFloorName("");
@@ -117,8 +150,6 @@ export default function PlansUploadPage() {
       setSavingEdit(false);
     }
   }
-
-
 
   // Local preview of the chosen PDF before upload
   const [localPdfUrl, setLocalPdfUrl] = useState<string | null>(null);
@@ -140,6 +171,7 @@ export default function PlansUploadPage() {
     return isAdmin && !!file && !!projectId && !!buildingId && !!floorId;
   }, [isAdmin, file, projectId, buildingId, floorId]);
 
+  // ... (Keep existing useEffects for session, projects, buildings, floors) ...
   useEffect(() => {
     let active = true;
     supabase.auth
@@ -152,21 +184,24 @@ export default function PlansUploadPage() {
         }
 
         const authId = data.session.user.id;
-        supabase
-          .from("profiles")
-          .select("id, role")
-          .eq("id", authId)
-          .single()
-          .then(({ data: profile }) => {
+        (async () => {
+          try {
+            const { data: profile } = await supabase
+              .from("profiles")
+              .select("id, role")
+              .eq("id", authId)
+              .single();
+
             if (!active) return;
             setViewerProfile(profile || null);
-            setSessionChecked(true);
-          })
-          .catch(() => {
+          } catch {
             if (!active) return;
             setViewerProfile(null);
+          } finally {
+            if (!active) return;
             setSessionChecked(true);
-          });
+          }
+        })();
       })
       .catch(() => {
         if (!active) return;
@@ -181,6 +216,7 @@ export default function PlansUploadPage() {
     if (!sessionChecked || !isAdmin) return;
 
     let active = true;
+    setProjectsLoading(true);
     (async () => {
       try {
         const token = await getToken();
@@ -199,6 +235,8 @@ export default function PlansUploadPage() {
         const message = error?.message || String(error);
         if (handleAuthRedirect(message)) return;
         setErr(message);
+      } finally {
+        if (active) setProjectsLoading(false);
       }
     })();
     return () => {
@@ -206,8 +244,6 @@ export default function PlansUploadPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionChecked, isAdmin]);
-
-
 
   // Fetch buildings when project changes
   useEffect(() => {
@@ -255,10 +291,7 @@ export default function PlansUploadPage() {
           handleAuthRedirect("Missing Bearer token");
           return;
         }
-        // Fetch floors. If buildingId is set, we could filter here or filtering client side. 
-        // The API defaults to returning all floors for project if we just ask for project.
-        // However, looking at the code, we want to show floors for the selected building.
-        // Let's assume we can filter client side if the API returns all.
+
         const fs = await apiGet<Floor[]>(`/api/floors?projectId=${encodeURIComponent(projectId)}`, token);
         if (!active) return;
 
@@ -312,6 +345,9 @@ export default function PlansUploadPage() {
       });
 
       setBuildings((prev) => {
+        if (prev.some((b) => b.id === created.id)) {
+          return prev;
+        }
         const next = [...prev, created];
         next.sort((a, b) => a.name.localeCompare(b.name));
         return next;
@@ -441,10 +477,12 @@ export default function PlansUploadPage() {
       const planId = j?.data?.id as string | undefined;
       setOk(`${t("planUpload", "success", "Plan uploaded successfully.")} ${planId ? `(${planId})` : ""}`.trim());
 
+      // Optional: don't clear file to allow multiple uploads for different floors? 
+      // User style guide usually prefers clear after success.
+      // But let's stick to what we had: clear file.
       if (planId) {
         router.push(`/plan/${planId}`);
       }
-
       setFile(null);
     } catch (error: any) {
       const message = error?.message || String(error);
@@ -456,17 +494,17 @@ export default function PlansUploadPage() {
   }
 
   if (!sessionChecked) {
-    return <div style={{ padding: 32 }}>Ładowanie...</div>;
+    return <div style={{ padding: 48, textAlign: "center", color: "var(--home-muted)" }}>Ładowanie...</div>;
   }
 
   if (!isAdmin) {
     return (
       <main className="home-main upload-main">
-        <section className="home-task-panel upload-panel">
-          <div className="home-section-header">
-            <h2>{t("planUpload", "adminOnlyTitle", "Upload restricted")}</h2>
-            <p>{t("planUpload", "adminOnlyBody", "Only admins can upload plans.")}</p>
-            <Link href="/plans" className="home-hero-secondary" style={{ marginTop: 16, display: "inline-flex" }}>
+        <section className="home-task-panel upload-panel" style={{ textAlign: "center", padding: "64px 24px" }}>
+          <div>
+            <h2 style={{ fontSize: 24, marginBottom: 16 }}>{t("planUpload", "adminOnlyTitle", "Upload restricted")}</h2>
+            <p style={{ color: "var(--home-muted)", marginBottom: 24 }}>{t("planUpload", "adminOnlyBody", "Only admins can upload plans.")}</p>
+            <Link href="/plans" className="upload-btn-primary">
               {t("planUpload", "back", "Back to plans")}
             </Link>
           </div>
@@ -477,8 +515,8 @@ export default function PlansUploadPage() {
 
   return (
     <main className="home-main upload-main">
-      <section className="home-task-panel upload-panel">
-        <div className="home-section-header">
+      <section className="upload-panel">
+        <div className="upload-header-centered">
           <div>
             <div className="home-hero-kicker">{t("planUpload", "kicker", "Upload")}</div>
             <h2>{t("planUpload", "title", "Upload plan (PDF)")}</h2>
@@ -490,236 +528,347 @@ export default function PlansUploadPage() {
               )}
             </p>
           </div>
-          <Link href="/plans" className="home-hero-secondary">
-            {t("planUpload", "back", "Back to plans")}
-          </Link>
+          <div style={{ marginTop: 16 }}>
+            <Link href="/plans" className="upload-btn-secondary">
+              {t("planUpload", "back", "Back to plans")}
+            </Link>
+          </div>
         </div>
 
         <div className="upload-grid">
-          <form onSubmit={onSubmit} className="upload-form">
-            <label className="upload-field" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span>{t("planUpload", "projectName", "Project name")}</span>
-              <select value={projectId} onChange={(e) => setProjectId(e.target.value)}>
-                {projects.length === 0 && <option value="">{t("planUpload", "projectName", "Project name")}</option>}
-                {projects.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-              {projectId && (
-                editingProject === projectId ? (
-                  <>
-                    <input
-                      value={editingProjectName}
-                      onChange={(e) => setEditingProjectName(e.target.value)}
-                      style={{ marginLeft: 8 }}
-                      disabled={savingEdit}
-                    />
-                    <button
-                      type="button"
-                      onClick={saveProjectNameEdit}
-                      disabled={savingEdit || !editingProjectName.trim()}
-                      style={{ marginLeft: 4 }}
-                      className="upload-submit"
-                    >
-                      {savingEdit ? t("planUpload", "saving", "Saving...") : t("planUpload", "save", "Save")}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setEditingProject(null); setEditingProjectName(""); }}
-                      disabled={savingEdit}
-                      style={{ marginLeft: 4 }}
-                    >
-                      {t("planUpload", "cancel", "Cancel")}
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const p = projects.find((p) => p.id === projectId);
-                      setEditingProject(projectId);
-                      setEditingProjectName(p?.name || "");
-                    }}
-                    style={{ marginLeft: 8 }}
+          <form onSubmit={onSubmit} className="upload-card">
+            {/* Project Section */}
+            <div className="upload-section">
+              <div className="upload-section-header">
+                <span className="upload-section-title">{t("planUpload", "projectName", "Project")}</span>
+              </div>
+              <div className="upload-field">
+                <div className="upload-input-group">
+                  <select
+                    className="upload-select"
+                    value={projectId}
+                    onChange={(e) => setProjectId(e.target.value)}
                   >
-                    {t("planUpload", "edit", "Edit")}
-                  </button>
-                )
-              )}
-            </label>
+                    {projects.length === 0 && <option value="">{projectsLoading ? "Loading..." : t("planUpload", "projectName", "Select Project")}</option>}
+                    {projects.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-            <label className="upload-field" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span>{t("planUpload", "buildingName", "Building")}</span>
-              <select value={buildingId} onChange={(e) => setBuildingId(e.target.value)} disabled={buildings.length === 0}>
-                {buildings.length === 0 && <option value="">{t("planUpload", "buildingName", "Building")}</option>}
-                {buildings.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
-                  </option>
-                ))}
-              </select>
-              {buildingId && (
-                editingBuilding === buildingId ? (
-                  <>
-                    <input
-                      value={editingBuildingName}
-                      onChange={(e) => setEditingBuildingName(e.target.value)}
-                      style={{ marginLeft: 8 }}
-                      disabled={savingEdit}
-                    />
-                    <button
-                      type="button"
-                      onClick={saveBuildingNameEdit}
-                      disabled={savingEdit || !editingBuildingName.trim()}
-                      style={{ marginLeft: 4 }}
-                      className="upload-submit"
-                    >
-                      {savingEdit ? t("planUpload", "saving", "Saving...") : t("planUpload", "save", "Save")}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setEditingBuilding(null); setEditingBuildingName(""); }}
-                      disabled={savingEdit}
-                      style={{ marginLeft: 4 }}
-                    >
-                      {t("planUpload", "cancel", "Cancel")}
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const b = buildings.find((b) => b.id === buildingId);
-                      setEditingBuilding(buildingId);
-                      setEditingBuildingName(b?.name || "");
-                    }}
-                    style={{ marginLeft: 8 }}
-                  >
-                    {t("planUpload", "edit", "Edit")}
-                  </button>
-                )
-              )}
-            </label>
-
-            <div className="upload-building-create">
-              {buildings.length === 0 && <p>{t("planUpload", "noBuildings", "No buildings for this project yet.")}</p>}
-              <label className="upload-field">
-                <span>{t("planUpload", "newBuildingName", "New building name")}</span>
-                <input value={newBuildingName} onChange={(e) => setNewBuildingName(e.target.value)} />
-              </label>
-              <button
-                type="button"
-                onClick={createBuilding}
-                disabled={!projectId || !newBuildingName.trim() || creatingBuilding}
-                className="upload-submit"
-              >
-                {creatingBuilding
-                  ? t("planUpload", "creatingBuilding", "Adding building...")
-                  : t("planUpload", "createBuilding", "Add building")}
-              </button>
+                {projectId && (
+                  <div style={{ marginTop: 8 }}>
+                    {editingProject === projectId ? (
+                      <div className="upload-input-group">
+                        <input
+                          className="upload-input"
+                          value={editingProjectName}
+                          onChange={(e) => setEditingProjectName(e.target.value)}
+                          disabled={savingEdit}
+                          placeholder="Project name"
+                        />
+                        <button
+                          type="button"
+                          onClick={saveProjectNameEdit}
+                          disabled={savingEdit || !editingProjectName.trim()}
+                          className="upload-btn-primary"
+                          style={{ padding: "8px 16px", fontSize: 13 }}
+                        >
+                          {t("planUpload", "save", "Save")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setEditingProject(null); setEditingProjectName(""); }}
+                          disabled={savingEdit}
+                          className="upload-btn-secondary"
+                        >
+                          {t("planUpload", "cancel", "Cancel")}
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const p = projects.find((p) => p.id === projectId);
+                          setEditingProject(projectId);
+                          setEditingProjectName(p?.name || "");
+                        }}
+                        className="upload-btn-secondary"
+                        style={{ fontSize: 12, padding: "4px 10px" }}
+                      >
+                        {t("planUpload", "edit", "Edit Name")}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
-            <label className="upload-field" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span>{t("planUpload", "floorName", "Floor")}</span>
-              <select value={floorId} onChange={(e) => setFloorId(e.target.value)} disabled={floors.length === 0}>
-                {floors.length === 0 && <option value="">{t("planUpload", "floorName", "Floor")}</option>}
-                {floors.map((f) => {
-                  const levelLabel = typeof f.level === "number" ? `L${f.level}` : t("planUpload", "floorName", "Floor");
-                  return (
-                    <option key={f.id} value={f.id}>
-                      {levelLabel} — {f.name}
+            {/* Building Section */}
+            <div className="upload-section">
+              <div className="upload-section-header">
+                <span className="upload-section-title">{t("planUpload", "buildingName", "Building")}</span>
+              </div>
+
+              {buildings.length === 0 && projectId && (
+                <div style={{ fontSize: 13, color: "var(--home-muted)", marginBottom: 12 }}>
+                  {t("planUpload", "noBuildings", "No buildings found. Add one below.")}
+                </div>
+              )}
+
+              <div className="upload-field">
+                <select
+                  className="upload-select"
+                  value={buildingId}
+                  onChange={(e) => setBuildingId(e.target.value)}
+                  disabled={buildings.length === 0}
+                >
+                  {buildings.length === 0 && <option value="">{t("planUpload", "buildingName", "Select Building")}</option>}
+                  {buildings.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
                     </option>
-                  );
-                })}
-              </select>
-              {floorId && (
-                editingFloor === floorId ? (
-                  <>
-                    <input
-                      value={editingFloorName}
-                      onChange={(e) => setEditingFloorName(e.target.value)}
-                      style={{ marginLeft: 8 }}
-                      disabled={savingEdit}
-                    />
-                    <button
-                      type="button"
-                      onClick={saveFloorNameEdit}
-                      disabled={savingEdit || !editingFloorName.trim()}
-                      style={{ marginLeft: 4 }}
-                      className="upload-submit"
-                    >
-                      {savingEdit ? t("planUpload", "saving", "Saving...") : t("planUpload", "save", "Save")}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setEditingFloor(null); setEditingFloorName(""); }}
-                      disabled={savingEdit}
-                      style={{ marginLeft: 4 }}
-                    >
-                      {t("planUpload", "cancel", "Cancel")}
-                    </button>
-                  </>
-                ) : (
+                  ))}
+                </select>
+
+                {buildingId && (
+                  <div style={{ marginTop: 8 }}>
+                    {editingBuilding === buildingId ? (
+                      <div className="upload-input-group">
+                        <input
+                          className="upload-input"
+                          value={editingBuildingName}
+                          onChange={(e) => setEditingBuildingName(e.target.value)}
+                          disabled={savingEdit}
+                        />
+                        <button
+                          type="button"
+                          onClick={saveBuildingNameEdit}
+                          disabled={savingEdit || !editingBuildingName.trim()}
+                          className="upload-btn-primary"
+                          style={{ padding: "8px 16px", fontSize: 13 }}
+                        >
+                          {t("planUpload", "save", "Save")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setEditingBuilding(null); setEditingBuildingName(""); }}
+                          disabled={savingEdit}
+                          className="upload-btn-secondary"
+                        >
+                          {t("planUpload", "cancel", "Cancel")}
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const b = buildings.find((b) => b.id === buildingId);
+                          setEditingBuilding(buildingId);
+                          setEditingBuildingName(b?.name || "");
+                        }}
+                        className="upload-btn-secondary"
+                        style={{ fontSize: 12, padding: "4px 10px" }}
+                      >
+                        {t("planUpload", "edit", "Edit Name")}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ marginTop: 12 }}>
+                <div className="upload-input-group">
+                  <input
+                    className="upload-input"
+                    value={newBuildingName}
+                    onChange={(e) => setNewBuildingName(e.target.value)}
+                    placeholder={t("planUpload", "newBuildingName", "New building name")}
+                  />
                   <button
                     type="button"
-                    onClick={() => {
-                      const f = floors.find((f) => f.id === floorId);
-                      setEditingFloor(floorId);
-                      setEditingFloorName(f?.name || "");
-                    }}
-                    style={{ marginLeft: 8 }}
+                    onClick={createBuilding}
+                    disabled={!projectId || !newBuildingName.trim() || creatingBuilding}
+                    className="upload-btn-secondary"
                   >
-                    {t("planUpload", "edit", "Edit")}
+                    {creatingBuilding ? "..." : "+"}
                   </button>
-                )
-              )}
-            </label>
+                </div>
+              </div>
+            </div>
 
-            <div className="upload-floor-create">
-              {floors.length === 0 && <p>{t("planUpload", "noFloors", "No floors for this project yet.")}</p>}
-              <label className="upload-field">
-                <span>{t("planUpload", "newFloorName", "New floor name")}</span>
-                <input value={newFloorName} onChange={(e) => setNewFloorName(e.target.value)} />
-              </label>
-              <label className="upload-field">
-                <span>{t("planUpload", "newFloorLevel", "Floor level")}</span>
-                <input
-                  type="number"
-                  value={newFloorLevel}
-                  onChange={(e) => setNewFloorLevel(e.target.value)}
-                />
-              </label>
+            {/* Floor Section */}
+            <div className="upload-section">
+              <div className="upload-section-header">
+                <span className="upload-section-title">{t("planUpload", "floorName", "Floor")}</span>
+              </div>
+
+              <div className="upload-field">
+                <select
+                  className="upload-select"
+                  value={floorId}
+                  onChange={(e) => setFloorId(e.target.value)}
+                  disabled={floors.length === 0}
+                >
+                  {floors.length === 0 && <option value="">{t("planUpload", "floorName", "Select Floor")}</option>}
+                  {floors.map((f) => {
+                    const levelLabel = typeof f.level === "number" ? `L${f.level}` : "?";
+                    return (
+                      <option key={f.id} value={f.id}>
+                        {levelLabel} — {f.name}
+                      </option>
+                    );
+                  })}
+                </select>
+
+                {floorId && (
+                  <div style={{ marginTop: 8 }}>
+                    {editingFloor === floorId ? (
+                      <div className="upload-input-group">
+                        <input
+                          className="upload-input"
+                          value={editingFloorName}
+                          onChange={(e) => setEditingFloorName(e.target.value)}
+                          disabled={savingEdit}
+                        />
+                        <button
+                          type="button"
+                          onClick={saveFloorNameEdit}
+                          disabled={savingEdit || !editingFloorName.trim()}
+                          className="upload-btn-primary"
+                          style={{ padding: "8px 16px", fontSize: 13 }}
+                        >
+                          {t("planUpload", "save", "Save")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setEditingFloor(null); setEditingFloorName(""); }}
+                          disabled={savingEdit}
+                          className="upload-btn-secondary"
+                        >
+                          {t("planUpload", "cancel", "Cancel")}
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const f = floors.find((f) => f.id === floorId);
+                          setEditingFloor(floorId);
+                          setEditingFloorName(f?.name || "");
+                        }}
+                        className="upload-btn-secondary"
+                        style={{ fontSize: 12, padding: "4px 10px" }}
+                      >
+                        {t("planUpload", "edit", "Edit Name")}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--muted-foreground)" }}>Add New Floor</div>
+                <div className="upload-input-group">
+                  <input
+                    className="upload-input"
+                    value={newFloorName}
+                    onChange={(e) => setNewFloorName(e.target.value)}
+                    placeholder={t("planUpload", "newFloorName", "Floor Name")}
+                  />
+                  <input
+                    type="number"
+                    className="upload-input"
+                    value={newFloorLevel}
+                    onChange={(e) => setNewFloorLevel(e.target.value)}
+                    placeholder="Lvl"
+                    style={{ width: "80px" }}
+                  />
+                  <button
+                    type="button"
+                    onClick={createFloor}
+                    disabled={!projectId || !buildingId || !newFloorName.trim() || creatingFloor}
+                    className="upload-btn-secondary"
+                  >
+                    {creatingFloor ? "..." : "+"}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* File Upload Section */}
+            <div className="upload-section">
+              <div className="upload-section-header">
+                <span className="upload-section-title">{t("planUpload", "file", "PDF File")}</span>
+              </div>
+
+              {!file ? (
+                <div
+                  className={`upload-zone ${dragActive ? "drag-active" : ""}`}
+                  onDragEnter={handleDrag}
+                  onDragLeave={handleDrag}
+                  onDragOver={handleDrag}
+                  onDrop={handleDrop}
+                  onClick={() => document.getElementById("file-upload")?.click()}
+                >
+                  <div className="upload-zone-icon">📄</div>
+                  <div className="upload-zone-text">{t("planUpload", "clickOrDrag", "Click to upload or drag and drop")}</div>
+                  <div className="upload-zone-sub">PDF (max 20MB)</div>
+                  <input
+                    id="file-upload"
+                    type="file"
+                    accept="application/pdf"
+                    onChange={handleFileChange}
+                    style={{ display: "none" }}
+                  />
+                </div>
+              ) : (
+                <div className="upload-file-card">
+                  <div className="upload-file-icon">📄</div>
+                  <div className="upload-file-info">
+                    <div className="upload-file-name">{file.name}</div>
+                    <div className="upload-file-size">{(file.size / 1024 / 1024).toFixed(2)} MB</div>
+                  </div>
+                  <button
+                    type="button"
+                    className="upload-file-remove"
+                    onClick={() => setFile(null)}
+                    title="Remove file"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div style={{ marginTop: 8 }}>
               <button
-                type="button"
-                onClick={createFloor}
-                disabled={!projectId || !buildingId || !newFloorName.trim() || creatingFloor}
-                className="upload-submit"
+                type="submit"
+                disabled={!canSubmit || busy}
+                className="upload-btn-primary"
+                style={{ width: "100%", padding: "16px" }}
               >
-                {creatingFloor
-                  ? t("planUpload", "creatingFloor", "Adding floor...")
-                  : t("planUpload", "createFloor", "Add floor")}
+                {busy ? t("planUpload", "submitting", "Uploading...") : t("planUpload", "submit", "Upload Plan")}
               </button>
             </div>
 
-            <label className="upload-field">
-              <span>{t("planUpload", "file", "PDF file")}</span>
-              <input
-                type="file"
-                accept="application/pdf"
-                onChange={(e) => setFile(e.target.files?.[0] || null)}
-              />
-            </label>
+            {err && (
+              <div className="upload-alert upload-alert-error">
+                <span>⚠️</span>
+                <span>{err}</span>
+              </div>
+            )}
 
-            <button type="submit" disabled={!canSubmit || busy} className="upload-submit">
-              {busy ? t("planUpload", "submitting", "Uploading...") : t("planUpload", "submit", "Upload plan")}
-            </button>
+            {ok && (
+              <div className="upload-alert upload-alert-success">
+                <span>✅</span>
+                <span>{ok}</span>
+              </div>
+            )}
 
-            {err && <div className="upload-error">❌ {err}</div>}
-            {ok && <div className="upload-ok">✅ {ok}</div>}
-
-            <div className="upload-tip">
+            <div className="upload-tip" style={{ textAlign: "center" }}>
               {t(
                 "planUpload",
                 "tip",
@@ -730,8 +879,9 @@ export default function PlansUploadPage() {
 
           <div className="upload-preview">
             {!localPdfUrl ? (
-              <div className="upload-empty">
-                {t("planUpload", "emptyPreview", "Pick a PDF file to see the preview here.")}
+              <div className="upload-empty-state">
+                <div className="upload-empty-icon">👁️</div>
+                <div>{t("planUpload", "emptyPreview", "Preview will appear here")}</div>
               </div>
             ) : (
               <iframe src={localPdfUrl} title="PDF preview" />

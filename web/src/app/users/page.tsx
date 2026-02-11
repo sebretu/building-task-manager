@@ -134,23 +134,24 @@ export default function UsersPage() {
     if (!currentUserId) return;
     let active = true;
     setRoleChecked(false);
-    supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", currentUserId)
-      .single()
-      .then(({ data }) => {
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", currentUserId)
+          .single();
+
         if (!active) return;
         setCurrentUserRole(data?.role || "USER");
-      })
-      .catch(() => {
+      } catch {
         if (!active) return;
         setCurrentUserRole("USER");
-      })
-      .finally(() => {
+      } finally {
         if (!active) return;
         setRoleChecked(true);
-      });
+      }
+    })();
 
     return () => {
       active = false;

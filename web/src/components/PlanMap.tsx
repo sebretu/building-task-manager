@@ -115,7 +115,7 @@ export default function PlanMap({
   const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [thumbByTask, setThumbByTask] = useState<Record<string, string | null>>({});
   const [drawerTaskId, setDrawerTaskId] = useState<string | null>(null);
-  const markerIconCache = useRef<Record<string, L.DivIcon>>({});
+  const markerIconCache = useRef<Record<string, any>>({});
 
   // ✅ create-mode: klik w mapę -> draft, a task tworzy się dopiero po "Zapisz" w TaskDrawer
   const [createDraft, setCreateDraft] = useState<any>(null);
@@ -170,11 +170,11 @@ export default function PlanMap({
         for (const p of rows || []) map[p.id] = p.full_name;
         setProfiles(map);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   useEffect(() => {
-    loadTasks().catch(() => {});
+    loadTasks().catch(() => { });
   }, [loadTasks]);
 
   async function loadThumb(taskId: string) {
@@ -192,7 +192,7 @@ export default function PlanMap({
 
   function ensureThumb(taskId: string) {
     if (Object.prototype.hasOwnProperty.call(thumbByTask, taskId)) return;
-    loadThumb(taskId).catch(() => {});
+    loadThumb(taskId).catch(() => { });
   }
 
   // ✅ PRZYWRÓCONE: klik w mapę otwiera drawer w trybie CREATE
@@ -222,8 +222,8 @@ export default function PlanMap({
     const onPhotoAdded = (e: any) => {
       const id = e?.detail?.taskId;
       if (!id) return;
-      loadThumb(id).catch(() => {});
-      loadTasks().catch(() => {});
+      loadThumb(id).catch(() => { });
+      loadTasks().catch(() => { });
     };
 
     const onCreated = (e: any) => {
@@ -233,8 +233,8 @@ export default function PlanMap({
       setCreateDraft(null);
       setDrawerTaskId(id);
 
-      loadTasks().catch(() => {});
-      loadThumb(id).catch(() => {});
+      loadTasks().catch(() => { });
+      loadThumb(id).catch(() => { });
     };
 
     window.addEventListener("task-photo-added", onPhotoAdded);
@@ -269,7 +269,7 @@ export default function PlanMap({
     []
   );
 
-  function FocusOnTask({ target }: { target: L.LatLng | null }) {
+  function FocusOnTask({ target }: { target: any | null }) {
     const map = useMap();
     const focusZoom = Math.min(meta.maxZoom, Math.max(meta.minZoom, START_ZOOM + 1));
 
@@ -312,6 +312,7 @@ export default function PlanMap({
               <Marker
                 key={task.id}
                 position={ll}
+                // @ts-ignore
                 icon={markerIcon ?? undefined}
                 eventHandlers={{
                   click: () => {

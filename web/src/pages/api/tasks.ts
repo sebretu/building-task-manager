@@ -103,7 +103,7 @@ async function ensureProjectMembership(projectId: string | null | undefined, use
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse<ApiOk | ApiErr>) {
-  let supabase;
+  let supabase: any;
   let userId: string | null = null;
 
   try {

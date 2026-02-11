@@ -50,7 +50,7 @@ function normalizePhotoType(input: any): PhotoType | null {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse<ApiOk | ApiErr>) {
-  let supabase;
+  let supabase: any;
   let userId: string | null = null;
 
   try {

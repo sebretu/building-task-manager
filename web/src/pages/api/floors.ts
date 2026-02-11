@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { createServerSupabaseClient, createServiceSupabaseClient } from "@/lib/supabaseServer";
 
-type ApiOk = { ok: true; data: any[] };
+type ApiOk = { ok: true; data: any };
 type ApiErr = { ok: false; error: { code: string; message: string; meta?: any } };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse<ApiOk | ApiErr>) {
@@ -33,7 +33,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     return res.status(200).json({ ok: true, data });
   }
 
-  let supabase;
+  let supabase: any;
   let userId: string | null = null;
   try {
     ({ client: supabase, userId } = createServerSupabaseClient(req));

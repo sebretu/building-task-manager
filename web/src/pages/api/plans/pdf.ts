@@ -6,7 +6,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const id = String(req.query.id || "").trim();
     if (!id) return res.status(400).send("Missing query: id");
 
-    let supabase;
+    let supabase: any;
     try {
       ({ client: supabase } = createServerSupabaseClient(req));
     } catch (e: any) {

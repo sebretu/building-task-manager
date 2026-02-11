@@ -84,34 +84,35 @@ export default function TaskClient({ id }: { id: string }) {
   useEffect(() => {
     let active = true;
 
-    supabase.auth
-      .getSession()
-      .then(({ data }) => {
+    (async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
         if (!active) return;
+
         const authId = data.session?.user?.id;
         if (!authId) {
           setCurrentUser(null);
           return;
         }
 
-        supabase
-          .from("profiles")
-          .select("id, role")
-          .eq("id", authId)
-          .single()
-          .then(({ data: profile }) => {
-            if (!active) return;
-            setCurrentUser(profile || null);
-          })
-          .catch(() => {
-            if (!active) return;
-            setCurrentUser(null);
-          });
-      })
-      .catch(() => {
+        try {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("id, role")
+            .eq("id", authId)
+            .single();
+
+          if (!active) return;
+          setCurrentUser(profile || null);
+        } catch {
+          if (!active) return;
+          setCurrentUser(null);
+        }
+      } catch {
         if (!active) return;
         setCurrentUser(null);
-      });
+      }
+    })();
 
     return () => {
       active = false;

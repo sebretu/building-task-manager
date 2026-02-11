@@ -144,33 +144,35 @@ export default function PlanViewer({
 
     let alive = true;
 
-    supabase.auth
-      .getSession()
-      .then(({ data }) => {
+    (async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
         if (!alive) return;
+
         const authId = data.session?.user?.id;
         if (!authId) {
           setViewerProfile(null);
           return;
         }
-        supabase
-          .from("profiles")
-          .select("id, role")
-          .eq("id", authId)
-          .single()
-          .then(({ data: profile }) => {
-            if (!alive) return;
-            setViewerProfile(profile || null);
-          })
-          .catch(() => {
-            if (!alive) return;
-            setViewerProfile(null);
-          });
-      })
-      .catch(() => {
+
+        try {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("id, role")
+            .eq("id", authId)
+            .single();
+
+          if (!alive) return;
+          setViewerProfile(profile || null);
+        } catch {
+          if (!alive) return;
+          setViewerProfile(null);
+        }
+      } catch {
         if (!alive) return;
         setViewerProfile(null);
-      });
+      }
+    })();
 
     return () => {
       alive = false;

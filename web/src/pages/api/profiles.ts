@@ -15,7 +15,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     return res.status(405).json({ ok: false, error: { code: "METHOD_NOT_ALLOWED", message: "Use GET" } });
   }
 
-  let supabase;
+  let supabase: any;
     try {
       ({ client: supabase } = createServerSupabaseClient(req));
   } catch (e: any) {

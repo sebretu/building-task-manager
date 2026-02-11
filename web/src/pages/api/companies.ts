@@ -118,7 +118,7 @@ export default async function handler(
         .single();
 
       if (error) {
-        return res.status(error.status || 400).json({
+        return res.status((error as any).status || 400).json({
           ok: false,
           error: { message: error.message, code: error.code, meta: error.details },
         });
@@ -145,7 +145,7 @@ export default async function handler(
         .single();
 
       if (error) {
-        return res.status(error.status || 400).json({
+        return res.status((error as any).status || 400).json({
           ok: false,
           error: { message: error.message, code: error.code, meta: error.details },
         });

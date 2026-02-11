@@ -70,7 +70,7 @@ export default async function handler(
         .single();
 
       if (requesterError) {
-        return res.status(requesterError.status || 400).json({
+        return res.status((requesterError as any).status || 400).json({
           ok: false,
           error: { message: requesterError.message, code: requesterError.code, meta: requesterError.details },
         });
@@ -104,8 +104,9 @@ export default async function handler(
 
       if (createRes.error) {
         if (createRes.error.message?.toLowerCase().includes("already registered") || createRes.error.message?.toLowerCase().includes("already exists")) {
-          const existing = await adminClient.auth.admin.getUserByEmail(email);
-          authUserId = existing.data?.user?.id || null;
+          const { data: userList } = await adminClient.auth.admin.listUsers();
+          const existingUser = userList?.users.find((u: any) => u.email?.toLowerCase() === email.toLowerCase());
+          authUserId = existingUser?.id || null;
           if (!authUserId) {
             return res.status(400).json({ ok: false, error: { message: "User already exists", code: "USER_EXISTS" } });
           }
@@ -115,7 +116,7 @@ export default async function handler(
             password: trimmedPassword,
           });
         } else {
-          return res.status(createRes.error.status || 400).json({
+          return res.status((createRes.error as any).status || 400).json({
             ok: false,
             error: { message: createRes.error.message, code: createRes.error.status ? String(createRes.error.status) : "AUTH" },
           });
@@ -217,7 +218,7 @@ export default async function handler(
         .single();
 
       if (targetProfileError) {
-        return res.status(targetProfileError.status || 400).json({
+        return res.status((targetProfileError as any).status || 400).json({
           ok: false,
           error: { message: targetProfileError.message, code: targetProfileError.code, meta: targetProfileError.details },
         });
@@ -235,7 +236,7 @@ export default async function handler(
           normalizedMessage.includes("database error deleting user") || authDeleteError.code === "unexpected_failure";
 
         if (!isCascadeFailure) {
-          return res.status(authDeleteError.status || 400).json({
+          return res.status((authDeleteError as any).status || 400).json({
             ok: false,
             error: { message: authDeleteError.message || "Failed to delete auth user", code: authDeleteError.code || "AUTH_DELETE" },
           });
@@ -255,7 +256,7 @@ export default async function handler(
           .eq("id", targetId);
 
         if (profileUpdateError) {
-          return res.status(profileUpdateError.status || 400).json({
+          return res.status((profileUpdateError as any).status || 400).json({
             ok: false,
             error: { message: profileUpdateError.message, code: profileUpdateError.code, meta: profileUpdateError.details },
           });
@@ -269,10 +270,10 @@ export default async function handler(
           email_confirm: false,
           banned_until: bannedUntil,
           user_metadata: { full_name: "Deleted User" },
-        });
+        } as any);
 
         if (authUpdateError) {
-          return res.status(authUpdateError.status || 400).json({
+          return res.status((authUpdateError as any).status || 400).json({
             ok: false,
             error: { message: authUpdateError.message || "Failed to scrub auth user", code: authUpdateError.code || "AUTH_SCRUB" },
           });

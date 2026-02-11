@@ -5,7 +5,7 @@ import { rpcListTasks, mapSupabaseError, AppError } from '@/lib/supabaseRpc';
 const PROJECT_ID = '55555555-5555-5555-5555-555555555555';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  let supabase;
+  let supabase: any;
   try {
     ({ client: supabase } = createServerSupabaseClient(req));
   } catch (e: any) {
