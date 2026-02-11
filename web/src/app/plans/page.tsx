@@ -215,7 +215,7 @@ export default function PlansPage() {
           </div>
 
           {/* Plans Grid */}
-          <div className="plans-display-grid" style={{ gridColumn: "1 / -1", display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 24, marginTop: 24 }}>
+          <div className="plans-display-grid" style={{ gridColumn: "1 / -1", display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 48, marginTop: 24 }}>
             {plans.length === 0 && (
               <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: 48, color: "var(--home-muted)" }}>
                 {t("plansPage", "noPlans", "No current plans")}
@@ -239,7 +239,7 @@ export default function PlansPage() {
                   <Link href={`/plan/${p.id}`} style={{ padding: 24, flex: 1, display: "flex", flexDirection: "column", alignItems: "center", textDecoration: "none", color: "inherit", cursor: "pointer" }}>
                     <PlanCompositeThumbnail
                       planId={p.id}
-                      size={280}
+                      size={500}
                       alt={locationString || "Plan"}
                     />
                     <div style={{ marginTop: 16, fontWeight: 600, fontSize: 16, textAlign: "center", color: "var(--home-foreground)" }}>
