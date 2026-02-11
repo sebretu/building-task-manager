@@ -1470,7 +1470,19 @@ a:focus {
 }
 
 .upload-alert-success {
-  background: rgba(43, 217, 127, 0.1);
-  color: #166534;
   border: 1px solid rgba(43, 217, 127, 0.2);
+}
+
+.plan-card-link:hover {
+  background: #fff !important;
+  color: inherit !important;
+  box-shadow: none !important;
+}
+
+.upload-card:hover {
+  background: #fff;
+  transform: translateY(-4px);
+  box-shadow: 0 40px 100px rgba(47, 107, 255, 0.22);
+  color: inherit;
+  outline: none;
 }

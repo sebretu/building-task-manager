@@ -233,7 +233,7 @@ export default function PlansPage() {
 
               return (
                 <div key={p.id} className="upload-card" style={{ padding: 0, overflow: "hidden", display: "flex", flexDirection: "column", minHeight: "420px" }}>
-                  <Link href={`/plan/${p.id}`} style={{ padding: 24, flex: 1, display: "flex", flexDirection: "column", alignItems: "center", textDecoration: "none", color: "inherit", cursor: "pointer" }}>
+                  <Link href={`/plan/${p.id}`} className="plan-card-link" style={{ padding: 24, flex: 1, display: "flex", flexDirection: "column", alignItems: "center", textDecoration: "none", color: "inherit", cursor: "pointer" }}>
                     <PlanCompositeThumbnail
                       planId={p.id}
                       size={600}

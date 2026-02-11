@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { apiGet, apiPost } from "@/lib/apiClient";
+import { apiGet, apiPost, getToken } from "@/lib/apiClient";
 import { supabase } from "@/lib/supabase";
 import type { Language } from "@/lib/translations";
 import { PWAInstallBanner } from "@/components/PWAInstallBanner";
@@ -92,6 +92,13 @@ export default function Home() {
   const [taskTranslationLang, setTaskTranslationLang] = useState<Language | null>(null);
   const [taskTranslating, setTaskTranslating] = useState(false);
   const [taskTranslationError, setTaskTranslationError] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (sessionLoaded) {
+      getToken().then(setToken);
+    }
+  }, [sessionLoaded]);
 
   const profileById = useMemo(() => {
     const map: Record<string, Profile> = {};
@@ -155,13 +162,25 @@ export default function Home() {
   }, []);
 
   async function loadPlanMeta(planId: string) {
-    const r = await fetch(`/api/tiles/${encodeURIComponent(planId)}/meta`, { cache: "no-store" });
-    if (!r.ok) {
+    try {
+      const token = await getToken();
+      const headers: HeadersInit = {};
+      if (token) headers.Authorization = `Bearer ${token}`;
+
+      const r = await fetch(`/api/tiles/${encodeURIComponent(planId)}/meta`, {
+        cache: "no-store",
+        headers,
+      });
+
+      if (!r.ok) {
+        setMetaByPlan((prev) => ({ ...prev, [planId]: null }));
+        return;
+      }
+      const meta = (await r.json()) as PlanMeta;
+      setMetaByPlan((prev) => ({ ...prev, [planId]: meta }));
+    } catch {
       setMetaByPlan((prev) => ({ ...prev, [planId]: null }));
-      return;
     }
-    const meta = (await r.json()) as PlanMeta;
-    setMetaByPlan((prev) => ({ ...prev, [planId]: meta }));
   }
 
   // Check session on mount
@@ -387,7 +406,7 @@ export default function Home() {
     const x = Math.min(Math.max(0, Math.floor(xNorm * meta.gridW)), maxX);
     const y = Math.min(Math.max(0, Math.floor(yNorm * meta.gridH)), maxY);
 
-    return `/api/tiles/${task.plan_id}/${meta.maxZoom}/${x}/${y}.png`;
+    return `/api/tiles/${task.plan_id}/${meta.maxZoom}/${x}/${y}.png` + (token ? `?token=${token}` : "");
   }
 
   if (!sessionLoaded || !user) {

@@ -1,5 +1,7 @@
 import fs from "fs";
 import path from "path";
+import { createServerSupabaseClient } from "@/lib/supabaseServer";
+import { createClient } from "@supabase/supabase-js";
 
 type Meta = {
   tileSize: number;
@@ -15,6 +17,74 @@ const TRANSPARENT_PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMB/6XrX1cAAAAASUVORK5CYII=",
   "base64"
 );
+
+// Simple in-memory cache for token -> userId
+// Map<token, { userId: string | null, expires: number }>
+// Also cache ongoing promises to prevent stampede
+const valRef = {
+  cache: new Map<string, { userId: string | null; expires: number }>(),
+  pending: new Map<string, Promise<string | null>>()
+};
+
+const CACHE_TTL_MS = 60 * 1000; // 1 minute cache
+const MAX_CACHE_SIZE = 1000;
+
+function cleanupCache() {
+  const now = Date.now();
+  for (const [key, val] of valRef.cache.entries()) {
+    if (val.expires < now) {
+      valRef.cache.delete(key);
+    }
+  }
+  if (valRef.cache.size > MAX_CACHE_SIZE) {
+    const keysToDelete = Array.from(valRef.cache.keys()).slice(0, valRef.cache.size - MAX_CACHE_SIZE);
+    for (const k of keysToDelete) {
+      valRef.cache.delete(k);
+    }
+  }
+}
+
+async function getCachedUserId(token: string): Promise<string | null> {
+  const now = Date.now();
+  const cached = valRef.cache.get(token);
+  if (cached && cached.expires > now) {
+    return cached.userId;
+  }
+
+  // Check if there is a pending request for this token
+  let promise = valRef.pending.get(token);
+  if (promise) {
+    return promise;
+  }
+
+  // Define the fetcher
+  promise = (async () => {
+    try {
+      const sbUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+      const sbKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+      const supabase = createClient(sbUrl, sbKey, {
+        global: { headers: { Authorization: `Bearer ${token}` } },
+        auth: { persistSession: false },
+      });
+
+      const { data: { user } } = await supabase.auth.getUser();
+      const userId = user?.id || null;
+
+      // Update cache
+      valRef.cache.set(token, { userId, expires: Date.now() + CACHE_TTL_MS });
+      return userId;
+    } catch {
+      return null;
+    } finally {
+      // Remove from pending
+      valRef.pending.delete(token);
+      cleanupCache();
+    }
+  })();
+
+  valRef.pending.set(token, promise);
+  return promise;
+}
 
 function pngResponse(buf: Buffer, debugPath: string) {
   const body = new Uint8Array(buf);
@@ -35,10 +105,25 @@ function transparent() {
 }
 
 export async function GET(
-  _req: Request,
+  req: Request,
   ctx: { params: Promise<{ planId: string; z: string; x: string; y: string }> }
 ) {
   try {
+    let { userId } = createServerSupabaseClient(req, { requireAuth: false });
+
+    // Fallback: try query param
+    if (!userId) {
+      const url = new URL(req.url);
+      const token = url.searchParams.get("token");
+      if (token) {
+        userId = await getCachedUserId(token);
+      }
+    }
+
+    if (!userId) {
+      return transparent();
+    }
+
     const { planId, z, x, y } = await ctx.params;
 
     const planIdStr = String(planId);
@@ -53,7 +138,7 @@ export async function GET(
       return transparent();
     }
 
-    const base = path.join(process.cwd(), "public", "tiles", planIdStr);
+    const base = path.join(process.cwd(), "private_tiles", planIdStr);
     const metaPath = path.join(base, "meta.json");
 
     // Jeśli meta jeszcze nie ma (processing) → transparent (bez 404 spam)
@@ -88,8 +173,12 @@ export async function GET(
 
     const buf = fs.readFileSync(tilePath);
     return pngResponse(buf, tilePath);
-  } catch (e) {
-    console.error("[tiles app] error:", e);
+  } catch (e: any) {
+    // console.error("[tiles app] error:", e);
+    if (e.message === "AUTH_REQUIRED") {
+      // Return 401 for auth errors
+      return new Response(null, { status: 401 });
+    }
     return transparent();
   }
 }

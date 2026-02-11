@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { getToken } from "@/lib/apiClient";
 
 type TilesMeta = {
   limits?: Record<string, { maxX: number; maxY: number }>;
@@ -16,6 +17,11 @@ const PlanCompositeThumbnail: React.FC<PlanCompositeThumbnailProps> = ({ planId,
   const [meta, setMeta] = useState<TilesMeta | null>(null);
   const [metaError, setMetaError] = useState(false);
   const [tileError, setTileError] = useState(false);
+  const [token, setToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    getToken().then(setToken);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -25,7 +31,7 @@ const PlanCompositeThumbnail: React.FC<PlanCompositeThumbnailProps> = ({ planId,
 
     const loadMeta = async () => {
       try {
-        const res = await fetch(`/tiles/${planId}/meta.json`, { cache: "force-cache" });
+        const res = await fetch(`/api/tiles/${planId}/meta` + (token ? `?token=${token}` : ""), { cache: "force-cache" });
         if (!res.ok) throw new Error(`meta ${res.status}`);
         const data = (await res.json()) as TilesMeta;
         if (!cancelled) setMeta(data);
@@ -34,11 +40,14 @@ const PlanCompositeThumbnail: React.FC<PlanCompositeThumbnailProps> = ({ planId,
       }
     };
 
-    loadMeta();
+    if (token !== null) { // wait for token check (even if null)
+      loadMeta();
+    }
+
     return () => {
       cancelled = true;
     };
-  }, [planId]);
+  }, [planId, token]);
 
   const limit = meta?.limits?.[String(zoom)];
   const columns = Math.max(1, (limit?.maxX ?? 1) + 1);
@@ -50,8 +59,12 @@ const PlanCompositeThumbnail: React.FC<PlanCompositeThumbnailProps> = ({ planId,
   const gridTemplateColumns = `repeat(${columns}, ${cellSize}px)`;
   const gridTemplateRows = `repeat(${rows}, ${cellSize}px)`;
 
-  const tileSrc = (x: number, y: number) => `/tiles/${planId}/${zoom}/${x}/${y}.png`;
+  const tileSrc = (x: number, y: number) => `/api/tiles/${planId}/${zoom}/${x}/${y}.png` + (token ? `?token=${token}` : "");
   const tiles = useMemo(() => {
+    if (!token && token !== null) return null; // loading or no token? if no token, maybe we should still try? 
+    // actually getToken returns null if not logged in. 
+    // If not logged in, images will fail anyway with 401. 
+
     return Array.from({ length: rows }).flatMap((_, y) =>
       Array.from({ length: columns }).map((__, x) => (
         <img
@@ -63,7 +76,22 @@ const PlanCompositeThumbnail: React.FC<PlanCompositeThumbnailProps> = ({ planId,
         />
       ))
     );
-  }, [rows, columns, planId, alt, cellSize, zoom]);
+  }, [rows, columns, planId, alt, cellSize, zoom, token]); // ✅ Added token to dependency array
+
+  // Wait for token to load
+  if (!token && token !== null) {
+    return (
+      <div
+        style={{
+          width,
+          height,
+          background: "#f8f8f8",
+          borderRadius: 8,
+          border: "1px solid #ccc",
+        }}
+      />
+    );
+  }
 
   if (metaError || tileError) {
     return (

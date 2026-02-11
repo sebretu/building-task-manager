@@ -115,6 +115,7 @@ export default function PlanMap({
   const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [thumbByTask, setThumbByTask] = useState<Record<string, string | null>>({});
   const [drawerTaskId, setDrawerTaskId] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const markerIconCache = useRef<Record<string, any>>({});
 
   // ✅ create-mode: klik w mapę -> draft, a task tworzy się dopiero po "Zapisz" w TaskDrawer
@@ -176,6 +177,12 @@ export default function PlanMap({
   useEffect(() => {
     loadTasks().catch(() => { });
   }, [loadTasks]);
+
+  useEffect(() => {
+    import("@/lib/apiClient").then(({ getToken }) => {
+      getToken().then((t) => setToken(t));
+    });
+  }, []);
 
   async function loadThumb(taskId: string) {
     try {
@@ -294,7 +301,7 @@ export default function PlanMap({
         maxBoundsViscosity={1.0}
         style={{ height: mapHeight, background: "#fff" }}
       >
-        <TileLayer url={`/api/tiles/${planId}/{z}/{x}/{y}.png`} />
+        {token && <TileLayer url={`/api/tiles/${planId}/{z}/{x}/{y}.png?token=${token}`} />}
 
         {allowCreate && projectId && currentUserId && <ClickToCreate projectId={projectId} createdBy={currentUserId} />}
 

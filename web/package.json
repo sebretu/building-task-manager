@@ -13,6 +13,7 @@
     "@repo/shared": "file:../packages/shared",
     "@repo/supabase": "file:../packages/supabase",
     "@supabase/supabase-js": "^2.93.3",
+    "dotenv": "^17.2.4",
     "formidable": "^3.5.4",
     "franc-min": "^6.2.0",
     "leaflet": "^1.9.4",

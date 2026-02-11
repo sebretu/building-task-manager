@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
-import { apiGet } from "@/lib/apiClient";
+import { apiGet, getToken } from "@/lib/apiClient";
 import { supabase } from "@/lib/supabase";
 import { usePlanPdfUrl } from "@/hooks/usePlanPdfUrl";
 
@@ -70,8 +70,15 @@ export default function PlanViewer({
 
     const tick = async () => {
       try {
-        const r = await fetch(`/tiles/${planId}/meta.json`, {
+        const token = await getToken();
+        const headers: HeadersInit = {};
+        if (token) {
+          headers.Authorization = `Bearer ${token}`;
+        }
+
+        const r = await fetch(`/api/tiles/${planId}/meta`, {
           cache: "no-store",
+          headers,
         });
 
         // tiles jeszcze się generują → NORMALNY STAN
