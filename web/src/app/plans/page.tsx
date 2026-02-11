@@ -171,21 +171,18 @@ export default function PlansPage() {
   }
 
   return (
-    <main className="home-main upload-main">
+    <main className="home-main">
       {err && <div className="home-card-error plans-error">{err}</div>}
-      <section className="upload-panel">
-        <div className="upload-header-centered">
+      <section className="home-task-panel">
+        <div className="home-section-header">
           <div>
             <div className="home-hero-kicker">{t("plansPage", "kicker", "Library")}</div>
             <h2>{t("plansPage", "title", "Plans library")}</h2>
             <p>{t("plansPage", "subtitle", "Review and manage your project plans.")}</p>
           </div>
-          <div style={{ marginTop: 16 }}>
-            {/* Optional extra action buttons could go here */}
-          </div>
         </div>
 
-        <div className="upload-grid">
+        <div className="plans-content" style={{ display: "grid", gap: 32 }}>
           {/* Project Selection Card */}
           <div className="upload-card">
             <div className="upload-section">
@@ -235,11 +232,11 @@ export default function PlansPage() {
               const locationString = locationParts.join(" - ");
 
               return (
-                <div key={p.id} className="upload-card" style={{ padding: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+                <div key={p.id} className="upload-card" style={{ padding: 0, overflow: "hidden", display: "flex", flexDirection: "column", minHeight: "420px" }}>
                   <Link href={`/plan/${p.id}`} style={{ padding: 24, flex: 1, display: "flex", flexDirection: "column", alignItems: "center", textDecoration: "none", color: "inherit", cursor: "pointer" }}>
                     <PlanCompositeThumbnail
                       planId={p.id}
-                      size={500}
+                      size={600}
                       alt={locationString || "Plan"}
                     />
                     <div style={{ marginTop: 16, fontWeight: 600, fontSize: 16, textAlign: "center", color: "var(--home-foreground)" }}>
