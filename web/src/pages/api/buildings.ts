@@ -3,9 +3,36 @@ import { createServerSupabaseClient, createServiceSupabaseClient } from "@/lib/s
 import { requireRequesterProfile, isAdminRole } from "@/lib/requesterProfile";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== "POST") {
-    res.setHeader("Allow", "POST");
-    return res.status(405).json({ ok: false, error: { code: "METHOD_NOT_ALLOWED", message: "Use POST" } });
+  if (req.method !== "POST" && req.method !== "GET" && req.method !== "PATCH") {
+    res.setHeader("Allow", "POST, GET, PATCH");
+    return res.status(405).json({ ok: false, error: { code: "METHOD_NOT_ALLOWED", message: "Use POST, GET or PATCH" } });
+  }
+
+  if (req.method === "PATCH") {
+    const { id, name } = req.body ?? {};
+    if (!id || typeof id !== "string") {
+      return res.status(400).json({ ok: false, error: { code: "BAD_REQUEST", message: "Missing or invalid building id" } });
+    }
+    if (!name || typeof name !== "string" || !name.trim()) {
+      return res.status(400).json({ ok: false, error: { code: "BAD_REQUEST", message: "Missing or invalid name" } });
+    }
+
+    const adminSupabase = createServiceSupabaseClient();
+    const { data, error } = await adminSupabase
+      .from("buildings")
+      .update({ name: name.trim() })
+      .eq("id", id)
+      .select("id, project_id, name, created_at, updated_at")
+      .single();
+
+    if (error) {
+      return res.status((error as any).status || 400).json({
+        ok: false,
+        error: { code: "SUPABASE", message: error.message, meta: { code: (error as any).code, details: (error as any).details } },
+      });
+    }
+
+    return res.status(200).json({ ok: true, data });
   }
 
   let supabase;
@@ -14,6 +41,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     ({ client: supabase, userId } = createServerSupabaseClient(req));
   } catch (e: any) {
     return res.status(401).json({ ok: false, error: { code: "AUTH_INVALID", message: "Missing Bearer token" } });
+  }
+
+  if (req.method === "GET") {
+    const projectId = typeof req.query.projectId === "string" ? req.query.projectId : "";
+    if (!projectId) {
+      return res.status(400).json({ ok: false, error: { code: "BAD_REQUEST", message: "Missing projectId" } });
+    }
+
+    const { data, error } = await supabase
+      .from("buildings")
+      .select("id, project_id, name, created_at, updated_at")
+      .eq("project_id", projectId)
+      .order("name", { ascending: true });
+
+    if (error) {
+      return res.status((error as any).status || 400).json({
+        ok: false,
+        error: { code: "SUPABASE", message: error.message, meta: { code: (error as any).code, details: (error as any).details } },
+      });
+    }
+
+    return res.status(200).json({ ok: true, data: data ?? [] });
   }
 
   let requester;
