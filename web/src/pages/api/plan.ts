@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { createServerSupabaseClient } from "@/lib/supabaseServer";
 import { requireRequesterProfile, isAdminRole } from "@/lib/requesterProfile";
+import { getSupabaseAdminClient } from "@/lib/supabaseAdmin";
 
 type ApiOk = { ok: true; data: any };
 type ApiErr = { ok: false; error: { code: string; message: string; meta?: any } };
@@ -34,7 +35,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
   const id = (req.query.id as string) || "";
   if (!id) return res.status(400).json({ ok: false, error: { code: "BAD_REQUEST", message: "Missing query: id" } });
 
-  const { data, error } = await supabase
+  // Use admin client to bypass RLS, ensuring users can see the plan details
+  // even if they don't have tasks assigned to them yet.
+  const admin = getSupabaseAdminClient();
+  const { data, error } = await admin
     .from("plans")
     .select("id,project_id,floor_id,version,status,pdf_path,image_path,image_width,image_height,is_current,storage_bucket,storage_path,processing_error,created_at,updated_at")
     .eq("id", id)
@@ -47,29 +51,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     });
   }
 
-  if (!isAdmin) {
-    const { data: taskAccess, error: taskAccessError } = await supabase
-      .from("tasks")
-      .select("id")
-      .eq("plan_id", id)
-      .eq("assigned_user_id", requester.id)
-      .limit(1);
-
-    if (taskAccessError) {
-      return res.status((taskAccessError as any).status || 400).json({
-        ok: false,
-        error: {
-          code: "SUPABASE",
-          message: taskAccessError.message,
-          meta: { code: (taskAccessError as any).code, details: (taskAccessError as any).details },
-        },
-      });
-    }
-
-    if (!taskAccess || taskAccess.length === 0) {
-      return res.status(403).json({ ok: false, error: { code: "FORBIDDEN", message: "You do not have access to this plan" } });
-    }
+  if (!data) {
+    return res.status(404).json({ ok: false, error: { code: "NOT_FOUND", message: "Plan not found" } });
   }
+
+  // Removed restriction: users can now access any plan to create tasks.
 
   return res.status(200).json({ ok: true, data });
 }

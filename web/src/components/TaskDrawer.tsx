@@ -244,7 +244,7 @@ export default function TaskDrawer({
   // open => doładuj profile
   useEffect(() => {
     if (!canShow) return;
-    loadProfilesOnce().catch(() => {});
+    loadProfilesOnce().catch(() => { });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canShow]);
 
@@ -253,7 +253,7 @@ export default function TaskDrawer({
     if (!canShow) return;
 
     if (taskId) {
-      loadAll(taskId).catch(() => {});
+      loadAll(taskId).catch(() => { });
       return;
     }
 
@@ -292,7 +292,7 @@ export default function TaskDrawer({
       for (const p of pendingPhotos) {
         try {
           URL.revokeObjectURL(p.previewUrl);
-        } catch {}
+        } catch { }
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -472,7 +472,7 @@ export default function TaskDrawer({
       if (hit) {
         try {
           URL.revokeObjectURL(hit.previewUrl);
-        } catch {}
+        } catch { }
       }
       return prev.filter((p) => p.id !== id);
     });
@@ -559,7 +559,7 @@ export default function TaskDrawer({
               for (const p of prev) {
                 try {
                   URL.revokeObjectURL(p.previewUrl);
-                } catch {}
+                } catch { }
               }
               return [];
             });
@@ -695,7 +695,10 @@ export default function TaskDrawer({
         }}
       >
         <button
-          onClick={() => setDrawerOpen((v) => !v)}
+          onClick={(e) => {
+            e.stopPropagation();
+            setDrawerOpen((v) => !v);
+          }}
           style={{
             padding: "12px 16px",
             borderRadius: "12px 0 0 12px",
@@ -1238,7 +1241,7 @@ export default function TaskDrawer({
           {!isCreate && (
             <>
               <hr style={{ border: "none", borderTop: "1px solid rgba(17,24,39,0.10)" }} />
-              
+
               <div style={{ display: "grid", gap: 10 }}>
                 <div style={{ fontSize: 14, fontWeight: 800 }}>{t("taskDrawer", "comments")} ({comments.length})</div>
 
@@ -1361,7 +1364,7 @@ export default function TaskDrawer({
                     })}
                   </div>
                 ) : (
-                    <div style={{ fontSize: 12, opacity: 0.75 }}>{t("taskDrawer", "noHistory", "No history yet")}</div>
+                  <div style={{ fontSize: 12, opacity: 0.75 }}>{t("taskDrawer", "noHistory", "No history yet")}</div>
                 )}
               </div>
             </>

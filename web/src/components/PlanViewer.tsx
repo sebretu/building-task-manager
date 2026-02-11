@@ -144,22 +144,18 @@ export default function PlanViewer({
 
     let alive = true;
 
-    (async () => {
-      try {
-        const { data } = await supabase.auth.getSession();
-        if (!alive) return;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!alive) return;
 
-        const authId = data.session?.user?.id;
-        if (!authId) {
-          setViewerProfile(null);
-          return;
-        }
-
+      if (session?.user?.id) {
         try {
+          // Optimization: if we already have the profile for this user, don't re-fetch
+          if (viewerProfile?.id === session.user.id) return;
+
           const { data: profile } = await supabase
             .from("profiles")
             .select("id, role")
-            .eq("id", authId)
+            .eq("id", session.user.id)
             .single();
 
           if (!alive) return;
@@ -168,14 +164,14 @@ export default function PlanViewer({
           if (!alive) return;
           setViewerProfile(null);
         }
-      } catch {
-        if (!alive) return;
+      } else {
         setViewerProfile(null);
       }
-    })();
+    });
 
     return () => {
       alive = false;
+      subscription?.unsubscribe();
     };
   }, [currentUserId, currentUserRole]);
 

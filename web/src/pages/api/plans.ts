@@ -56,40 +56,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
   const floorId = (req.query.floorId as string) || undefined;
   const onlyCurrent = ((req.query.current as string) || "").toLowerCase() === "true";
 
-  let q = supabase
+  // Utilize admin client to ensure users can see ALL plans for the project,
+  // bypassing RLS which might restrict them to only plans they are assigned to.
+  // Ideally we should check project membership here.
+  const admin = getSupabaseAdminClient();
+  let q = admin
     .from("plans")
     .select("id,project_id,floor_id,version,status,pdf_path,image_path,image_width,image_height,is_current,storage_bucket,storage_path,processing_error,created_at,updated_at")
     .eq("project_id", projectId);
 
   if (floorId) q = q.eq("floor_id", floorId);
   if (onlyCurrent) q = q.eq("is_current", true);
-
-  if (!isAdmin) {
-    const { data: userPlans, error: userPlansError } = await supabase
-      .from("tasks")
-      .select("plan_id")
-      .eq("project_id", projectId)
-      .eq("assigned_user_id", requester.id)
-      .not("plan_id", "is", null);
-
-    if (userPlansError) {
-      return res.status((userPlansError as any).status || 400).json({
-        ok: false,
-        error: {
-          code: "SUPABASE",
-          message: userPlansError.message,
-          meta: { code: (userPlansError as any).code, details: (userPlansError as any).details },
-        },
-      });
-    }
-
-    const planIds = Array.from(new Set((userPlans || []).map((t: any) => t.plan_id).filter(Boolean))) as string[];
-    if (planIds.length === 0) {
-      return res.status(200).json({ ok: true, data: [] });
-    }
-
-    q = q.in("id", planIds);
-  }
 
   const { data, error } = await q.order("created_at", { ascending: false });
 

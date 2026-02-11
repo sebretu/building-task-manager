@@ -158,8 +158,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     if (planId) query = query.eq("plan_id", planId);
     if (status) query = query.eq("status", status as any);
     if (priority) query = query.eq("priority", priority as any);
-    const effectiveAssignedId = isAdmin ? assignedUserId : requester.id;
-    if (effectiveAssignedId) query = query.eq("assigned_user_id", effectiveAssignedId);
+
+    if (isAdmin) {
+      // Admins can see everything, or filter by specific user if requested
+      if (assignedUserId) query = query.eq("assigned_user_id", assignedUserId);
+    } else {
+      // Regular users: See tasks assigned to ONLY THEM or CREATED BY THEM
+      // This ensures they see their own work and tasks delegated to them.
+      // Note: we use .or() which creates a group of conditions.
+      const uid = requester.id;
+      query = query.or(`assigned_user_id.eq.${uid},created_by.eq.${uid}`);
+    }
     if (dueFrom) query = query.gte("due_date", dueFrom);
     if (dueTo) query = query.lte("due_date", dueTo);
     if (q) query = query.or(`title.ilike.%${q}%,description.ilike.%${q}%`);
@@ -586,8 +595,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
             const actionText = summaryParts.length
               ? summaryParts.join(" | ")
               : friendlyFields.length === 1
-              ? `${friendlyFields[0]} updated`
-              : `Updated ${friendlyFields.join(", ")}`;
+                ? `${friendlyFields[0]} updated`
+                : `Updated ${friendlyFields.join(", ")}`;
 
             await adminClient.from("task_history").insert({
               task_id: id,
