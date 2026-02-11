@@ -1,0 +1,145 @@
+/* =========================
+   Mobile-Specific Optimizations
+   ========================= */
+
+/* Safe area support for notched devices */
+:root {
+    --safe-area-inset-top: env(safe-area-inset-top);
+    --safe-area-inset-right: env(safe-area-inset-right);
+    --safe-area-inset-bottom: env(safe-area-inset-bottom);
+    --safe-area-inset-left: env(safe-area-inset-left);
+}
+
+/* Mobile touch targets - minimum 44x44px for better accessibility */
+@media (max-width: 768px) {
+
+    button,
+    a,
+    input[type="checkbox"],
+    input[type="radio"],
+    select {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    /* Adjust padding for safe areas on mobile */
+    body {
+        padding-top: var(--safe-area-inset-top);
+        padding-right: var(--safe-area-inset-right);
+        padding-bottom: var(--safe-area-inset-bottom);
+        padding-left: var(--safe-area-inset-left);
+    }
+
+    /* Optimize task grid for mobile */
+    .tasks-grid {
+        grid-template-columns: 1fr;
+        gap: 24px;
+    }
+
+    .task-card {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+            "body"
+            "media"
+            "map"
+            "footer";
+        gap: 16px;
+        padding: 24px;
+        min-height: auto;
+    }
+
+    .task-card__media,
+    .task-card__map {
+        min-height: 200px;
+    }
+
+    /* Mobile-friendly filters */
+    .home-filters {
+        grid-template-columns: 1fr;
+    }
+
+    /* Larger font sizes for readability on mobile */
+    .task-card__body h3 {
+        font-size: 1.25rem;
+    }
+
+    .task-card__description {
+        font-size: 0.95rem;
+    }
+
+    /* Improve scrolling on mobile */
+    body {
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-y: contain;
+    }
+
+    /* Prevent zoom on input focus on iOS */
+    input,
+    select,
+    textarea {
+        font-size: 16px !important;
+    }
+}
+
+/* Capacitor-specific styles */
+.capacitor-app {
+    /* Prevent selection on native apps */
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.capacitor-app input,
+.capacitor-app textarea,
+.capacitor-app [contenteditable] {
+    /* Allow selection in input fields */
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+/* Native app status bar spacing */
+@supports (padding-top: constant(safe-area-inset-top)) or (padding-top: env(safe-area-inset-top)) {
+    .app-header {
+        padding-top: max(20px, env(safe-area-inset-top));
+    }
+}
+
+/* Bottom navigation safe area */
+@supports (padding-bottom: constant(safe-area-inset-bottom)) or (padding-bottom: env(safe-area-inset-bottom)) {
+
+    .app-footer,
+    .mobile-nav {
+        padding-bottom: max(20px, env(safe-area-inset-bottom));
+    }
+}
+
+/* Improved mobile kanban view */
+@media (max-width: 1024px) {
+    .home-kanban {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .home-kanban-column {
+        min-width: 280px;
+    }
+}
+
+/* Touch-friendly hover states for mobile */
+@media (hover: none) and (pointer: coarse) {
+    .task-card:hover {
+        transform: none;
+    }
+
+    .task-card:active {
+        transform: scale(0.98);
+        transition: transform 0.1s;
+    }
+
+    button:active,
+    .home-pill:active,
+    .home-toggle:active {
+        opacity: 0.8;
+        transform: scale(0.96);
+    }
+}
