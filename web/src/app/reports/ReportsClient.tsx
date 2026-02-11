@@ -168,34 +168,6 @@ export default function ReportsClient() {
 
     const [users, setUsers] = useState<any[]>([]);
 
-    const [savedReports, setSavedReports] = useState<any[]>([]);
-
-    const loadSavedReports = () => {
-        apiGet<any>("/api/reports").then(res => {
-            if (res && res.data) {
-                setSavedReports(res.data);
-            }
-        }).catch(err => console.error("Failed to load saved reports", err));
-    };
-
-    const handleDeleteReport = async (filename: string) => {
-        if (!confirm(t("reports", "confirmDeleteReport", "Czy na pewno usunąć ten raport?"))) return;
-        try {
-            const res = await fetch(`/api/reports/${filename}`, { method: "DELETE" });
-            if (res.ok) {
-                loadSavedReports();
-            } else {
-                alert("Failed to delete report");
-            }
-        } catch (e) {
-            console.error(e);
-        }
-    };
-
-    useEffect(() => {
-        loadSavedReports();
-    }, []);
-
     // Load Projects & Users
     useEffect(() => {
         // Load Projects
@@ -569,7 +541,6 @@ export default function ReportsClient() {
                         alert("Failed to save report to archive: " + err.error);
                     } else {
                         console.log("[Reports] Report saved successfully");
-                        loadSavedReports();
                     }
                 } catch (e) {
                     console.error("[Reports] Save error:", e);
@@ -731,49 +702,6 @@ export default function ReportsClient() {
                             </button>
                         </div>
 
-                    </div>
-
-                    {/* Saved Reports Section */}
-                    <div className="upload-card">
-                        <div className="upload-section-header">
-                            <span className="upload-section-title">{t("reports", "savedReports", "Zapisane raporty")}</span>
-                        </div>
-
-                        <div className="border rounded bg-white overflow-hidden">
-                            {savedReports.length === 0 ? (
-                                <div className="p-4 text-center text-gray-500 text-sm">
-                                    {t("reports", "noSavedReports", "Brak zapisanych raportów")}
-                                </div>
-                            ) : (
-                                <div className="divide-y">
-                                    {savedReports.map((file) => (
-                                        <div key={file.name} className="p-3 flex items-center justify-between hover:bg-gray-50">
-                                            <div className="flex flex-col overflow-hidden">
-                                                <span className="text-sm font-medium truncate" title={file.name}>{file.name}</span>
-                                                <span className="text-xs text-gray-400">
-                                                    {new Date(file.created_at).toLocaleString()} • {(file.size / 1024 / 1024).toFixed(2)} MB
-                                                </span>
-                                            </div>
-                                            <div className="flex gap-2 ml-4">
-                                                <a
-                                                    href={`/api/reports/${file.name}`}
-                                                    download
-                                                    className="px-3 py-1 text-xs bg-blue-50 text-blue-600 rounded hover:bg-blue-100 border border-blue-200"
-                                                >
-                                                    {t("common", "download", "Pobierz")}
-                                                </a>
-                                                <button
-                                                    onClick={() => handleDeleteReport(file.name)}
-                                                    className="px-3 py-1 text-xs bg-red-50 text-red-600 rounded hover:bg-red-100 border border-red-200"
-                                                >
-                                                    {t("common", "delete", "Usuń")}
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
                     </div>
 
                 </div>
