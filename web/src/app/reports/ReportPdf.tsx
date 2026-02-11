@@ -76,7 +76,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         display: 'flex',
-        zIndex: 10,
     },
     markerText: {
         color: '#1f4f82', // Blue text
@@ -156,7 +155,7 @@ export default function ReportPdf({ projectId, projectName, planIds, statuses, d
     return (
         <Document>
             {/* Title Page */}
-            <Page size="A4" style={styles.page}>
+            <Page size="A4" orientation="landscape" style={styles.page}>
                 <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                     <Text style={styles.header}>{t("title")}</Text>
                     <Text style={{ fontSize: 16, marginBottom: 10 }}>{t("project")}: {projectName || projectId}</Text>
@@ -229,14 +228,15 @@ export default function ReportPdf({ projectId, projectName, planIds, statuses, d
 
                 return (
                     <Page key={planId} size="A4" orientation="landscape" style={styles.planPage}>
-                        <Text style={[styles.subHeader, { marginBottom: 10 }]}>Plan: {planTitle}</Text>
+                        <Text style={[styles.subHeader, { marginBottom: 10 }]}>Plan: {planTitle} (Tasks: {planTasks.length})</Text>
 
                         {/* Container for Image and Markers */}
                         <View style={{
                             position: 'relative',
                             width: containerWidth,
                             height: containerHeight,
-                            alignSelf: 'center'
+                            alignSelf: 'center',
+                            border: '2px solid red' // debug border
                         }}>
                             {imageSrc && (
                                 <Image
@@ -252,6 +252,8 @@ export default function ReportPdf({ projectId, projectName, planIds, statuses, d
                                 />
                             )}
 
+
+
                             {/* Render Markers */}
                             {planTasks.map((task: any, index: number) => {
                                 // Skip tasks without valid coordinates
@@ -259,8 +261,11 @@ export default function ReportPdf({ projectId, projectName, planIds, statuses, d
 
                                 // Calculate position relative to the Rendered Image
                                 // Markers are centered on the point
-                                const mX = offsetX + (task.x_norm * renderW) - 16; // - half width (32/2)
-                                const mY = offsetY + (task.y_norm * renderH) - 16; // - half height
+                                // User Feedback: "Too low and right" -> Shift Up and Left
+                                // Standard Center: -16
+                                // Correction: Shift Up 20px (-36), Shift Left 4px (-20)
+                                const mX = Math.round(offsetX + (task.x_norm * renderW) - 20);
+                                const mY = Math.round(offsetY + (task.y_norm * renderH) - 36);
 
                                 return (
                                     <View
@@ -277,24 +282,24 @@ export default function ReportPdf({ projectId, projectName, planIds, statuses, d
             })}
 
             {/* Task Table */}
-            <Page size="A4" style={styles.page}>
+            <Page size="A4" orientation="landscape" style={[styles.page, { padding: 10 }]}>
                 <Text style={styles.subHeader}>{t("taskList")}</Text>
                 <View style={styles.table}>
                     {/* Header */}
                     <View style={styles.tableRow}>
-                        <View style={[styles.tableColHeader, { width: '8%' }]}>
+                        <View style={[styles.tableColHeader, { width: '5%' }]}>
                             <Text style={styles.tableCellHeader}>{t("number")}</Text>
                         </View>
-                        <View style={[styles.tableColHeader, { width: '25%' }]}>
+                        <View style={[styles.tableColHeader, { width: '20%' }]}>
                             <Text style={styles.tableCellHeader}>{t("name")}</Text>
                         </View>
                         <View style={[styles.tableColHeader, { width: '12%' }]}>
                             <Text style={styles.tableCellHeader}>{t("status")}</Text>
                         </View>
-                        <View style={[styles.tableColHeader, { width: '15%' }]}>
+                        <View style={[styles.tableColHeader, { width: '25%' }]}>
                             <Text style={styles.tableCellHeader}>{t("assigned")}</Text>
                         </View>
-                        <View style={[styles.tableColHeader, { width: '15%' }]}>
+                        <View style={[styles.tableColHeader, { width: '13%' }]}>
                             <Text style={styles.tableCellHeader}>{t("dateCreated")}</Text>
                         </View>
                         <View style={[styles.tableColHeader, { width: '25%' }]}>
@@ -305,20 +310,20 @@ export default function ReportPdf({ projectId, projectName, planIds, statuses, d
                     {/* Rows */}
                     {tasks?.map((task: any, index: number) => (
                         <View key={task.id} style={styles.tableRow} wrap={false}>
-                            <View style={[styles.tableCol, { width: '8%' }]}>
+                            <View style={[styles.tableCol, { width: '5%' }]}>
                                 <Text style={styles.tableCell}>{task.numericLabel || (index + 1)}</Text>
                             </View>
-                            <View style={[styles.tableCol, { width: '25%' }]}>
+                            <View style={[styles.tableCol, { width: '20%' }]}>
                                 <Text style={[styles.tableCell, { fontWeight: 'bold' }]}>{task.title}</Text>
                                 {task.description && <Text style={[styles.tableCell, { color: '#666', fontSize: 8, marginTop: 2 }]}>{task.description}</Text>}
                             </View>
                             <View style={[styles.tableCol, { width: '12%' }]}>
                                 <Text style={styles.tableCell}>{getStatusLabel(task.status)}</Text>
                             </View>
-                            <View style={[styles.tableCol, { width: '15%' }]}>
+                            <View style={[styles.tableCol, { width: '25%' }]}>
                                 <Text style={styles.tableCell}>{task.assigneeName || "-"}</Text>
                             </View>
-                            <View style={[styles.tableCol, { width: '15%' }]}>
+                            <View style={[styles.tableCol, { width: '13%' }]}>
                                 <Text style={styles.tableCell}>{formatDate(task.created_at)}</Text>
                             </View>
                             <View style={[styles.tableCol, { width: '25%' }]}>

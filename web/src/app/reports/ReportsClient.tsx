@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { apiGet } from "@/lib/apiClient";
+import { apiGet, apiPost } from "@/lib/apiClient";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { getTaskNumericLabel } from "@/lib/taskNumber";
 import dynamic from "next/dynamic";
@@ -146,7 +146,7 @@ const urlToBase64 = async (url: string, token?: string | null): Promise<string |
 }
 
 export default function ReportsClient() {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const [projects, setProjects] = useState<Project[]>([]);
     const [selectedProjectId, setSelectedProjectId] = useState<string>("");
 
@@ -167,6 +167,34 @@ export default function ReportsClient() {
     const [statusMessage, setStatusMessage] = useState("");
 
     const [users, setUsers] = useState<any[]>([]);
+
+    const [savedReports, setSavedReports] = useState<any[]>([]);
+
+    const loadSavedReports = () => {
+        apiGet<any>("/api/reports").then(res => {
+            if (res && res.data) {
+                setSavedReports(res.data);
+            }
+        }).catch(err => console.error("Failed to load saved reports", err));
+    };
+
+    const handleDeleteReport = async (filename: string) => {
+        if (!confirm(t("reports", "confirmDeleteReport", "Czy na pewno usunąć ten raport?"))) return;
+        try {
+            const res = await fetch(`/api/reports/${filename}`, { method: "DELETE" });
+            if (res.ok) {
+                loadSavedReports();
+            } else {
+                alert("Failed to delete report");
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    useEffect(() => {
+        loadSavedReports();
+    }, []);
 
     // Load Projects & Users
     useEffect(() => {
@@ -311,13 +339,59 @@ export default function ReportsClient() {
                 }
             }));
 
-            // Pre-fetch Plan Images with High Res Stitching
+            // --- AUTO TRANSLATION ---
+            let finalTasks = enrichedTasks;
+
+            if (language && language !== 'pl') {
+                try {
+                    setStatusMessage(`Tłumaczenie na ${language}...`);
+                    console.log(`[Reports] Translating tasks to ${language}...`);
+
+                    // Collect unique texts
+                    const textsToTranslate = new Set<string>();
+                    enrichedTasks.forEach(t => {
+                        if (t.title) textsToTranslate.add(t.title);
+                        if (t.description) textsToTranslate.add(t.description);
+                    });
+
+                    if (textsToTranslate.size > 0) {
+                        const textsArray = Array.from(textsToTranslate);
+                        const BATCH_SIZE = 50;
+                        const translationMap = new Map<string, string>();
+
+                        for (let i = 0; i < textsArray.length; i += BATCH_SIZE) {
+                            const batch = textsArray.slice(i, i + BATCH_SIZE);
+                            const res = await apiPost<{ translations: string[] }>("/api/translate", {
+                                targetLang: language,
+                                texts: batch
+                            });
+
+                            if (res && res.translations) {
+                                batch.forEach((orig, idx) => {
+                                    translationMap.set(orig, res.translations[idx]);
+                                });
+                            }
+                        }
+
+                        // Apply translations
+                        finalTasks = enrichedTasks.map(t => ({
+                            ...t,
+                            title: translationMap.get(t.title) || t.title,
+                            description: t.description ? (translationMap.get(t.description) || t.description) : t.description
+                        }));
+                    }
+                } catch (e) {
+                    console.error("[Reports] Translation failed:", e);
+                    // allow to proceed with original texts
+                }
+            }
+
+            // --- ENRICH PLANS (Restored) ---
             const enrichedPlans = await Promise.all(plans.map(async (plan) => {
                 if (!selectedPlanIds.has(plan.id)) return plan;
                 console.log(`[Reports] Fetching plan image for ${plan.id}`);
 
                 let b64: string | null = null;
-                // Let's try plan.image_path first as it's the "Source".
                 if (plan.image_path) {
                     b64 = await urlToBase64(plan.image_path, token);
                 }
@@ -333,9 +407,6 @@ export default function ReportsClient() {
                             const meta = await metaRes.json();
                             const { minZoom, maxZoom, limits, tileSize = 256 } = meta;
 
-                            // Calculate Optimal Zoom for ~2500px width
-                            // width = (maxX+1) * tileSize
-                            // we want width >= 2500
                             let bestZoom = minZoom;
                             for (let z = minZoom; z <= maxZoom; z++) {
                                 const lim = limits[z];
@@ -345,10 +416,9 @@ export default function ReportsClient() {
                                     bestZoom = z;
                                     break;
                                 }
-                                bestZoom = z; // Take the highest available if none confirm to 2500
+                                bestZoom = z;
                             }
 
-                            // Cap max tiles to prevent crash (e.g. 10x10 = 100 tiles max)
                             const lim = limits[bestZoom];
                             if (lim && (lim.maxX + 1) * (lim.maxY + 1) <= 120) {
                                 console.log(`[Reports] Stitching ${plan.id} at zoom ${bestZoom} (${lim.maxX + 1}x${lim.maxY + 1} tiles)`);
@@ -380,13 +450,10 @@ export default function ReportsClient() {
                                         }
                                     }
                                     await Promise.all(tilePromises);
-                                    // Use 0.8 quality to keep size manageable but crisp
                                     b64 = canvas.toDataURL("image/jpeg", 0.8);
                                 }
                             } else {
-                                console.warn(`[Reports] Zoom ${bestZoom} too large to stitch, fallback to minZoom`);
-                                // Fallback to minZoom if bestZoom is too huge
-                                // ... (existing minZoom logic could go here or we just accept the failure and try 0/0/0)
+                                console.warn(`[Reports] Zoom ${bestZoom} too large to stitch`);
                             }
                         }
                     } catch (e) {
@@ -429,7 +496,7 @@ export default function ReportsClient() {
                 totalTasks: t("reports", "totalTasks", "Liczba zadań łącznie"),
                 taskList: t("reports", "taskList", "Lista zadań"),
                 number: t("reports", "number", "Nr"),
-                name: t("reports", "name", "Nazwa"),
+                name: t("reports", "taskName", "Nazwa zadania"),
                 assigned: t("reports", "assigned", "Przypisany"),
                 dateCreated: t("reports", "dateCreated", "Data utw."),
                 photos: t("reports", "photos", "Zdjęcia"),
@@ -458,7 +525,7 @@ export default function ReportsClient() {
                     plansMap={plansMap}
                     buildingsMap={buildingsMap}
                     floorsMap={floorsMap}
-                    tasks={enrichedTasks}
+                    tasks={finalTasks}
                     summary={summaryData}
                     photoMode={photoMode}
                     translations={pdfTranslations}
@@ -468,12 +535,46 @@ export default function ReportsClient() {
             // Trigger Download
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
+            const filename = `raport_${new Date().toISOString().slice(0, 10)}_${Date.now()}.pdf`;
             link.href = url;
-            link.download = `raport_${new Date().toISOString().slice(0, 10)}.pdf`;
+            link.download = filename;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
+
+            // Auto-Save to Server
+            setStatusMessage("Archiwizacja raportu...");
+            const reader = new FileReader();
+            reader.readAsDataURL(blob);
+            reader.onloadend = async () => {
+                try {
+                    const base64data = reader.result as string;
+                    // strip prefix
+                    const b64 = base64data.includes("base64,") ? base64data.split('base64,')[1] : base64data;
+
+                    console.log("[Reports] Saving report to server:", filename);
+                    const res = await fetch("/api/reports", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            filename: filename,
+                            base64: b64
+                        })
+                    });
+
+                    if (!res.ok) {
+                        const err = await res.json();
+                        console.error("[Reports] Save failed:", err);
+                        alert("Failed to save report to archive: " + err.error);
+                    } else {
+                        console.log("[Reports] Report saved successfully");
+                        loadSavedReports();
+                    }
+                } catch (e) {
+                    console.error("[Reports] Save error:", e);
+                }
+            };
 
         } catch (e) {
             console.error("Error generating report", e);
@@ -631,6 +732,50 @@ export default function ReportsClient() {
                         </div>
 
                     </div>
+
+                    {/* Saved Reports Section */}
+                    <div className="upload-card">
+                        <div className="upload-section-header">
+                            <span className="upload-section-title">{t("reports", "savedReports", "Zapisane raporty")}</span>
+                        </div>
+
+                        <div className="border rounded bg-white overflow-hidden">
+                            {savedReports.length === 0 ? (
+                                <div className="p-4 text-center text-gray-500 text-sm">
+                                    {t("reports", "noSavedReports", "Brak zapisanych raportów")}
+                                </div>
+                            ) : (
+                                <div className="divide-y">
+                                    {savedReports.map((file) => (
+                                        <div key={file.name} className="p-3 flex items-center justify-between hover:bg-gray-50">
+                                            <div className="flex flex-col overflow-hidden">
+                                                <span className="text-sm font-medium truncate" title={file.name}>{file.name}</span>
+                                                <span className="text-xs text-gray-400">
+                                                    {new Date(file.created_at).toLocaleString()} • {(file.size / 1024 / 1024).toFixed(2)} MB
+                                                </span>
+                                            </div>
+                                            <div className="flex gap-2 ml-4">
+                                                <a
+                                                    href={`/api/reports/${file.name}`}
+                                                    download
+                                                    className="px-3 py-1 text-xs bg-blue-50 text-blue-600 rounded hover:bg-blue-100 border border-blue-200"
+                                                >
+                                                    {t("common", "download", "Pobierz")}
+                                                </a>
+                                                <button
+                                                    onClick={() => handleDeleteReport(file.name)}
+                                                    className="px-3 py-1 text-xs bg-red-50 text-red-600 rounded hover:bg-red-100 border border-red-200"
+                                                >
+                                                    {t("common", "delete", "Usuń")}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
                 </div>
             </section>
         </main>
