@@ -169,7 +169,7 @@ export default function Home() {
     async function checkSession() {
       try {
         const { data, error } = await supabase.auth.getSession();
-        
+
         if (error || !data?.session) {
           router.push("/auth/login");
           return;
@@ -249,7 +249,7 @@ export default function Home() {
       .then((data) => {
         if (data) setNotificationSettings(data);
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setSettingsLoaded(true));
   }, [sessionLoaded, settingsLoaded]);
 
@@ -343,7 +343,7 @@ export default function Home() {
   useEffect(() => {
     tasks.forEach((task) => {
       if (!Object.prototype.hasOwnProperty.call(thumbByTask, task.id)) {
-        loadThumb(task.id).catch(() => {});
+        loadThumb(task.id).catch(() => { });
       }
     });
 
@@ -355,7 +355,7 @@ export default function Home() {
 
     planIds.forEach((planId) => {
       if (!Object.prototype.hasOwnProperty.call(metaByPlan, planId)) {
-        loadPlanMeta(planId).catch(() => {});
+        loadPlanMeta(planId).catch(() => { });
       }
     });
   }, [tasks, thumbByTask, metaByPlan, loadThumb]);
@@ -365,7 +365,7 @@ export default function Home() {
       const detail = (event as CustomEvent)?.detail;
       const taskIdFromEvent = detail?.taskId;
       if (!taskIdFromEvent) return;
-      loadThumb(taskIdFromEvent).catch(() => {});
+      loadThumb(taskIdFromEvent).catch(() => { });
     }
 
     window.addEventListener("task-photo-added", handlePhotoAdded as EventListener);
@@ -443,7 +443,7 @@ export default function Home() {
                   onChange={(e) => {
                     const next = { ...notificationSettings, notify_on_create: e.target.checked };
                     setNotificationSettings(next);
-                    saveNotificationSettings(next).catch(() => {});
+                    saveNotificationSettings(next).catch(() => { });
                   }}
                 />
                 {t("home", "notifyOnCreate")}
@@ -455,7 +455,7 @@ export default function Home() {
                   onChange={(e) => {
                     const next = { ...notificationSettings, notify_on_status: e.target.checked };
                     setNotificationSettings(next);
-                    saveNotificationSettings(next).catch(() => {});
+                    saveNotificationSettings(next).catch(() => { });
                   }}
                 />
                 {t("home", "notifyOnStatus")}
@@ -467,7 +467,7 @@ export default function Home() {
                   onChange={(e) => {
                     const next = { ...notificationSettings, notify_on_assign: e.target.checked };
                     setNotificationSettings(next);
-                    saveNotificationSettings(next).catch(() => {});
+                    saveNotificationSettings(next).catch(() => { });
                   }}
                 />
                 {t("home", "notifyOnAssign")}
@@ -479,180 +479,180 @@ export default function Home() {
         </section>
         {err && <div className="home-card-error">{err}</div>}
         <section className="home-task-panel">
-            <div className="home-section-header">
-              <h2>{t("home", "title")}</h2>
-              <p>{t("home", "tasksSubtitle")}</p>
-            </div>
+          <div className="home-section-header">
+            <h2>{t("home", "title")}</h2>
+            <p>{t("home", "tasksSubtitle")}</p>
+          </div>
 
-            <div className="home-filters">
-              <label>
-                {t("home", "selectProject")}:
-                <select
-                  value={projectId}
-                  onChange={(e) => {
-                    setProjectId(e.target.value);
+          <div className="home-filters">
+            <label>
+              {t("home", "selectProject")}:
+              <select
+                value={projectId}
+                onChange={(e) => {
+                  setProjectId(e.target.value);
+                  setOffset(0);
+                }}
+              >
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              {t("common", "search")}:
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder={t("home", "search")}
+              />
+            </label>
+
+            <div className="home-status-filter">
+              {[null, "OPEN", "DONE_WAITING_APPROVAL", "APPROVED"].map((s) => (
+                <button
+                  key={s ?? "ALL"}
+                  onClick={() => {
+                    setStatusFilter(s);
                     setOffset(0);
                   }}
+                  className={statusFilter === s ? "home-pill active" : "home-pill"}
                 >
-                  {projects.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  {s ? t("taskStatus", s) : t("taskStatus", "ALL")}
+                </button>
+              ))}
+            </div>
 
+            <label>
+              {t("home", "filterPriority")}:
+              <select
+                value={priorityFilter || ""}
+                onChange={(e) => {
+                  setPriorityFilter(e.target.value || null);
+                  setOffset(0);
+                }}
+              >
+                <option value="">{t("taskStatus", "ALL")}</option>
+                <option value="LOW">{t("taskPriority", "LOW")}</option>
+                <option value="MEDIUM">{t("taskPriority", "MEDIUM")}</option>
+                <option value="HIGH">{t("taskPriority", "HIGH")}</option>
+                <option value="CRITICAL">{t("taskPriority", "CRITICAL")}</option>
+              </select>
+            </label>
+
+            {(user?.role || "").toUpperCase() === "ADMIN" && (
               <label>
-                {t("common", "search")}:
-                <input
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  placeholder={t("home", "search")}
-                />
-              </label>
-
-              <div className="home-status-filter">
-                {[null, "OPEN", "DONE_WAITING_APPROVAL", "APPROVED"].map((s) => (
-                  <button
-                    key={s ?? "ALL"}
-                    onClick={() => {
-                      setStatusFilter(s);
-                      setOffset(0);
-                    }}
-                    className={statusFilter === s ? "home-pill active" : "home-pill"}
-                  >
-                    {s ? t("taskStatus", s) : t("taskStatus", "ALL")}
-                  </button>
-                ))}
-              </div>
-
-              <label>
-                {t("home", "filterPriority")}:
+                {t("home", "filterAssignee")}:
                 <select
-                  value={priorityFilter || ""}
+                  value={assignedFilter}
                   onChange={(e) => {
-                    setPriorityFilter(e.target.value || null);
+                    setAssignedFilter(e.target.value);
                     setOffset(0);
                   }}
                 >
                   <option value="">{t("taskStatus", "ALL")}</option>
-                  <option value="LOW">{t("taskPriority", "LOW")}</option>
-                  <option value="MEDIUM">{t("taskPriority", "MEDIUM")}</option>
-                  <option value="HIGH">{t("taskPriority", "HIGH")}</option>
-                  <option value="CRITICAL">{t("taskPriority", "CRITICAL")}</option>
+                  {profiles.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.full_name || p.email || p.id.slice(0, 8)}
+                    </option>
+                  ))}
                 </select>
               </label>
-
-              {(user?.role || "").toUpperCase() === "ADMIN" && (
-                <label>
-                  {t("home", "filterAssignee")}:
-                  <select
-                    value={assignedFilter}
-                    onChange={(e) => {
-                      setAssignedFilter(e.target.value);
-                      setOffset(0);
-                    }}
-                  >
-                    <option value="">{t("taskStatus", "ALL")}</option>
-                    {profiles.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.full_name || p.email || p.id.slice(0, 8)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
-
-              <label>
-                {t("home", "dueFrom")}:
-                <input
-                  type="date"
-                  value={dueFrom}
-                  onChange={(e) => {
-                    setDueFrom(e.target.value);
-                    setOffset(0);
-                  }}
-                />
-              </label>
-
-              <label>
-                {t("home", "dueTo")}:
-                <input
-                  type="date"
-                  value={dueTo}
-                  onChange={(e) => {
-                    setDueTo(e.target.value);
-                    setOffset(0);
-                  }}
-                />
-              </label>
-
-              <label>
-                {t("home", "sortBy")}:
-                <select
-                  value={sortBy}
-                  onChange={(e) => {
-                    setSortBy(e.target.value);
-                    setOffset(0);
-                  }}
-                >
-                  <option value="">{t("home", "sortNewest")}</option>
-                  <option value="due_asc">{t("home", "sortDueSoon")}</option>
-                  <option value="due_desc">{t("home", "sortDueLatest")}</option>
-                  <option value="priority_desc">{t("home", "sortPriority")}</option>
-                </select>
-              </label>
-            </div>
-
-            <div className="home-view-toggle">
-              <span>{t("home", "viewMode")}:</span>
-              <button
-                onClick={() => setViewMode("list")}
-                className={viewMode === "list" ? "home-toggle active" : "home-toggle"}
-              >
-                {t("home", "viewList")}
-              </button>
-              <button
-                onClick={() => setViewMode("kanban")}
-                className={viewMode === "kanban" ? "home-toggle active" : "home-toggle"}
-              >
-                {t("home", "viewKanban")}
-              </button>
-            </div>
-
-            <div className="home-pagination">
-              <button
-                onClick={() => setOffset((o) => Math.max(0, o - limit))}
-                disabled={offset === 0}
-              >
-                {t("home", "prev")}
-              </button>
-              <button onClick={() => setOffset((o) => o + limit)}>{t("home", "next")}</button>
-              <label>
-                {t("home", "limit")}:
-                <input
-                  type="number"
-                  value={limit}
-                  min={1}
-                  max={200}
-                  onChange={(e) => {
-                    setLimit(Math.max(1, Math.min(200, Number(e.target.value) || 10)));
-                    setOffset(0);
-                  }}
-                />
-              </label>
-            </div>
-
-            {taskTranslating && (
-              <div className="home-card-note">
-                {t("taskDrawer", "autoTranslateLoading", "Translating content...")} ({language.toUpperCase()})
-              </div>
             )}
-            {taskTranslationError && (
-              <div className="home-card-error">
-                {t("taskDrawer", "autoTranslateError", "Auto translation failed")}: {taskTranslationError}
-              </div>
-            )}
+
+            <label>
+              {t("home", "dueFrom")}:
+              <input
+                type="date"
+                value={dueFrom}
+                onChange={(e) => {
+                  setDueFrom(e.target.value);
+                  setOffset(0);
+                }}
+              />
+            </label>
+
+            <label>
+              {t("home", "dueTo")}:
+              <input
+                type="date"
+                value={dueTo}
+                onChange={(e) => {
+                  setDueTo(e.target.value);
+                  setOffset(0);
+                }}
+              />
+            </label>
+
+            <label>
+              {t("home", "sortBy")}:
+              <select
+                value={sortBy}
+                onChange={(e) => {
+                  setSortBy(e.target.value);
+                  setOffset(0);
+                }}
+              >
+                <option value="">{t("home", "sortNewest")}</option>
+                <option value="due_asc">{t("home", "sortDueSoon")}</option>
+                <option value="due_desc">{t("home", "sortDueLatest")}</option>
+                <option value="priority_desc">{t("home", "sortPriority")}</option>
+              </select>
+            </label>
+          </div>
+
+          <div className="home-view-toggle">
+            <span>{t("home", "viewMode")}:</span>
+            <button
+              onClick={() => setViewMode("list")}
+              className={viewMode === "list" ? "home-toggle active" : "home-toggle"}
+            >
+              {t("home", "viewList")}
+            </button>
+            <button
+              onClick={() => setViewMode("kanban")}
+              className={viewMode === "kanban" ? "home-toggle active" : "home-toggle"}
+            >
+              {t("home", "viewKanban")}
+            </button>
+          </div>
+
+          <div className="home-pagination">
+            <button
+              onClick={() => setOffset((o) => Math.max(0, o - limit))}
+              disabled={offset === 0}
+            >
+              {t("home", "prev")}
+            </button>
+            <button onClick={() => setOffset((o) => o + limit)}>{t("home", "next")}</button>
+            <label>
+              {t("home", "limit")}:
+              <input
+                type="number"
+                value={limit}
+                min={1}
+                max={200}
+                onChange={(e) => {
+                  setLimit(Math.max(1, Math.min(200, Number(e.target.value) || 10)));
+                  setOffset(0);
+                }}
+              />
+            </label>
+          </div>
+
+          {taskTranslating && (
+            <div className="home-card-note">
+              {t("taskDrawer", "autoTranslateLoading", "Translating content...")} ({language.toUpperCase()})
+            </div>
+          )}
+          {taskTranslationError && (
+            <div className="home-card-error">
+              {t("taskDrawer", "autoTranslateError", "Auto translation failed")}: {taskTranslationError}
+            </div>
+          )}
 
           {viewMode === "list" ? (
             <div className="tasks-grid">
@@ -690,16 +690,15 @@ export default function Home() {
                 const descriptionContent = hasDescription ? descriptionPreview : t("home", "noDescription");
 
                 return (
-                  <article key={task.id} className="task-card">
+                  <Link href={`/task/${task.id}`} key={task.id} className="task-card">
                     <div className="task-card__media">
                       {thumbUrl ? (
                         <>
                           <img src={thumbUrl} alt={thumbAlt} />
                           {thumbBadge && (
                             <span
-                              className={`task-card__media-badge ${
-                                thumbType === "AFTER" ? "task-card__media-badge--after" : "task-card__media-badge--before"
-                              }`.trim()}
+                              className={`task-card__media-badge ${thumbType === "AFTER" ? "task-card__media-badge--after" : "task-card__media-badge--before"
+                                }`.trim()}
                             >
                               {thumbBadge}
                             </span>
@@ -743,11 +742,8 @@ export default function Home() {
                       <span>
                         {priorityLabel} · {dueLabel}
                       </span>
-                      <Link href={`/task/${task.id}`} className="task-card__cta">
-                        {t("home", "serviceMore")}
-                      </Link>
                     </div>
-                  </article>
+                  </Link>
                 );
               })}
             </div>

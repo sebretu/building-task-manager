@@ -626,6 +626,15 @@ a:focus {
   box-shadow: 0 35px 90px rgba(47, 107, 255, 0.18);
   isolation: isolate;
   min-height: 420px;
+  transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
+}
+
+.task-card:hover {
+  background: #fff;
+  transform: translateY(-4px);
+  box-shadow: 0 40px 100px rgba(47, 107, 255, 0.22);
+  color: inherit;
+  outline: none;
 }
 
 .task-card__media {
