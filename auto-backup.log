@@ -16351,3 +16351,99 @@ To github.com:sebretu/building-task-manager.git
 done
 ----- 2026-02-11 21:00:01 auto-backup start -----
 whoami=root pwd=/root/building-task-manager
+date: extra operand ‘%H:%M’
+Try 'date --help' for more information.
+[backup-clean-20260211-050945 6abe5ea5] auto-backup:
+ 89 files changed, 4348 insertions(+), 15 deletions(-)
+ create mode 100644 web/.capacitorignore
+ create mode 100644 web/android/.gitignore
+ create mode 100644 web/android/app/.gitignore
+ create mode 100644 web/android/app/build.gradle
+ create mode 100644 web/android/app/proguard-rules.pro
+ create mode 100644 web/android/app/src/androidTest/java/com/getcapacitor/myapp/ExampleInstrumentedTest.java
+ create mode 100644 web/android/app/src/main/AndroidManifest.xml
+ create mode 100644 web/android/app/src/main/java/com/taskmanager/building/MainActivity.java
+ create mode 100644 web/android/app/src/main/res/drawable-land-hdpi/splash.png
+ create mode 100644 web/android/app/src/main/res/drawable-land-mdpi/splash.png
+ create mode 100644 web/android/app/src/main/res/drawable-land-xhdpi/splash.png
+ create mode 100644 web/android/app/src/main/res/drawable-land-xxhdpi/splash.png
+ create mode 100644 web/android/app/src/main/res/drawable-land-xxxhdpi/splash.png
+ create mode 100644 web/android/app/src/main/res/drawable-port-hdpi/splash.png
+ create mode 100644 web/android/app/src/main/res/drawable-port-mdpi/splash.png
+ create mode 100644 web/android/app/src/main/res/drawable-port-xhdpi/splash.png
+ create mode 100644 web/android/app/src/main/res/drawable-port-xxhdpi/splash.png
+ create mode 100644 web/android/app/src/main/res/drawable-port-xxxhdpi/splash.png
+ create mode 100644 web/android/app/src/main/res/drawable-v24/ic_launcher_foreground.xml
+ create mode 100644 web/android/app/src/main/res/drawable/ic_launcher_background.xml
+ create mode 100644 web/android/app/src/main/res/drawable/splash.png
+ create mode 100644 web/android/app/src/main/res/layout/activity_main.xml
+ create mode 100644 web/android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+ create mode 100644 web/android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
+ create mode 100644 web/android/app/src/main/res/mipmap-hdpi/ic_launcher.png
+ create mode 100644 web/android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png
+ create mode 100644 web/android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png
+ create mode 100644 web/android/app/src/main/res/mipmap-mdpi/ic_launcher.png
+ create mode 100644 web/android/app/src/main/res/mipmap-mdpi/ic_launcher_foreground.png
+ create mode 100644 web/android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png
+ create mode 100644 web/android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
+ create mode 100644 web/android/app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.png
+ create mode 100644 web/android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
+ create mode 100644 web/android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+ create mode 100644 web/android/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.png
+ create mode 100644 web/android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
+ create mode 100644 web/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+ create mode 100644 web/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png
+ create mode 100644 web/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
+ create mode 100644 web/android/app/src/main/res/values/ic_launcher_background.xml
+ create mode 100644 web/android/app/src/main/res/values/strings.xml
+ create mode 100644 web/android/app/src/main/res/values/styles.xml
+ create mode 100644 web/android/app/src/main/res/xml/file_paths.xml
+ create mode 100644 web/android/app/src/test/java/com/getcapacitor/myapp/ExampleUnitTest.java
+ create mode 100644 web/android/build.gradle
+ create mode 100644 web/android/gradle.properties
+ create mode 100644 web/android/gradle/wrapper/gradle-wrapper.jar
+ create mode 100644 web/android/gradle/wrapper/gradle-wrapper.properties
+ create mode 100755 web/android/gradlew
+ create mode 100644 web/android/gradlew.bat
+ create mode 100644 web/android/settings.gradle
+ create mode 100644 web/android/variables.gradle
+ create mode 100644 web/capacitor.config.ts
+ create mode 100644 web/debug_rls_admin.sql
+ create mode 100644 web/fix_admin_task_edit.sql
+ create mode 100644 web/ios/.gitignore
+ create mode 100644 web/ios/App/App.xcodeproj/project.pbxproj
+ create mode 100644 web/ios/App/App.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
+ create mode 100644 web/ios/App/App/AppDelegate.swift
+ create mode 100644 web/ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png
+ create mode 100644 web/ios/App/App/Assets.xcassets/AppIcon.appiconset/Contents.json
+ create mode 100644 web/ios/App/App/Assets.xcassets/Contents.json
+ create mode 100644 web/ios/App/App/Assets.xcassets/Splash.imageset/Contents.json
+ create mode 100644 web/ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732-1.png
+ create mode 100644 web/ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732-2.png
+ create mode 100644 web/ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732.png
+ create mode 100644 web/ios/App/App/Base.lproj/LaunchScreen.storyboard
+ create mode 100644 web/ios/App/App/Base.lproj/Main.storyboard
+ create mode 100644 web/ios/App/App/Info.plist
+ create mode 100644 web/ios/App/Podfile
+ create mode 100644 web/src/app/mobile.css
+ create mode 100644 web/src/components/SyncStatusBanner.tsx
+ create mode 100644 web/src/hooks/useCamera.ts
+ create mode 100644 web/src/hooks/useGeolocation.ts
+ create mode 100644 web/src/hooks/useNetwork.ts
+ create mode 100644 web/src/hooks/useSync.ts
+ create mode 100644 web/src/lib/native/camera.ts
+ create mode 100644 web/src/lib/native/geolocation.ts
+ create mode 100644 web/src/lib/native/index.ts
+ create mode 100644 web/src/lib/native/platform.ts
+ create mode 100644 web/src/lib/native/pushNotifications.ts
+ create mode 100644 web/src/lib/offline/index.ts
+ create mode 100644 web/src/lib/offline/queue.ts
+ create mode 100644 web/src/lib/offline/storage.ts
+ create mode 100644 web/src/lib/offline/sync.ts
+To github.com:sebretu/building-task-manager.git
+   5bd23f3a..6abe5ea5  HEAD -> backup-clean-20260211-050945
+To github.com:sebretu/building-task-manager.git
+ * [new tag]           auto-backup-20260211-2100 -> auto-backup-20260211-2100
+done
+----- 2026-02-11 22:00:01 auto-backup start -----
+whoami=root pwd=/root/building-task-manager
