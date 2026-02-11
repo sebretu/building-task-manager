@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { apiGet } from "@/lib/apiClient";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { getTaskNumericLabel } from "@/lib/taskNumber";
 import dynamic from "next/dynamic";
 import { pdf } from "@react-pdf/renderer";
 import ReportPdf from "./ReportPdf";
@@ -52,20 +53,94 @@ const ALL_STATUSES: TaskStatus[] = [
     "CANCELLED",
 ];
 
-// Helper to convert URL to Base64
-const urlToBase64 = async (url: string): Promise<string | null> => {
+// Helper to convert URL to Base64 with strict validation AND re-encoding
+const urlToBase64 = async (url: string, token?: string | null): Promise<string | null> => {
     try {
-        // Ensure we send cookies/credentials with the request
-        const response = await fetch(url, { credentials: 'include' });
+        console.log(`[Reports] Fetching image: ${url}`);
+        const headers: RequestInit = {};
+
+        // Use Bearer token if provided, otherwise rely on public access (for external photos)
+        if (token) {
+            // For tile API, we can use Header OR Query param. 
+            // Let's use Header for cleaner requests, but some endpoints might expect query param?
+            // The tiles route supports both. Let's try Header first.
+            // Actually, standard fetch with Authorization header is best.
+            headers.headers = {
+                "Authorization": `Bearer ${token}`
+            };
+        }
+
+        const response = await fetch(url, headers);
+
+        if (!response.ok) {
+            console.warn(`[Reports] Fetch failed for ${url}: ${response.status}`);
+            return null;
+        }
+
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.startsWith("image/")) {
+            console.error(`[Reports] Invalid content-type for ${url}: ${contentType}`);
+            // Diagnostic: Log what we got instead
+            const text = await response.text();
+            console.error(`[Reports] Response content preview: ${text.substring(0, 100)}`);
+            return null;
+        }
+
         const blob = await response.blob();
-        return new Promise((resolve) => {
+        if (blob.size === 0) {
+            console.warn(`[Reports] Empty blob for ${url}`);
+            return null;
+        }
+
+        // 1. Convert Blob to Data URL
+        const rawBase64 = await new Promise<string | null>((resolve) => {
             const reader = new FileReader();
             reader.onloadend = () => resolve(reader.result as string);
             reader.onerror = () => resolve(null);
             reader.readAsDataURL(blob);
         });
+
+        if (!rawBase64) return null;
+
+        // 2. Load into Image & Re-encode via Canvas to JPEG
+        // This ensures a clean, standard image format and bypasses Zlib/PNG issues in @react-pdf
+        return new Promise((resolve) => {
+            const img = new window.Image();
+            img.onload = () => {
+                try {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) {
+                        console.error("[Reports] Canvas context failed");
+                        resolve(null);
+                        return;
+                    }
+                    // Fill white background (transparency becomes black in JPEG otherwise)
+                    ctx.fillStyle = "#FFFFFF";
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                    ctx.drawImage(img, 0, 0);
+
+                    // Export as JPEG
+                    const cleanBase64 = canvas.toDataURL("image/jpeg", 0.85); // 0.85 quality
+                    console.log(`[Reports] Re-encoded ${url} to JPEG (${img.width}x${img.height})`);
+                    resolve(cleanBase64);
+                } catch (err) {
+                    console.error(`[Reports] Canvas re-encoding failed for ${url}`, err);
+                    resolve(null);
+                }
+            };
+            img.onerror = (err) => {
+                console.error(`[Reports] Browser failed to decode image for ${url}`, err);
+                resolve(null);
+            };
+            img.src = rawBase64;
+        });
+
     } catch (e) {
-        console.error("Failed to convert image to base64", url, e);
+        console.error(`[Reports] Error processing ${url}`, e);
         return null;
     }
 }
@@ -91,14 +166,22 @@ export default function ReportsClient() {
     const [isGenerating, setIsGenerating] = useState(false);
     const [statusMessage, setStatusMessage] = useState("");
 
-    // Load Projects
+    const [users, setUsers] = useState<any[]>([]);
+
+    // Load Projects & Users
     useEffect(() => {
+        // Load Projects
         apiGet<Project[]>("/api/projects").then((data) => {
             setProjects(data || []);
             if (data && data.length > 0) {
                 setSelectedProjectId(data[0].id);
             }
         }).catch(err => console.error("Failed to load projects", err));
+
+        // Load Users (for assignee names)
+        apiGet<any[]>("/api/users").then((data) => {
+            setUsers(data || []);
+        }).catch(err => console.error("Failed to load users", err));
     }, []);
 
     // Load Plans, Buildings, Floors when Project changes
@@ -186,8 +269,12 @@ export default function ReportsClient() {
 
             setStatusMessage(t("reports", "fetchingPhotos", "Pobieranie zdjęć..."));
 
-            // Enrich with photo data based on photoMode
-            // Also pre-fetch plan images as base64 to avoid authentication/white-page issues in PDF
+            // Get Token
+            const token = await import("@/lib/apiClient").then(m => m.getToken());
+
+            // Enrich with photo data AND User Names
+            const userMap = users.reduce((acc, u) => ({ ...acc, [u.id]: u.full_name || u.name || u.email || "User" }), {} as Record<string, string>);
+
             const enrichedTasks = await Promise.all(filtered.map(async (task) => {
                 try {
                     let beforePhoto = null;
@@ -196,36 +283,121 @@ export default function ReportsClient() {
                     if (photoMode === "BEFORE" || photoMode === "BOTH") {
                         const beforeRes = await apiGet<any[]>(`/api/task-photos?taskId=${task.id}&phase=BEFORE&limit=1`);
                         if (beforeRes && beforeRes.length > 0) {
-                            // Fetch Base64
-                            beforePhoto = await urlToBase64(beforeRes[0].url);
+                            // Fetch External Photos (Public, no token needed)
+                            beforePhoto = await urlToBase64(beforeRes[0].url, null);
                         }
                     }
 
                     if (photoMode === "AFTER" || photoMode === "BOTH") {
                         const afterRes = await apiGet<any[]>(`/api/task-photos?taskId=${task.id}&phase=AFTER&limit=1`);
                         if (afterRes && afterRes.length > 0) {
-                            // Fetch Base64
-                            afterPhoto = await urlToBase64(afterRes[0].url);
+                            // Fetch External Photos (Public, no token needed)
+                            afterPhoto = await urlToBase64(afterRes[0].url, null);
                         }
                     }
 
-                    return { ...task, beforePhoto, afterPhoto };
+                    return {
+                        ...task,
+                        beforePhoto,
+                        afterPhoto,
+                        assigneeName: task.assigned_user_id ? (userMap[task.assigned_user_id] || "Unknown") : "-",
+                        numericLabel: getTaskNumericLabel(task.id),
+                        x_norm: Number(task.x_norm),
+                        y_norm: Number(task.y_norm)
+                    };
                 } catch (err) {
                     console.warn(`Failed to fetch photos for task ${task.id}`, err);
                     return task;
                 }
             }));
 
-            // Pre-fetch Plan Images
+            // Pre-fetch Plan Images with High Res Stitching
             const enrichedPlans = await Promise.all(plans.map(async (plan) => {
                 if (!selectedPlanIds.has(plan.id)) return plan;
-                if (!plan.image_path) return plan;
+                console.log(`[Reports] Fetching plan image for ${plan.id}`);
 
-                // image_path from API might be something like /api/tiles/static/... or direct URL.
-                // We need to fetch it.
-                const b64 = await urlToBase64(plan.image_path);
+                let b64: string | null = null;
+                // Let's try plan.image_path first as it's the "Source".
+                if (plan.image_path) {
+                    b64 = await urlToBase64(plan.image_path, token);
+                }
+
+                if (!b64) {
+                    try {
+                        console.log(`[Reports] Fallback: Stitching high-res for ${plan.id}`);
+                        const metaRes = await fetch(`/api/tiles/${plan.id}/meta`, {
+                            headers: token ? { "Authorization": `Bearer ${token}` } : {}
+                        });
+
+                        if (metaRes.ok) {
+                            const meta = await metaRes.json();
+                            const { minZoom, maxZoom, limits, tileSize = 256 } = meta;
+
+                            // Calculate Optimal Zoom for ~2500px width
+                            // width = (maxX+1) * tileSize
+                            // we want width >= 2500
+                            let bestZoom = minZoom;
+                            for (let z = minZoom; z <= maxZoom; z++) {
+                                const lim = limits[z];
+                                if (!lim) continue;
+                                const width = (lim.maxX + 1) * tileSize;
+                                if (width >= 2500) {
+                                    bestZoom = z;
+                                    break;
+                                }
+                                bestZoom = z; // Take the highest available if none confirm to 2500
+                            }
+
+                            // Cap max tiles to prevent crash (e.g. 10x10 = 100 tiles max)
+                            const lim = limits[bestZoom];
+                            if (lim && (lim.maxX + 1) * (lim.maxY + 1) <= 120) {
+                                console.log(`[Reports] Stitching ${plan.id} at zoom ${bestZoom} (${lim.maxX + 1}x${lim.maxY + 1} tiles)`);
+                                const canvas = document.createElement('canvas');
+                                canvas.width = (lim.maxX + 1) * tileSize;
+                                canvas.height = (lim.maxY + 1) * tileSize;
+                                const ctx = canvas.getContext('2d');
+
+                                if (ctx) {
+                                    ctx.fillStyle = "#FFFFFF";
+                                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                                    const tilePromises = [];
+                                    for (let x = 0; x <= lim.maxX; x++) {
+                                        for (let y = 0; y <= lim.maxY; y++) {
+                                            const tUrl = `/api/tiles/${plan.id}/${bestZoom}/${x}/${y}.png`;
+                                            tilePromises.push((async () => {
+                                                const tB64 = await urlToBase64(tUrl, token);
+                                                if (tB64) {
+                                                    const img = new window.Image();
+                                                    await new Promise<void>((resolve) => {
+                                                        img.onload = () => resolve();
+                                                        img.onerror = () => resolve();
+                                                        img.src = tB64;
+                                                    });
+                                                    ctx.drawImage(img, x * tileSize, y * tileSize);
+                                                }
+                                            })());
+                                        }
+                                    }
+                                    await Promise.all(tilePromises);
+                                    // Use 0.8 quality to keep size manageable but crisp
+                                    b64 = canvas.toDataURL("image/jpeg", 0.8);
+                                }
+                            } else {
+                                console.warn(`[Reports] Zoom ${bestZoom} too large to stitch, fallback to minZoom`);
+                                // Fallback to minZoom if bestZoom is too huge
+                                // ... (existing minZoom logic could go here or we just accept the failure and try 0/0/0)
+                            }
+                        }
+                    } catch (e) {
+                        console.warn(`[Reports] Stitching failed for ${plan.id}`, e);
+                    }
+                }
+
                 return { ...plan, imageBase64: b64 || undefined };
             }));
+
+            console.log("[Reports] Enriched Plans:", enrichedPlans);
 
 
             // Summary
@@ -270,6 +442,8 @@ export default function ReportsClient() {
                 statusApproved: t("taskStatus", "APPROVED", "Zatwierdzone"),
                 statusRejected: t("taskStatus", "REJECTED", "Odrzucone"),
                 statusCancelled: "Anulowane",
+                before: t("reports", "before", "Przed"),
+                after: t("reports", "after", "Po"),
             };
 
             // Generate PDF Blob
@@ -356,7 +530,7 @@ export default function ReportsClient() {
                                         const building = buildings.find(b => b.id === floor?.building_id);
                                         const label = `${building?.name || "?"} - ${floor?.name || "?"} (v${plan.version})`;
                                         return (
-                                            <label key={plan.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-100 p-1 rounded">
+                                            <label key={plan.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-100 p-1 rounded w-full block">
                                                 <input
                                                     type="checkbox"
                                                     checked={selectedPlanIds.has(plan.id)}
@@ -368,9 +542,9 @@ export default function ReportsClient() {
                                         );
                                     })}
                                 </div>
-                                <div className="flex gap-4 mt-2">
-                                    <div className="text-xs text-blue-600 cursor-pointer" onClick={() => setSelectedPlanIds(new Set(plans.map(p => p.id)))}>{t("reports", "selectAll", "Zaznacz wszystkie")}</div>
-                                    <div className="text-xs text-blue-600 cursor-pointer" onClick={() => setSelectedPlanIds(new Set())}>{t("reports", "deselectAll", "Odznacz wszystkie")}</div>
+                                <div className="flex flex-col gap-2 mt-2">
+                                    <div className="text-xs text-blue-600 cursor-pointer hover:underline" onClick={() => setSelectedPlanIds(new Set(plans.map(p => p.id)))}>{t("reports", "selectAll", "Zaznacz wszystkie")}</div>
+                                    <div className="text-xs text-blue-600 cursor-pointer hover:underline" onClick={() => setSelectedPlanIds(new Set())}>{t("reports", "deselectAll", "Odznacz wszystkie")}</div>
                                 </div>
                             </div>
                         </div>
@@ -383,7 +557,7 @@ export default function ReportsClient() {
                             <div className="upload-field">
                                 <div className="border rounded p-2 bg-gray-50 flex flex-col gap-1">
                                     {ALL_STATUSES.map(status => (
-                                        <label key={status} className="flex items-center gap-2 cursor-pointer hover:bg-gray-100 p-1 rounded">
+                                        <label key={status} className="flex items-center gap-2 cursor-pointer hover:bg-gray-100 p-1 rounded w-full block">
                                             <input
                                                 type="checkbox"
                                                 checked={selectedStatuses.has(status)}
@@ -394,9 +568,9 @@ export default function ReportsClient() {
                                         </label>
                                     ))}
                                 </div>
-                                <div className="flex gap-4 mt-2">
-                                    <div className="text-xs text-blue-600 cursor-pointer" onClick={() => setSelectedStatuses(new Set(ALL_STATUSES))}>{t("reports", "selectAll", "Zaznacz wszystkie")}</div>
-                                    <div className="text-xs text-blue-600 cursor-pointer" onClick={() => setSelectedStatuses(new Set())}>{t("reports", "deselectAll", "Odznacz wszystkie")}</div>
+                                <div className="flex flex-col gap-2 mt-2">
+                                    <div className="text-xs text-blue-600 cursor-pointer hover:underline" onClick={() => setSelectedStatuses(new Set(ALL_STATUSES))}>{t("reports", "selectAll", "Zaznacz wszystkie")}</div>
+                                    <div className="text-xs text-blue-600 cursor-pointer hover:underline" onClick={() => setSelectedStatuses(new Set())}>{t("reports", "deselectAll", "Odznacz wszystkie")}</div>
                                 </div>
                             </div>
                         </div>

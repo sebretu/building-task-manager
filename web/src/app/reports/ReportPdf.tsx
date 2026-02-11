@@ -34,82 +34,102 @@ const styles = StyleSheet.create({
         fontSize: 14,
         marginBottom: 8,
         borderBottomWidth: 1,
-        borderBottomColor: '#ccc',
-        paddingBottom: 2,
+        color: '#1f4f82',
+        fontWeight: 'bold'
+    },
+    subHeaderText: {
+        fontSize: 12,
+        color: '#666',
+        marginTop: 4
+    },
+    sectionTitle: {
+        fontSize: 18,
         fontWeight: 'bold',
+        marginTop: 20,
+        marginBottom: 10,
+        color: '#333',
+        borderBottom: '1px solid #ddd',
+        paddingBottom: 5
+    },
+    planContainer: {
+        position: 'relative',
+        width: '100%',
+        height: 500, // Fixed height for plan view
+        backgroundColor: '#f9f9f9',
+        border: '1px solid #eee',
+        marginBottom: 20,
+        overflow: 'hidden'
+    },
+    planImage: {
+        width: '100%',
+        height: '100%',
+        objectFit: 'contain'
+    },
+    marker: {
+        position: 'absolute',
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: '#FFFFFF', // White bg
+        borderColor: '#1f4f82', // Blue border
+        borderWidth: 2,
+        alignItems: 'center',
+        justifyContent: 'center',
+        display: 'flex',
+        zIndex: 10,
+    },
+    markerText: {
+        color: '#1f4f82', // Blue text
+        fontSize: 10,
+        fontWeight: 'bold'
     },
     table: {
-        display: "flex",
-        width: "auto",
-        borderStyle: "solid",
+        display: 'flex',
+        width: '100%',
+        borderStyle: 'solid',
+        borderColor: '#bfbfbf',
         borderWidth: 1,
         borderRightWidth: 0,
         borderBottomWidth: 0
     },
     tableRow: {
-        margin: "auto",
-        flexDirection: "row"
+        flexDirection: 'row',
+        borderBottomColor: '#bfbfbf',
+        borderBottomWidth: 1,
+        alignItems: 'center',
+        minHeight: 24
+    },
+    tableColHeader: {
+        backgroundColor: '#f0f0f0',
+        padding: 5,
+        borderRightColor: '#bfbfbf',
+        borderRightWidth: 1,
     },
     tableCol: {
-        width: "12%",
-        borderStyle: "solid",
-        borderWidth: 1,
-        borderLeftWidth: 0,
-        borderTopWidth: 0
+        padding: 5,
+        borderRightColor: '#bfbfbf',
+        borderRightWidth: 1,
     },
-    tableColWide: {
-        width: "20%",
-        borderStyle: "solid",
-        borderWidth: 1,
-        borderLeftWidth: 0,
-        borderTopWidth: 0
-    },
-    tableColNarrow: {
-        width: "8%",
-        borderStyle: "solid",
-        borderWidth: 1,
-        borderLeftWidth: 0,
-        borderTopWidth: 0
+    tableCellHeader: {
+        fontSize: 10,
+        fontWeight: 'bold',
+        color: '#333'
     },
     tableCell: {
-        margin: "auto",
-        marginTop: 5,
-        fontSize: 9,
-        padding: 2
-    },
-    tableHeader: {
-        backgroundColor: '#f0f0f0',
-        fontWeight: 'bold',
-    },
-    // Styles for Markers
-    marker: {
-        position: 'absolute',
-        width: 24, // Slightly larger for visibility
-        height: 24,
-        borderRadius: 12,
-        backgroundColor: 'red',
-        color: 'white',
-        fontSize: 12,
-        alignItems: 'center',
-        justifyContent: 'center',
-        display: 'flex',
-        border: '2px solid white', // Add border for contrast
-        zIndex: 10,
-    },
-    summaryRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 5,
+        fontSize: 10,
+        color: '#333'
     },
     photoContainer: {
         flexDirection: 'row',
+        flexWrap: 'wrap',
         gap: 5,
-        marginTop: 5
+        marginTop: 2
     },
     photo: {
-        width: 50,
-        height: 50,
-        objectFit: 'cover'
+        width: 100,
+        height: 100,
+        objectFit: 'cover',
+        marginBottom: 2
     }
 });
 
@@ -149,12 +169,12 @@ export default function ReportPdf({ projectId, projectName, planIds, statuses, d
                 {/* Summary Section */}
                 <View style={styles.section}>
                     <Text style={styles.subHeader}>{t("summary")}</Text>
-                    <View style={styles.summaryRow}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 }}>
                         <Text>{t("totalTasks")}:</Text>
                         <Text>{tasks ? tasks.length : 0}</Text>
                     </View>
                     {Object.entries(summary?.byStatus || {}).map(([s, count]: any) => (
-                        <View key={s} style={styles.summaryRow}>
+                        <View key={s} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 }}>
                             <Text>{getStatusLabel(s)}:</Text>
                             <Text>{count}</Text>
                         </View>
@@ -204,8 +224,8 @@ export default function ReportPdf({ projectId, projectName, planIds, statuses, d
                     offsetY = 0;
                 }
 
-                // Use pre-fetched base64 image if available, otherwise path (which might fail)
-                const imageSrc = plan.imageBase64 || plan.image_path;
+                // Use pre-fetched base64 image if available. DO NOT fallback to plan.image_path
+                const imageSrc = plan.imageBase64;
 
                 return (
                     <Page key={planId} size="A4" orientation="landscape" style={styles.planPage}>
@@ -235,19 +255,19 @@ export default function ReportPdf({ projectId, projectName, planIds, statuses, d
                             {/* Render Markers */}
                             {planTasks.map((task: any, index: number) => {
                                 // Skip tasks without valid coordinates
-                                if (typeof task.x_norm !== 'number' || typeof task.y_norm !== 'number') return null;
+                                if (task.x_norm === null || task.y_norm === null || isNaN(task.x_norm) || isNaN(task.y_norm)) return null;
 
                                 // Calculate position relative to the Rendered Image
                                 // Markers are centered on the point
-                                const mX = offsetX + (task.x_norm * renderW) - 12; // - half width
-                                const mY = offsetY + (task.y_norm * renderH) - 12; // - half height
+                                const mX = offsetX + (task.x_norm * renderW) - 16; // - half width (32/2)
+                                const mY = offsetY + (task.y_norm * renderH) - 16; // - half height
 
                                 return (
                                     <View
                                         key={task.id}
                                         style={[styles.marker, { left: mX, top: mY }]}
                                     >
-                                        <Text style={{ fontSize: 10, fontWeight: 'bold' }}>{index + 1}</Text>
+                                        <Text style={styles.markerText}>{task.numericLabel || (index + 1)}</Text>
                                     </View>
                                 );
                             })}
@@ -261,30 +281,59 @@ export default function ReportPdf({ projectId, projectName, planIds, statuses, d
                 <Text style={styles.subHeader}>{t("taskList")}</Text>
                 <View style={styles.table}>
                     {/* Header */}
-                    <View style={[styles.tableRow, styles.tableHeader]}>
-                        <View style={styles.tableColNarrow}><Text style={styles.tableCell}>{t("number")}</Text></View>
-                        <View style={styles.tableColWide}><Text style={styles.tableCell}>{t("name")}</Text></View>
-                        <View style={styles.tableCol}><Text style={styles.tableCell}>{t("status")}</Text></View>
-                        <View style={styles.tableCol}><Text style={styles.tableCell}>{t("assigned")}</Text></View>
-                        <View style={styles.tableCol}><Text style={styles.tableCell}>{t("dateCreated")}</Text></View>
-                        <View style={styles.tableCol}><Text style={styles.tableCell}>{t("photos")}</Text></View>
+                    <View style={styles.tableRow}>
+                        <View style={[styles.tableColHeader, { width: '8%' }]}>
+                            <Text style={styles.tableCellHeader}>{t("number")}</Text>
+                        </View>
+                        <View style={[styles.tableColHeader, { width: '25%' }]}>
+                            <Text style={styles.tableCellHeader}>{t("name")}</Text>
+                        </View>
+                        <View style={[styles.tableColHeader, { width: '12%' }]}>
+                            <Text style={styles.tableCellHeader}>{t("status")}</Text>
+                        </View>
+                        <View style={[styles.tableColHeader, { width: '15%' }]}>
+                            <Text style={styles.tableCellHeader}>{t("assigned")}</Text>
+                        </View>
+                        <View style={[styles.tableColHeader, { width: '15%' }]}>
+                            <Text style={styles.tableCellHeader}>{t("dateCreated")}</Text>
+                        </View>
+                        <View style={[styles.tableColHeader, { width: '25%' }]}>
+                            <Text style={styles.tableCellHeader}>{t("photos")}</Text>
+                        </View>
                     </View>
 
                     {/* Rows */}
                     {tasks?.map((task: any, index: number) => (
-                        <View key={task.id} style={styles.tableRow}>
-                            <View style={styles.tableColNarrow}><Text style={styles.tableCell}>{index + 1}</Text></View>
-                            <View style={styles.tableColWide}><Text style={styles.tableCell}>{task.title}</Text></View>
-                            <View style={styles.tableCol}><Text style={styles.tableCell}>{getStatusLabel(task.status)}</Text></View>
-                            <View style={styles.tableCol}><Text style={styles.tableCell}>{task.assigned_user_id ? "User" : "-"}</Text></View>
-                            <View style={styles.tableCol}><Text style={styles.tableCell}>{formatDate(task.created_at)}</Text></View>
-                            <View style={styles.tableCol}>
+                        <View key={task.id} style={styles.tableRow} wrap={false}>
+                            <View style={[styles.tableCol, { width: '8%' }]}>
+                                <Text style={styles.tableCell}>{task.numericLabel || (index + 1)}</Text>
+                            </View>
+                            <View style={[styles.tableCol, { width: '25%' }]}>
+                                <Text style={[styles.tableCell, { fontWeight: 'bold' }]}>{task.title}</Text>
+                                {task.description && <Text style={[styles.tableCell, { color: '#666', fontSize: 8, marginTop: 2 }]}>{task.description}</Text>}
+                            </View>
+                            <View style={[styles.tableCol, { width: '12%' }]}>
+                                <Text style={styles.tableCell}>{getStatusLabel(task.status)}</Text>
+                            </View>
+                            <View style={[styles.tableCol, { width: '15%' }]}>
+                                <Text style={styles.tableCell}>{task.assigneeName || "-"}</Text>
+                            </View>
+                            <View style={[styles.tableCol, { width: '15%' }]}>
+                                <Text style={styles.tableCell}>{formatDate(task.created_at)}</Text>
+                            </View>
+                            <View style={[styles.tableCol, { width: '25%' }]}>
                                 <View style={styles.photoContainer}>
                                     {(photoMode === "BEFORE" || photoMode === "BOTH") && task.beforePhoto && (
-                                        <Image src={task.beforePhoto} style={styles.photo} />
+                                        <View style={{ alignItems: 'center' }}>
+                                            <Image src={task.beforePhoto} style={styles.photo} />
+                                            <Text style={{ fontSize: 8, color: '#666' }}>{t("before")}</Text>
+                                        </View>
                                     )}
                                     {(photoMode === "AFTER" || photoMode === "BOTH") && task.afterPhoto && (
-                                        <Image src={task.afterPhoto} style={styles.photo} />
+                                        <View style={{ alignItems: 'center' }}>
+                                            <Image src={task.afterPhoto} style={styles.photo} />
+                                            <Text style={{ fontSize: 8, color: '#666' }}>{t("after")}</Text>
+                                        </View>
                                     )}
                                     {(!task.beforePhoto && !task.afterPhoto) && <Text style={{ fontSize: 8, color: '#999' }}>{t("none")}</Text>}
                                 </View>

@@ -16287,3 +16287,21 @@ To github.com:sebretu/building-task-manager.git
 error: failed to push some refs to 'github.com:sebretu/building-task-manager.git'
 ----- 2026-02-11 17:00:01 auto-backup start -----
 whoami=root pwd=/root/building-task-manager
+date: extra operand ‘%H:%M’
+Try 'date --help' for more information.
+[backup-clean-20260211-050945 b03e9399] auto-backup:
+ 8 files changed, 1476 insertions(+), 9 deletions(-)
+ create mode 100644 web/src/app/reports/ReportPdf.tsx
+ create mode 100644 web/src/app/reports/ReportsClient.tsx
+ create mode 100644 web/src/app/reports/page.tsx
+remote: 
+remote: Create a pull request for 'backup-clean-20260211-050945' on GitHub by visiting:        
+remote:      https://github.com/sebretu/building-task-manager/pull/new/backup-clean-20260211-050945        
+remote: 
+To github.com:sebretu/building-task-manager.git
+ * [new branch]        HEAD -> backup-clean-20260211-050945
+To github.com:sebretu/building-task-manager.git
+ * [new tag]           auto-backup-20260211-1700 -> auto-backup-20260211-1700
+done
+----- 2026-02-11 18:00:01 auto-backup start -----
+whoami=root pwd=/root/building-task-manager

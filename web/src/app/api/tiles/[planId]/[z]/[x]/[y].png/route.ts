@@ -12,9 +12,9 @@ type Meta = {
   limits?: Record<string, { maxX: number; maxY: number }>;
 };
 
-// 1x1 przezroczysty PNG
+// 1x1 transparent PNG
 const TRANSPARENT_PNG = Buffer.from(
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMB/6XrX1cAAAAASUVORK5CYII=",
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
   "base64"
 );
 
