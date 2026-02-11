@@ -70,7 +70,8 @@ export default function UnifiedLayout({ children }: { children: React.ReactNode 
     if (isAdmin) {
       links.push(
         { href: "/users", label: t("nav", "users", "Benutzer") },
-        { href: "/companies", label: t("nav", "companies", "Unternehmen") }
+        { href: "/companies", label: t("nav", "companies", "Unternehmen") },
+        { href: "/reports", label: t("nav", "reports", "Raporty") }
       );
     }
     return links;
