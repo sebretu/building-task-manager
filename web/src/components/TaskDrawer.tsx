@@ -583,15 +583,18 @@ export default function TaskDrawer({
       if (!taskId) throw new Error(t("taskDrawer", "errorMissingTaskId"));
       if (!isUuid(taskId)) throw new Error(t("taskDrawer", "errorInvalidTaskId"));
 
-      const nextDescription = description.trim() === "" ? null : description.trim();
+      // Use original values if fields haven't been edited (prevents saving translations)
+      const finalTitle = titleDirty ? trimmedTitle : (task?.title || trimmedTitle);
+      const finalDescription = descriptionDirty ? (description.trim() === "" ? null : description.trim()) : (task?.description || null);
+
       const nextDueDate = dueDate.trim() === "" ? null : dueDate.trim();
       const nextAssigned = trimmedAssigned ? trimmedAssigned : null;
 
       const patchBody: Record<string, any> = { id: taskId };
 
       if (isAdmin) {
-        patchBody.title = trimmedTitle;
-        patchBody.description = nextDescription;
+        patchBody.title = finalTitle;
+        patchBody.description = finalDescription;
         patchBody.status = status;
         patchBody.priority = priority;
         patchBody.due_date = nextDueDate;
@@ -599,8 +602,8 @@ export default function TaskDrawer({
       } else {
         patchBody.status = status;
         if (canEditFields) {
-          patchBody.title = trimmedTitle;
-          patchBody.description = nextDescription;
+          patchBody.title = finalTitle;
+          patchBody.description = finalDescription;
         }
         if (canEditPriority) {
           patchBody.priority = priority;
