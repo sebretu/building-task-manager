@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { apiGet, getToken } from "@/lib/apiClient";
 import { supabase } from "@/lib/supabase";
 import { usePlanPdfUrl } from "@/hooks/usePlanPdfUrl";
@@ -58,6 +59,7 @@ export default function PlanViewer({
   const [viewerProfile, setViewerProfile] = useState<{ id: string; role: string | null } | null>(null);
   const [planProjectId, setPlanProjectId] = useState<string | null>(null);
   const [planProjectErr, setPlanProjectErr] = useState<string | null>(null);
+  const router = useRouter();
 
   // --- polling meta.json ---
   useEffect(() => {
@@ -135,13 +137,29 @@ export default function PlanViewer({
       })
       .catch((err: any) => {
         if (!alive) return;
+        // Redirect if plan doesn't exist (e.g. was deleted)
+        if (err?.message === "Plan not found" || err?.message?.includes("Plan not found")) {
+          router.push("/");
+          return;
+        }
+
+        // Redirect if auth failed
+        if (
+          err?.message === "Missing Bearer token" ||
+          err?.message?.includes("AUTH_INVALID") ||
+          err?.message?.includes("PROFILE_ERROR")
+        ) {
+          router.push("/auth/login");
+          return;
+        }
+
         setPlanProjectErr(err?.message || "Nie udało się pobrać projektu planu");
       });
 
     return () => {
       alive = false;
     };
-  }, [planId]);
+  }, [planId, router]);
 
   useEffect(() => {
     if (currentUserId && currentUserRole) {
