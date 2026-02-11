@@ -10157,3 +10157,33 @@ To github.com:sebretu/building-task-manager.git
 error: failed to push some refs to 'github.com:sebretu/building-task-manager.git'
 ----- 2026-02-11 07:00:01 auto-backup start -----
 whoami=root pwd=/root/building-task-manager
+date: extra operand ‘%H:%M’
+Try 'date --help' for more information.
+[backup-clean-20260211-050945 ba1a298] auto-backup:
+ 1 file changed, 2 insertions(+)
+remote: error: GH013: Repository rule violations found for refs/heads/backup-clean-20260211-050945.        
+remote: 
+remote: - GITHUB PUSH PROTECTION        
+remote:   —————————————————————————————————————————        
+remote:     Resolve the following violations before pushing again        
+remote: 
+remote:     - Push cannot contain secrets        
+remote: 
+remote:             
+remote:      (?) Learn how to resolve a blocked push        
+remote:      https://docs.github.com/code-security/secret-scanning/working-with-secret-scanning-and-push-protection/working-with-push-protection-from-the-command-line#resolving-a-blocked-push        
+remote:             
+remote:             
+remote:       —— Supabase Secret Key ———————————————————————————————        
+remote:        locations:        
+remote:          - commit: 69aad1c842efa9b544b248bdc95fe93d5ba1a200        
+remote:            path: web/scripts/add_listbau_project.mjs:4        
+remote:             
+remote:        (?) To push, remove secret from commit(s) or follow this URL to allow the secret.        
+remote:        https://github.com/sebretu/building-task-manager/security/secret-scanning/unblock-secret/39VfnUxXCAAfnlqCXPwpR8Wqb7w        
+remote:             
+remote: 
+remote: 
+To github.com:sebretu/building-task-manager.git
+ ! [remote rejected] HEAD -> backup-clean-20260211-050945 (push declined due to repository rule violations)
+error: failed to push some refs to 'github.com:sebretu/building-task-manager.git'

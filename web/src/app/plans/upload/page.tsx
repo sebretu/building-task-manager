@@ -151,6 +151,72 @@ export default function PlansUploadPage() {
     }
   }
 
+  async function deleteProject() {
+    if (!projectId) return;
+    if (!confirm(t("planUpload", "confirmDeleteProject", "Are you sure you want to delete this project?"))) return;
+
+    setBusy(true);
+    setErr(null);
+    try {
+      const token = await getToken();
+      await fetch(`/api/projects?id=${projectId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setProjects((prev) => prev.filter((p) => p.id !== projectId));
+      setProjectId("");
+      setBuildingId("");
+      setFloorId("");
+    } catch (e: any) {
+      setErr(e?.message || String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function deleteBuilding() {
+    if (!buildingId) return;
+    if (!confirm(t("planUpload", "confirmDeleteBuilding", "Are you sure you want to delete this building?"))) return;
+
+    setBusy(true);
+    setErr(null);
+    try {
+      const token = await getToken();
+      await fetch(`/api/buildings?id=${buildingId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setBuildings((prev) => prev.filter((b) => b.id !== buildingId));
+      setBuildingId("");
+      setFloorId("");
+    } catch (e: any) {
+      setErr(e?.message || String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function deleteFloor() {
+    if (!floorId) return;
+    if (!confirm(t("planUpload", "confirmDeleteFloor", "Are you sure you want to delete this floor?"))) return;
+
+    setBusy(true);
+    setErr(null);
+    try {
+      const token = await getToken();
+      await fetch(`/api/floors?id=${floorId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setFloors((prev) => prev.filter((f) => f.id !== floorId));
+      setFloorId("");
+    } catch (e: any) {
+      setErr(e?.message || String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   // Local preview of the chosen PDF before upload
   const [localPdfUrl, setLocalPdfUrl] = useState<string | null>(null);
 
@@ -588,18 +654,28 @@ export default function PlansUploadPage() {
                         </button>
                       </div>
                     ) : (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const p = projects.find((p) => p.id === projectId);
-                          setEditingProject(projectId);
-                          setEditingProjectName(p?.name || "");
-                        }}
-                        className="upload-btn-secondary"
-                        style={{ fontSize: 12, padding: "4px 10px" }}
-                      >
-                        {t("planUpload", "edit", "Edit Name")}
-                      </button>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const p = projects.find((p) => p.id === projectId);
+                            setEditingProject(projectId);
+                            setEditingProjectName(p?.name || "");
+                          }}
+                          className="upload-btn-secondary"
+                          style={{ fontSize: 12, padding: "4px 10px" }}
+                        >
+                          {t("planUpload", "edit", "Edit Name")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={deleteProject}
+                          className="upload-btn-secondary"
+                          style={{ fontSize: 12, padding: "4px 10px", color: "var(--danger)", borderColor: "var(--danger)" }}
+                        >
+                          {t("planUpload", "delete", "Delete")}
+                        </button>
+                      </div>
                     )}
                   </div>
                 )}
@@ -662,18 +738,28 @@ export default function PlansUploadPage() {
                         </button>
                       </div>
                     ) : (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const b = buildings.find((b) => b.id === buildingId);
-                          setEditingBuilding(buildingId);
-                          setEditingBuildingName(b?.name || "");
-                        }}
-                        className="upload-btn-secondary"
-                        style={{ fontSize: 12, padding: "4px 10px" }}
-                      >
-                        {t("planUpload", "edit", "Edit Name")}
-                      </button>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const b = buildings.find((b) => b.id === buildingId);
+                            setEditingBuilding(buildingId);
+                            setEditingBuildingName(b?.name || "");
+                          }}
+                          className="upload-btn-secondary"
+                          style={{ fontSize: 12, padding: "4px 10px" }}
+                        >
+                          {t("planUpload", "edit", "Edit Name")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={deleteBuilding}
+                          className="upload-btn-secondary"
+                          style={{ fontSize: 12, padding: "4px 10px", color: "var(--danger)", borderColor: "var(--danger)" }}
+                        >
+                          {t("planUpload", "delete", "Delete")}
+                        </button>
+                      </div>
                     )}
                   </div>
                 )}

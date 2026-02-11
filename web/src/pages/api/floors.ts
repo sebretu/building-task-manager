@@ -5,9 +5,9 @@ type ApiOk = { ok: true; data: any };
 type ApiErr = { ok: false; error: { code: string; message: string; meta?: any } };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse<ApiOk | ApiErr>) {
-  if (req.method !== "GET" && req.method !== "POST" && req.method !== "PATCH") {
-    res.setHeader("Allow", "GET, POST, PATCH");
-    return res.status(405).json({ ok: false, error: { code: "METHOD_NOT_ALLOWED", message: "Use GET, POST or PATCH" } });
+  if (req.method !== "GET" && req.method !== "POST" && req.method !== "PATCH" && req.method !== "DELETE") {
+    res.setHeader("Allow", "GET, POST, PATCH, DELETE");
+    return res.status(405).json({ ok: false, error: { code: "METHOD_NOT_ALLOWED", message: "Use GET, POST, PATCH or DELETE" } });
   }
   if (req.method === "PATCH") {
     const { id, name } = req.body ?? {};
@@ -30,6 +30,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         error: { code: "SUPABASE", message: error.message, meta: { code: (error as any).code, details: (error as any).details } },
       });
     }
+    return res.status(200).json({ ok: true, data });
+  }
+
+  if (req.method === "DELETE") {
+    const { id } = req.query;
+    if (!id || typeof id !== "string") {
+      return res.status(400).json({ ok: false, error: { code: "BAD_REQUEST", message: "Missing floor id" } });
+    }
+
+    const adminSupabase = createServiceSupabaseClient();
+    const { data, error } = await adminSupabase
+      .from("floors")
+      .delete()
+      .eq("id", id)
+      .select("id")
+      .single();
+
+    if (error) {
+      return res.status((error as any).status || 400).json({
+        ok: false,
+        error: { code: "SUPABASE", message: error.message, meta: { code: (error as any).code, details: (error as any).details } },
+      });
+    }
+
     return res.status(200).json({ ok: true, data });
   }
 
