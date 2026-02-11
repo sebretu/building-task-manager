@@ -1,9 +1,23 @@
 import React from 'react';
 import { Page, Text, View, Document, StyleSheet, Image, Font } from '@react-pdf/renderer';
 
-// Register fonts if needed (using standard fonts for now to avoid loading issues)
-// Font.register({ family: 'Roboto', src: 'https://fonts.gstatic.com/s/roboto/v20/KFOmCnqEu92Fr1Mu4mxK.woff2' });
-const ROBOTO = 'Helvetica'; // Fallback to standard font
+// Register Roboto font to support Polish characters (ą, ć, ę, ł, ń, ó, ś, ź, ż)
+// Using CDN fonts for better compatibility with @react-pdf/renderer
+Font.register({
+    family: 'Roboto',
+    fonts: [
+        {
+            src: 'https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/roboto-regular-webfont.ttf',
+            fontWeight: 'normal',
+        },
+        {
+            src: 'https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/roboto-bold-webfont.ttf',
+            fontWeight: 'bold',
+        },
+    ],
+});
+
+const ROBOTO = 'Roboto';
 
 const styles = StyleSheet.create({
     page: {
