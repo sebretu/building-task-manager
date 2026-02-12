@@ -16642,3 +16642,44 @@ To github.com:sebretu/building-task-manager.git
 done
 ----- 2026-02-12 15:00:01 auto-backup start -----
 whoami=root pwd=/root/building-task-manager
+date: extra operand ‘%H:%M’
+Try 'date --help' for more information.
+[backup-clean-20260211-050945 9cf7b741] auto-backup:
+ 31 files changed, 11 insertions(+)
+ delete mode 100644 web/private_reports/raport_2026-02-11_1770835466205.pdf
+ delete mode 100644 web/private_reports/raport_2026-02-11_1770835610466.pdf
+ delete mode 100644 web/private_reports/raport_2026-02-11_1770835950842.pdf
+ delete mode 100644 web/private_reports/raport_2026-02-11_1770836019554.pdf
+ delete mode 100644 web/private_reports/raport_2026-02-11_1770836196029.pdf
+ delete mode 100644 web/private_reports/raport_2026-02-11_1770836328539.pdf
+ delete mode 100644 web/private_reports/raport_2026-02-11_1770836575422.pdf
+ delete mode 100644 web/private_reports/raport_2026-02-11_1770836609113.pdf
+ delete mode 100644 web/private_reports/raport_2026-02-11_1770837137956.pdf
+ delete mode 100644 web/private_reports/raport_2026-02-11_1770837830369.pdf
+ delete mode 100644 web/private_reports/raport_2026-02-11_1770839266216.pdf
+ delete mode 100644 web/private_reports/raport_2026-02-11_1770839324144.pdf
+ delete mode 100644 web/private_reports/raport_2026-02-11_1770839732459.pdf
+ delete mode 100644 web/private_reports/raport_2026-02-12_1770875640890.pdf
+ delete mode 100644 web/private_reports/raport_2026-02-12_1770879689386.pdf
+ delete mode 100644 web/private_reports/raport_2026-02-12_1770879933442.pdf
+ delete mode 100644 web/private_reports/raport_2026-02-12_1770880157830.pdf
+ delete mode 100644 web/private_reports/raport_2026-02-12_1770880172445.pdf
+ delete mode 100644 web/private_reports/raport_2026-02-12_1770880192108.pdf
+ delete mode 100644 web/private_reports/raport_2026-02-12_1770880253277.pdf
+ delete mode 100644 web/private_reports/raport_2026-02-12_1770880383832.pdf
+ delete mode 100644 web/private_reports/raport_2026-02-12_1770880607271.pdf
+ delete mode 100644 web/private_reports/raport_2026-02-12_1770880887730.pdf
+ delete mode 100644 web/private_reports/raport_2026-02-12_1770881120190.pdf
+ delete mode 100644 web/private_reports/raport_2026-02-12_1770881268033.pdf
+ delete mode 100644 web/private_reports/raport_2026-02-12_1770881391126.pdf
+ delete mode 100644 web/private_reports/raport_2026-02-12_1770881659426.pdf
+ delete mode 100644 web/private_reports/raport_2026-02-12_1770881947047.pdf
+ delete mode 100644 web/private_reports/raport_2026-02-12_1770882300411.pdf
+ delete mode 100644 web/private_reports/raport_2026-02-12_1770882563321.pdf
+To github.com:sebretu/building-task-manager.git
+   5d638c04..9cf7b741  HEAD -> backup-clean-20260211-050945
+To github.com:sebretu/building-task-manager.git
+ * [new tag]           auto-backup-20260212-1500 -> auto-backup-20260212-1500
+done
+----- 2026-02-12 16:00:01 auto-backup start -----
+whoami=root pwd=/root/building-task-manager
