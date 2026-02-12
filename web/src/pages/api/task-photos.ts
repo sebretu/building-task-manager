@@ -279,6 +279,52 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     return res.status(200).json({ ok: true, data: inserted.data });
   }
 
-  res.setHeader("Allow", "GET, POST");
-  return res.status(405).json({ ok: false, error: { code: "METHOD_NOT_ALLOWED", message: "Use GET or POST" } });
+  // DELETE /api/task-photos?id=...
+  if (req.method === "DELETE") {
+    const id = String(req.query.id || "").trim();
+    if (!id) return bad(res, "Missing query: id");
+
+    // 1. Get photo record
+    const { data: photo, error: fetchErr } = await supabase
+      .from("task_photos")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (fetchErr) return supaErr(res, fetchErr);
+    if (!photo) return res.status(404).json({ ok: false, error: { code: "NOT_FOUND", message: "Photo not found" } });
+
+    // 2. Check permissions
+    try {
+      await assertCanManagePhotos(photo.task_id);
+    } catch (err: any) {
+      const status = err?.status || 400;
+      return res.status(status).json({ ok: false, error: { code: err?.code || "FORBIDDEN", message: err?.message || "Access denied", meta: err?.meta } });
+    }
+
+    // 3. Delete from Storage
+    if (photo.storage_path) {
+      const { error: storageErr } = await supabase.storage
+        .from(photo.storage_bucket || "task-photos")
+        .remove([photo.storage_path]);
+
+      if (storageErr) {
+        console.warn("Failed to remove file from storage", storageErr);
+        // Continue to delete record anyway? Yes, to avoid phantom records.
+      }
+    }
+
+    // 4. Delete from DB
+    const { error: delErr } = await supabase
+      .from("task_photos")
+      .delete()
+      .eq("id", id);
+
+    if (delErr) return supaErr(res, delErr);
+
+    return res.status(200).json({ ok: true, data: { deleted: true } });
+  }
+
+  res.setHeader("Allow", "GET, POST, DELETE");
+  return res.status(405).json({ ok: false, error: { code: "METHOD_NOT_ALLOWED", message: "Use GET, POST or DELETE" } });
 }

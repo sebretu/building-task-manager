@@ -1,5 +1,5 @@
 import React from 'react';
-import { Page, Text, View, Document, StyleSheet, Image, Font } from '@react-pdf/renderer';
+import { Page, Text, View, Document, StyleSheet, Image, Font, Svg, Path, Circle, G } from '@react-pdf/renderer';
 
 // Register Roboto font to support Polish characters (ą, ć, ę, ł, ń, ó, ś, ź, ż)
 // Using CDN fonts for better compatibility with @react-pdf/renderer
@@ -81,20 +81,21 @@ const styles = StyleSheet.create({
     },
     marker: {
         position: 'absolute',
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        backgroundColor: '#FFFFFF', // White bg
-        borderColor: '#1f4f82', // Blue border
-        borderWidth: 2,
+        width: 12, // Slightly wider to hold text
         alignItems: 'center',
-        justifyContent: 'center',
+        justifyContent: 'flex-end',
         display: 'flex',
+        flexDirection: 'column',
     },
     markerText: {
-        color: '#1f4f82', // Blue text
-        fontSize: 10,
-        fontWeight: 'bold'
+        color: '#1f4f82',
+        fontSize: 4,
+        fontWeight: 'bold',
+        textAlign: 'center',
+        marginBottom: 0,
+        backgroundColor: 'rgba(255,255,255,0.7)', // Slight background to ensure readability over lines
+        padding: 0.5,
+        borderRadius: 1
     },
     table: {
         display: 'flex',
@@ -275,11 +276,16 @@ export default function ReportPdf({ projectId, projectName, planIds, statuses, d
 
                                 // Calculate position relative to the Rendered Image
                                 // Markers are centered on the point
-                                // User Feedback: "Too low and right" -> Shift Up and Left
-                                // Standard Center: -16
-                                // Correction: Shift Up 20px (-36), Shift Left 4px (-20)
-                                const mX = Math.round(offsetX + (task.x_norm * renderW) - 20);
-                                const mY = Math.round(offsetY + (task.y_norm * renderH) - 36);
+                                // Style: Text + Arrow (4px high)
+                                // Tip is height of arrow below the text bottom.
+                                // We want the Arrow Tip to be at (x, y).
+                                // Container Width: 12px. Center X: 6px.
+                                // Arrow Height: 4px. Text height approx 6px. Total Height ~10px.
+                                // Offset X: -6.
+                                // Offset Y: -TotalHeight (so bottom of arrow is at Y).
+                                // Let's estimate total height as 10px.
+                                const mX = Math.round(offsetX + (task.x_norm * renderW) - 6);
+                                const mY = Math.round(offsetY + (task.y_norm * renderH) - 10);
 
                                 return (
                                     <View
@@ -287,6 +293,9 @@ export default function ReportPdf({ projectId, projectName, planIds, statuses, d
                                         style={[styles.marker, { left: mX, top: mY }]}
                                     >
                                         <Text style={styles.markerText}>{task.numericLabel || (index + 1)}</Text>
+                                        <Svg width={8} height={4} viewBox="0 0 10 5">
+                                            <Path d="M0 0 L5 5 L10 0 Z" fill="#1f4f82" />
+                                        </Svg>
                                     </View>
                                 );
                             })}

@@ -444,23 +444,16 @@ export default function ReportsClient() {
                             const { minZoom, maxZoom, limits, tileSize = 256 } = meta;
 
                             let bestZoom = minZoom;
-                            // START CHANGE: Prefer Zoom 5, fallback to logic
-                            if (limits['5']) {
-                                bestZoom = 5;
-                            } else {
-                                // Fallback: existing logic
-                                for (let z = minZoom; z <= maxZoom; z++) {
-                                    const lim = limits[z];
-                                    if (!lim) continue;
-                                    const width = (lim.maxX + 1) * tileSize;
-                                    if (width >= 2500) {
-                                        bestZoom = z;
-                                        break;
-                                    }
+                            for (let z = minZoom; z <= maxZoom; z++) {
+                                const lim = limits[z];
+                                if (!lim) continue;
+                                const width = (lim.maxX + 1) * tileSize;
+                                if (width >= 4500) {
                                     bestZoom = z;
+                                    break;
                                 }
+                                bestZoom = z;
                             }
-                            // END CHANGE
 
                             const lim = limits[bestZoom];
                             console.log(`[Reports] Plan ${plan.id.slice(0, 8)} bestZoom=${bestZoom}, lim=${JSON.stringify(lim)}`);
@@ -496,22 +489,6 @@ export default function ReportsClient() {
                                     }
                                     await Promise.all(tilePromises);
                                     b64 = canvas.toDataURL("image/jpeg", 0.8);
-
-                                    // Calculate Scale Factors (Original Content vs Stitched Canvas)
-                                    // Stitched canvas includes padding to tile boundaries.
-                                    // zW/zH is the actual image size at this zoom level.
-                                    const scaleDown = Math.pow(2, meta.maxZoom - bestZoom);
-                                    const zW = Math.ceil(meta.imageWidth / scaleDown);
-                                    const zH = Math.ceil(meta.imageHeight / scaleDown);
-                                    const stitchedW = (lim.maxX + 1) * tileSize;
-                                    const stitchedH = (lim.maxY + 1) * tileSize;
-
-                                    // Add scaling factors to the plan object
-                                    // We'll use these to correct task coordinates
-                                    (plan as any).scaleX = zW / stitchedW;
-                                    (plan as any).scaleY = zH / stitchedH;
-
-                                    console.log(`[Reports] Plan ${plan.id.slice(0, 8)} scales: X=${(plan as any).scaleX.toFixed(4)}, Y=${(plan as any).scaleY.toFixed(4)}`);
                                 }
                             } else {
                                 console.warn(`[Reports] Zoom ${bestZoom} too large to stitch`);
@@ -524,22 +501,6 @@ export default function ReportsClient() {
 
                 return { ...plan, imageBase64: b64 || undefined };
             }));
-
-            // --- ADJUST TASKS COORDINATES ---
-            const adjustedTasks = finalTasks.map(t => {
-                // Find enriched plan
-                const p = enrichedPlans.find(plan => plan.id === t.plan_id);
-                if (p && (p as any).scaleX && (p as any).scaleY) {
-                    const sx = (p as any).scaleX;
-                    const sy = (p as any).scaleY;
-                    return {
-                        ...t,
-                        x_norm: t.x_norm * sx,
-                        y_norm: t.y_norm * sy
-                    };
-                }
-                return t;
-            });
 
             console.log("[Reports] Enriched Plans:", enrichedPlans.map(p => ({
                 id: p.id.slice(0, 8),
@@ -606,7 +567,7 @@ export default function ReportsClient() {
                     plansMap={plansMap}
                     buildingsMap={buildingsMap}
                     floorsMap={floorsMap}
-                    tasks={adjustedTasks}
+                    tasks={finalTasks}
                     summary={summaryData}
                     photoMode={photoMode}
                     translations={pdfTranslations}

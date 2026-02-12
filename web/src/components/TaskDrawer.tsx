@@ -1231,6 +1231,40 @@ export default function TaskDrawer({
                         loading="lazy"
                       />
                     </a>
+                    {canManagePhotos && (
+                      <button
+                        onClick={async (e) => {
+                          e.preventDefault();
+                          if (!confirm(t("common", "confirmDelete", "Delete?"))) return;
+                          try {
+                            setUploading(true);
+                            await apiDelete(`/api/task-photos?id=${p.id}`);
+                            setPhotos((prev) => prev.filter((x) => x.id !== p.id));
+                            window.dispatchEvent(new CustomEvent("task-photo-deleted", { detail: { photoId: p.id, taskId } }));
+                          } catch (err: any) {
+                            setErr(err.message || String(err));
+                          } finally {
+                            setUploading(false);
+                          }
+                        }}
+                        style={{
+                          position: "absolute",
+                          top: 6,
+                          right: 6,
+                          width: 26,
+                          height: 26,
+                          borderRadius: 999,
+                          border: "1px solid rgba(17,24,39,0.25)",
+                          background: "rgba(255,255,255,0.92)",
+                          cursor: "pointer",
+                          fontWeight: 900,
+                          zIndex: 3
+                        }}
+                        title={t("common", "delete")}
+                      >
+                        ✕
+                      </button>
+                    )}
                     {p.caption && (
                       <div style={{ marginTop: 4, fontSize: 11, opacity: 0.85, wordBreak: "break-word" }}>{p.caption}</div>
                     )}
