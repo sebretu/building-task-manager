@@ -148,7 +148,7 @@ async function generateTilesInBackground(opts: {
       ]);
 
       // 2b) WAŻNE: usuń alpha z wygenerowanych kafli (naprawa “siwe” + kratka)
-      const tilesDir = path.join(webRoot, "public", "tiles", opts.planId);
+      const tilesDir = path.join(webRoot, "private_tiles", opts.planId);
       if (fsSync.existsSync(tilesDir)) {
         await flattenTilesDirToWhite(tilesDir);
       }
@@ -157,7 +157,7 @@ async function generateTilesInBackground(opts: {
       await supabase.from("plans").update({ processing_error: null }).eq("id", opts.planId);
 
       // cleanup
-      await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
+      await fs.rm(workDir, { recursive: true, force: true }).catch(() => { });
     } catch (e: any) {
       const msg = e?.message || String(e);
       console.error("[plans/upload] tiles generation failed:", msg);
@@ -167,7 +167,7 @@ async function generateTilesInBackground(opts: {
         .update({ processing_error: `tiles generation failed: ${msg}` })
         .eq("id", opts.planId);
 
-      await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
+      await fs.rm(workDir, { recursive: true, force: true }).catch(() => { });
     }
   })().catch((e) => {
     console.error("[plans/upload] background job crashed:", e?.message || e);

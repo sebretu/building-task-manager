@@ -50,7 +50,7 @@ async function main() {
   const minZoom = mustInt("minZoom", args.minZoom ?? 1);
   const maxZoom = mustInt("maxZoom", args.maxZoom ?? 5);
 
-  const outBase = path.join(process.cwd(), "public", "tiles", planId);
+  const outBase = path.join(process.cwd(), "private_tiles", planId);
   ensureDir(outBase);
 
   // wczytaj źródło (plan jako PNG/JPG itp.)

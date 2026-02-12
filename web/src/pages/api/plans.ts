@@ -136,7 +136,7 @@ async function handleDelete(req: NextApiRequest, res: NextApiResponse<ApiOk | Ap
     await admin.storage.from(plan.storage_bucket).remove([plan.storage_path]).catch(() => { });
   }
 
-  const tilesDir = path.join(process.cwd(), "public", "tiles", planId);
+  const tilesDir = path.join(process.cwd(), "private_tiles", planId);
   await fs.rm(tilesDir, { recursive: true, force: true }).catch(() => { });
 
   const { data: replacement, error: replacementError } = await admin
