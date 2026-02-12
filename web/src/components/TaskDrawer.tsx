@@ -924,21 +924,40 @@ export default function TaskDrawer({
               <div style={{ fontSize: 12, fontWeight: 800, color: "rgba(17,24,39,0.6)" }}>{t("taskDrawer", "workflowActions")}</div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 {status === "OPEN" && (
-                  <button
-                    onClick={() => setStatus("IN_PROGRESS")}
-                    style={{
-                      padding: "8px 14px",
-                      borderRadius: 10,
-                      border: "1px solid rgba(59,130,246,0.35)",
-                      background: "rgba(59,130,246,0.08)",
-                      color: "#2563eb",
-                      cursor: "pointer",
-                      fontWeight: 800,
-                      fontSize: 13,
-                    }}
-                  >
-                    {t("taskDrawer", "startWork")}
-                  </button>
+                  <>
+                    <button
+                      onClick={() => setStatus("IN_PROGRESS")}
+                      style={{
+                        padding: "8px 14px",
+                        borderRadius: 10,
+                        border: "1px solid rgba(59,130,246,0.35)",
+                        background: "rgba(59,130,246,0.08)",
+                        color: "#2563eb",
+                        cursor: "pointer",
+                        fontWeight: 800,
+                        fontSize: 13,
+                      }}
+                    >
+                      {t("taskDrawer", "startWork")}
+                    </button>
+                    {isAdmin && (
+                      <button
+                        onClick={() => setStatus("APPROVED")}
+                        style={{
+                          padding: "8px 14px",
+                          borderRadius: 10,
+                          border: "1px solid rgba(34,197,94,0.35)",
+                          background: "rgba(34,197,94,0.08)",
+                          color: "#16a34a",
+                          cursor: "pointer",
+                          fontWeight: 800,
+                          fontSize: 13,
+                        }}
+                      >
+                        {t("taskDrawer", "approve")}
+                      </button>
+                    )}
+                  </>
                 )}
 
                 {status === "IN_PROGRESS" && (

@@ -930,7 +930,7 @@ export const translations = {
       planFloor: "Etage",
       openFullMap: "Vollständige Karte öffnen",
       finalStatus: "Endstatus",
-      approvedStatus: "✅ Genehmigt",
+      approvedStatus: "✅ Fertig",
       rejectedStatus: "❌ Abgelehnt",
       captionLabel: "Bildunterschrift (nächster Upload)",
       addPhoto: "Foto hinzufügen",
@@ -1013,7 +1013,7 @@ export const translations = {
       OPEN: "Offen",
       IN_PROGRESS: "In Bearbeitung",
       DONE_WAITING_APPROVAL: "Wartet auf Genehmigung",
-      APPROVED: "Genehmigt",
+      APPROVED: "Fertig",
       REJECTED: "Abgelehnt",
       ALL: "Alle",
     },
@@ -1042,7 +1042,7 @@ export const translations = {
       actions: "Akcie",
       unknownUser: "Neprihlásený",
       download: "Stiahnuť",
-      delete: "Odstrániť",
+
     },
     nav: {
       tasks: "Úlohy",
