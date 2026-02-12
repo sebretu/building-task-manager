@@ -153,8 +153,28 @@ async function generateTilesInBackground(opts: {
         await flattenTilesDirToWhite(tilesDir);
       }
 
-      // 3) Sukces -> czyść processing_error
-      await supabase.from("plans").update({ processing_error: null }).eq("id", opts.planId);
+      // 3) Odczytaj meta.json i zaktualizuj wymiary obrazu w bazie
+      const metaPath = path.join(tilesDir, "meta.json");
+      if (fsSync.existsSync(metaPath)) {
+        try {
+          const metaContent = await fs.readFile(metaPath, "utf-8");
+          const meta = JSON.parse(metaContent);
+          if (meta.imageWidth && meta.imageHeight) {
+            await supabase.from("plans").update({
+              image_width: meta.imageWidth,
+              image_height: meta.imageHeight,
+              processing_error: null
+            }).eq("id", opts.planId);
+          }
+        } catch (e: any) {
+          console.error("[plans/upload] Failed to update image dimensions:", e?.message || e);
+          // Nie blokuj procesu - kafle są już wygenerowane
+          await supabase.from("plans").update({ processing_error: null }).eq("id", opts.planId);
+        }
+      } else {
+        // Brak meta.json - tylko wyczyść błąd
+        await supabase.from("plans").update({ processing_error: null }).eq("id", opts.planId);
+      }
 
       // cleanup
       await fs.rm(workDir, { recursive: true, force: true }).catch(() => { });

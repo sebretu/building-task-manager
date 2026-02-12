@@ -140,6 +140,8 @@ async function main() {
     maxZoom,
     gridW,
     gridH,
+    imageWidth: srcW,
+    imageHeight: srcH,
     format: "png",
     limits,
   };

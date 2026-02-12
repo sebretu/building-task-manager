@@ -60,6 +60,8 @@ export const translations = {
       savedReports: "Saved Reports",
       noSavedReports: "No saved reports",
       confirmDeleteReport: "Are you sure you want to delete this report?",
+      before: "Before",
+      after: "After",
     },
     auth: {
       title: "InspectHero",
@@ -419,6 +421,8 @@ export const translations = {
       savedReports: "Zapisane raporty",
       noSavedReports: "Brak zapisanych raportów",
       confirmDeleteReport: "Czy na pewno usunąć ten raport?",
+      before: "Przed",
+      after: "Po",
     },
     auth: {
       title: "InspectHero",
@@ -778,6 +782,8 @@ export const translations = {
       savedReports: "Gespeicherte Berichte",
       noSavedReports: "Keine gespeicherten Berichte",
       confirmDeleteReport: "Möchten Sie diesen Bericht wirklich löschen?",
+      before: "Vorher",
+      after: "Nachher",
     },
     auth: {
       title: "InspectHero",
@@ -1297,6 +1303,8 @@ export const translations = {
       savedReports: "Uložené reporty",
       noSavedReports: "Žiadne uložené reporty",
       confirmDeleteReport: "Naozaj chcete odstrániť tento report?",
+      before: "Pred",
+      after: "Po",
     },
     pwa: {
       offline: "📴 Ste offline - niektoré funkcie nemusia byť dostupné",

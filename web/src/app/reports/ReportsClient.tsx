@@ -360,8 +360,11 @@ export default function ReportsClient() {
 
             // --- ENRICH PLANS (Restored) ---
             const enrichedPlans = await Promise.all(plans.map(async (plan) => {
-                if (!selectedPlanIds.has(plan.id)) return plan;
-                console.log(`[Reports] Fetching plan image for ${plan.id}`);
+                if (!selectedPlanIds.has(plan.id)) {
+                    console.log(`[Reports] SKIPPED (not selected): ${plan.id.slice(0, 8)}`);
+                    return plan;
+                }
+                console.log(`[Reports] Fetching plan image for ${plan.id.slice(0, 8)}...`);
 
                 let b64: string | null = null;
                 if (plan.image_path) {
@@ -370,10 +373,12 @@ export default function ReportsClient() {
 
                 if (!b64) {
                     try {
-                        console.log(`[Reports] Fallback: Stitching high-res for ${plan.id}`);
+                        console.log(`[Reports] Fallback: Stitching high-res for ${plan.id.slice(0, 8)}...`);
                         const metaRes = await fetch(`/api/tiles/${plan.id}/meta`, {
                             headers: token ? { "Authorization": `Bearer ${token}` } : {}
                         });
+
+                        console.log(`[Reports] Meta fetch for ${plan.id.slice(0, 8)}: ${metaRes.status} ${metaRes.ok ? 'OK' : 'FAILED'}`);
 
                         if (metaRes.ok) {
                             const meta = await metaRes.json();
@@ -392,7 +397,9 @@ export default function ReportsClient() {
                             }
 
                             const lim = limits[bestZoom];
-                            if (lim && (lim.maxX + 1) * (lim.maxY + 1) <= 120) {
+                            console.log(`[Reports] Plan ${plan.id.slice(0, 8)} bestZoom=${bestZoom}, lim=${JSON.stringify(lim)}`);
+
+                            if (lim && (lim.maxX + 1) * (lim.maxY + 1) <= 250) {
                                 console.log(`[Reports] Stitching ${plan.id} at zoom ${bestZoom} (${lim.maxX + 1}x${lim.maxY + 1} tiles)`);
                                 const canvas = document.createElement('canvas');
                                 canvas.width = (lim.maxX + 1) * tileSize;
@@ -436,7 +443,11 @@ export default function ReportsClient() {
                 return { ...plan, imageBase64: b64 || undefined };
             }));
 
-            console.log("[Reports] Enriched Plans:", enrichedPlans);
+            console.log("[Reports] Enriched Plans:", enrichedPlans.map(p => ({
+                id: p.id.slice(0, 8),
+                hasImage: !!p.imageBase64,
+                imageSize: p.imageBase64 ? `${(p.imageBase64.length / 1024).toFixed(0)}KB` : 'none'
+            })));
 
 
             // Summary
