@@ -27,6 +27,7 @@ export const translations = {
     },
     reports: {
       title: "Reports",
+      reportNameLabel: "Report Filename (optional)",
       generateTitle: "Generate Task Report (PDF)",
       selectParameters: "Select parameters to generate a PDF report with tasks and photos.",
       project: "Project",
@@ -388,6 +389,7 @@ export const translations = {
     },
     reports: {
       title: "Raporty",
+      reportNameLabel: "Nazwa pliku (opcjonalnie)",
       generateTitle: "Generuj raport zadań (PDF)",
       selectParameters: "Wybierz parametry, aby wygenerować raport PDF z zadaniami i zdjęciami.",
       project: "Projekt",
@@ -749,6 +751,7 @@ export const translations = {
     },
     reports: {
       title: "Berichte",
+      reportNameLabel: "Dateiname (optional)",
       generateTitle: "Aufgabenbericht generieren (PDF)",
       selectParameters: "Wählen Sie Parameter, um einen PDF-Bericht mit Aufgaben und Fotos zu erstellen.",
       project: "Projekt",

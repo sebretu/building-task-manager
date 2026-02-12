@@ -165,6 +165,65 @@ export default function ReportsClient() {
 
     const [isGenerating, setIsGenerating] = useState(false);
     const [statusMessage, setStatusMessage] = useState("");
+    const [customFileName, setCustomFileName] = useState("");
+    const [savedReports, setSavedReports] = useState<{ filename: string; createdAt: string; size: number }[]>([]);
+
+    const fetchSavedReports = async () => {
+        try {
+            const data = await apiGet<{ filename: string; createdAt: string; size: number }[]>("/api/reports/list");
+            if (Array.isArray(data)) {
+                setSavedReports(data);
+            }
+        } catch (err) {
+            console.error("Failed to load saved reports", err);
+        }
+    };
+
+    // Initial Load
+    useEffect(() => {
+        fetchSavedReports();
+    }, []);
+
+    const handleDownloadReport = async (filename: string) => {
+        try {
+            // Must fetch with auth token because API requires it
+            const token = await import("@/lib/apiClient").then(m => m.getToken());
+            const res = await fetch(`/api/reports/${filename}`, {
+                headers: token ? { Authorization: `Bearer ${token}` } : {}
+            });
+
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                alert(t("common", "error", "Error") + ": " + (err.error || res.statusText));
+                return;
+            }
+
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            console.error("Download failed", e);
+            alert(t("common", "error", "Error"));
+        }
+    };
+
+    const handleDeleteReport = async (filename: string) => {
+        if (!confirm(t("reports", "confirmDeleteReport") || "Delete this report?")) return;
+        try {
+            // Use apiDelete to ensure token is attached
+            await import("@/lib/apiClient").then(m => m.apiDelete(`/api/reports/${filename}`));
+            fetchSavedReports();
+        } catch (e: any) {
+            console.error("Delete failed", e);
+            alert(t("common", "error", "Error") + ": " + e.message);
+        }
+    };
 
     const [users, setUsers] = useState<any[]>([]);
 
@@ -518,7 +577,13 @@ export default function ReportsClient() {
             // Trigger Download
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
-            const filename = `raport_${new Date().toISOString().slice(0, 10)}_${Date.now()}.pdf`;
+
+            // Construct filename: [CustomName OR raport]_[Date]_[Timestamp].pdf
+            // Sanitization happens here for the download, and also on server for save
+            const safeCustomName = customFileName.trim().replace(/[^a-zA-Z0-9\s._-]+/g, "").replace(/\s+/g, "_");
+            const prefix = safeCustomName || "raport";
+            const filename = `${prefix}_${new Date().toISOString().slice(0, 10)}_${Date.now()}.pdf`;
+
             link.href = url;
             link.download = filename;
             document.body.appendChild(link);
@@ -552,6 +617,7 @@ export default function ReportsClient() {
                         alert("Failed to save report to archive: " + err.error);
                     } else {
                         console.log("[Reports] Report saved successfully");
+                        fetchSavedReports();
                     }
                 } catch (e) {
                     console.error("[Reports] Save error:", e);
@@ -578,8 +644,10 @@ export default function ReportsClient() {
                     </div>
                 </div>
 
-                {/* Remove grid layout, use simple flex column for vertical stacking */}
-                <div style={{ maxWidth: "800px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "20px" }}>
+                {/* Main Content: Two Columns (or Stacked) - Generation + Saved Reports */}
+                <div style={{ maxWidth: "800px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "40px" }}>
+
+                    {/* GENERATION CARD */}
                     <div className="upload-card">
 
                         {/* Project Selector */}
@@ -597,6 +665,25 @@ export default function ReportsClient() {
                                         <option key={p.id} value={p.id}>{p.name}</option>
                                     ))}
                                 </select>
+                            </div>
+                        </div>
+
+                        {/* Custom Filename */}
+                        <div className="upload-section">
+                            <div className="upload-section-header">
+                                <span className="upload-section-title">{t("reports", "reportNameLabel") || "Fileneme"}</span>
+                            </div>
+                            <div className="upload-field">
+                                <input
+                                    type="text"
+                                    className="upload-input"
+                                    placeholder="raport"
+                                    value={customFileName}
+                                    onChange={(e) => setCustomFileName(e.target.value)}
+                                />
+                                <div className="text-xs text-gray-500 mt-1">
+                                    {customFileName.trim() || "raport"}_{new Date().toISOString().slice(0, 10)}_... .pdf
+                                </div>
                             </div>
                         </div>
 
@@ -713,6 +800,50 @@ export default function ReportsClient() {
                             </button>
                         </div>
 
+                    </div>
+
+                    {/* SAVED REPORTS LIST - Matching Style */}
+                    <div className="upload-card">
+                        <div className="upload-section-header mb-4">
+                            <span className="upload-section-title" style={{ fontSize: "1.2rem" }}>{t("reports", "savedReports") || "Saved Reports"}</span>
+                        </div>
+
+                        {savedReports.length === 0 ? (
+                            <div className="text-gray-500 text-center py-8 bg-gray-50 rounded">
+                                {t("reports", "noSavedReports") || "No saved reports"}
+                            </div>
+                        ) : (
+                            <div className="flex flex-col gap-3">
+                                {savedReports.map((report) => (
+                                    <div key={report.filename} className="flex items-center justify-between p-3 bg-white border rounded shadow-sm hover:shadow-md transition-shadow">
+                                        <div className="flex flex-col overflow-hidden">
+                                            <span className="font-medium text-gray-800 truncate" title={report.filename}>
+                                                {report.filename}
+                                            </span>
+                                            <span className="text-xs text-gray-500">
+                                                {new Date(report.createdAt).toLocaleString()} • {(report.size / 1024).toFixed(1)} KB
+                                            </span>
+                                        </div>
+                                        <div className="flex gap-2 shrink-0">
+                                            <button
+                                                onClick={() => handleDownloadReport(report.filename)}
+                                                className="p-2 text-blue-600 hover:bg-blue-50 rounded bg-blue-50/50"
+                                                title={t("common", "download")}
+                                            >
+                                                📥
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeleteReport(report.filename)}
+                                                className="p-2 text-red-600 hover:bg-red-50 rounded bg-red-50/50"
+                                                title={t("common", "delete")}
+                                            >
+                                                🗑️
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                 </div>

@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
         // Sort by creation time (newest first)
         reports.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-        return NextResponse.json(reports);
+        return NextResponse.json({ ok: true, data: reports });
     } catch (error) {
         console.error("[API /reports/list] Error:", error);
         return NextResponse.json(
