@@ -126,6 +126,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
   }
 
   const isAdmin = isAdminRole(requester.role);
+  console.log('[tasks api] User role check:', { userId: requester.id, role: requester.role, isAdmin });
 
   // ------------------------
   // GET /api/tasks (list)
@@ -438,12 +439,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         });
       }
 
+      console.log('[tasks api] Permission check:', { isAdmin, taskAssignedTo: prevTask.assigned_user_id, requesterId: requester.id });
       if (!isAdmin && prevTask.assigned_user_id !== requester.id) {
+        console.log('[tasks api] BLOCKED: Non-admin trying to edit task not assigned to them');
         return res.status(403).json({
           ok: false,
           error: { code: "FORBIDDEN", message: "You do not have access to this task" },
         });
       }
+      console.log('[tasks api] Permission check PASSED');
 
       if (patch.status !== undefined) {
         const fromStatus = (prevTask.status || "").toUpperCase();
