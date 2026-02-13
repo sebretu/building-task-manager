@@ -246,6 +246,8 @@ export const translations = {
       afterPhotoRequired: "Add an after-work photo.",
       afterPhotoHint: "Add an after-work photo to submit for approval.",
       afterPhotoMissing: "No after-work photo has been added.",
+      beforePhotoMissing: "No photo, add one",
+      beforePhotoRequired: "Photo required, please add one",
     },
     planMap: {
       openTaskButton: "Open task",
@@ -609,6 +611,8 @@ export const translations = {
       afterPhotoRequired: "Dodaj zdjęcie po wykonaniu prac.",
       afterPhotoHint: "Dodaj zdjęcie po wykonaniu prac, aby zgłosić zadanie do akceptacji.",
       afterPhotoMissing: "Brak zdjęcia po wykonaniu prac.",
+      beforePhotoMissing: "Brak zdjęcia, dodaj",
+      beforePhotoRequired: "Brak zdjęcia, dodaj",
     },
     planMap: {
       openTaskButton: "Otwórz task",
@@ -966,6 +970,8 @@ export const translations = {
       afterPhotoRequired: "Füge ein Foto nach Abschluss der Arbeiten hinzu.",
       afterPhotoHint: "Füge ein Foto nach den Arbeiten hinzu, um die Aufgabe zur Freigabe einzureichen.",
       afterPhotoMissing: "Foto nach den Arbeiten fehlt.",
+      beforePhotoMissing: "Kein Foto, hinzufügen",
+      beforePhotoRequired: "Foto erforderlich, bitte hinzufügen",
     },
     planMap: {
       openTaskButton: "Aufgabe öffnen",
@@ -1230,6 +1236,8 @@ export const translations = {
       afterPhotoRequired: "Pridajte fotku po dokončení prác.",
       afterPhotoHint: "Pridajte fotku po dokončení prác, aby ste mohli požiadať o schválenie.",
       afterPhotoMissing: "Chýba fotografia po dokončení prác.",
+      beforePhotoMissing: "Žiadna fotka, pridať",
+      beforePhotoRequired: "Vyžaduje sa fotka, pridajte ju",
     },
     planMap: {
       openTaskButton: "Otvoriť úlohu",

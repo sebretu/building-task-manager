@@ -85,6 +85,12 @@ a:focus {
 :root {
   --page-max-width: 1240px;
   --page-gutter: clamp(20px, 6vw, 120px);
+  --home-ink: #111827;
+  --home-muted: #64748b;
+  --home-accent: #2F6BFF;
+  --home-line: #e2e8f0;
+  --home-card: #ffffff;
+  --home-soft: #f1f5f9;
 }
 
 .home-hero {
@@ -546,6 +552,7 @@ a:focus {
   cursor: pointer;
   font-size: 12px;
   font-weight: 700;
+  color: var(--home-ink);
 }
 
 .home-pill.active {
@@ -575,6 +582,7 @@ a:focus {
   border-radius: 999px;
   cursor: pointer;
   font-weight: 700;
+  color: var(--home-ink);
 }
 
 .home-pagination {
@@ -591,6 +599,7 @@ a:focus {
   border-radius: 999px;
   cursor: pointer;
   font-weight: 700;
+  color: var(--home-ink);
 }
 
 .home-pagination input {
@@ -1502,6 +1511,7 @@ a:focus {
     gap: 32px;
   }
 }
+
 /* New Task Button Styles */
 .hero-btn {
   display: inline-flex;
@@ -1525,7 +1535,7 @@ a:focus {
   transform: translateY(-2px);
   box-shadow:
     0 10px 30px rgba(0, 0, 0, 0.5),
-    0 0 15px rgba(255,255,255,0.15);
+    0 0 15px rgba(255, 255, 255, 0.15);
 }
 
 .hero-btn:active {

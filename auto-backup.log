@@ -16932,3 +16932,14 @@ To github.com:sebretu/building-task-manager.git
 done
 ----- 2026-02-13 14:00:01 auto-backup start -----
 whoami=root pwd=/root/building-task-manager
+date: extra operand ‘%H:%M’
+Try 'date --help' for more information.
+[backup-clean-20260211-050945 f3cac0eb] auto-backup:
+ 7 files changed, 63 insertions(+), 17 deletions(-)
+ create mode 100644 web/private_reports/raport_2026-02-13_1770990670045.pdf
+ create mode 100644 web/private_reports/raport_2026-02-13_1770990771102.pdf
+To github.com:sebretu/building-task-manager.git
+   6fda87d2..f3cac0eb  HEAD -> backup-clean-20260211-050945
+To github.com:sebretu/building-task-manager.git
+ * [new tag]           auto-backup-20260213-1400 -> auto-backup-20260213-1400
+done
