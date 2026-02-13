@@ -1,7 +1,8 @@
 import { Network } from '@capacitor/network';
-import { StorageService } from './storage';
+import { IDBStorage } from './idb';
 import { MutationQueue, QueuedMutation } from './queue';
 import { supabase } from '@/lib/supabase';
+import { apiPost } from '@/lib/apiClient';
 
 export type SyncStatus = 'idle' | 'syncing' | 'success' | 'error';
 
@@ -153,8 +154,48 @@ export class SyncService {
             case 'DELETE':
                 await this.handleDelete(resource, data);
                 break;
+            // @ts-ignore
+            case 'CREATE_COMPOSITE_TASK':
+                // @ts-ignore
+                await this.handleCreateCompositeTask(data);
+                break;
             default:
                 throw new Error(`Unknown mutation type: ${type}`);
+        }
+    }
+
+    /**
+     * Handle CREATE_COMPOSITE_TASK
+     * Creates a task and uploads associated photos
+     */
+    private static async handleCreateCompositeTask(data: {
+        taskData: any;
+        photos: Array<{ fileName: string; caption: string | null; base64: string; photoType: string }>;
+    }): Promise<void> {
+        const { taskData, photos } = data;
+
+        // 1. Create the task via API (reuses server logic)
+        // We use apiPost because it handles things like notifying other users, etc.
+        const newTask = await apiPost<{ id: string }>('/api/tasks', taskData);
+
+        if (!newTask?.id) {
+            throw new Error('Failed to create task: No ID returned');
+        }
+
+        console.log('Offline task created with ID:', newTask.id);
+
+        // 2. Upload photos
+        if (photos && photos.length > 0) {
+            console.log(`Uploading ${photos.length} offline photos for task ${newTask.id}...`);
+            for (const p of photos) {
+                await apiPost('/api/task-photos', {
+                    task_id: newTask.id,
+                    file_name: p.fileName,
+                    caption: p.caption,
+                    base64: p.base64,
+                    photo_type: p.photoType,
+                });
+            }
         }
     }
 

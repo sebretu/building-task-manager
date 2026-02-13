@@ -426,7 +426,7 @@ export default function TaskDrawer({
       return false;
     }
     if (hasAfterPhoto) return true;
-    setErr(t("taskDrawer", "afterPhotoRequired", "Dodaj zdjęcie po wykonaniu prac."));
+    setErr(t("taskDrawer", "afterPhotoRequired", "Brak zdjęcia po wykonaniu prac"));
     return false;
   }
 
@@ -434,7 +434,7 @@ export default function TaskDrawer({
     if (!isCreate) return true;
     const pendingBefore = pendingPhotos.some((p) => p.photoType === "BEFORE");
     if (pendingBefore) return true;
-    setErr(t("taskDrawer", "beforePhotoRequired", "Dodaj zdjęcie przed rozpoczęciem pracy (BEFORE)."));
+    setErr(t("taskDrawer", "beforePhotoRequired", "Brak zdjęcia dodaj"));
     return false;
   }
 
@@ -579,6 +579,7 @@ export default function TaskDrawer({
         return;
       }
 
+
       // EDIT
       if (!taskId) throw new Error(t("taskDrawer", "errorMissingTaskId"));
       if (!isUuid(taskId)) throw new Error(t("taskDrawer", "errorInvalidTaskId"));
@@ -619,8 +620,57 @@ export default function TaskDrawer({
 
       // ✅ FIX #2: po ZAPISZ w edit — zamknij drawer
       onClose();
-    } catch (e: any) {
-      setErr(e?.message || String(e));
+    } catch (err: any) {
+      console.error("Task save error:", err);
+
+      // Offline handling
+      const isOffline = !navigator.onLine || err.message === "Failed to fetch" || err.message?.includes("Network request failed");
+
+      if (isOffline && isCreate) {
+        const d = createDraft!;
+        const pendingForQueue: { fileName: string; caption: string | null; base64: string; photoType: string }[] = [];
+
+        // Convert pending photos to base64
+        for (const p of pendingPhotos) {
+          const b64 = await fileToBase64(p.file);
+          pendingForQueue.push({
+            fileName: p.file.name || "photo.jpg",
+            caption: p.caption,
+            base64: b64,
+            photoType: p.photoType
+          });
+        }
+
+        const taskData = {
+          project_id: d.project_id,
+          plan_id: d.plan_id,
+          x_norm: d.x_norm,
+          y_norm: d.y_norm,
+          title: title.trim(),
+          description: description.trim() === "" ? null : description.trim(),
+          status,
+          priority,
+          due_date: dueDate.trim() === "" ? null : dueDate.trim(),
+          assigned_user_id: assignedUserId.trim() ? assignedUserId.trim() : null,
+        };
+
+        // @ts-ignore
+        await import("@/lib/offline/queue").then(({ MutationQueue }) => {
+          // @ts-ignore
+          return MutationQueue.enqueue('CREATE_COMPOSITE_TASK', 'tasks', {
+            taskData,
+            photos: pendingForQueue
+          });
+        });
+
+        alert(t("taskDrawer", "savedOffline", "Brak internetu. Task został zapisany w kolejce i wyśle się po odzyskaniu połączenia."));
+
+        setPendingPhotos([]);
+        onClose();
+        return;
+      }
+
+      setErr(err?.message || String(err));
     } finally {
       setSaving(false);
     }
@@ -684,71 +734,22 @@ export default function TaskDrawer({
   // Always render the handle, it toggles the panel
   return (
     <>
-      {/* Drawer handle (button) always visible at right edge */}
-      <div
-        style={{
-          position: "fixed",
-          top: "50%",
-          right: 0,
-          zIndex: 10000,
-          transform: "translateY(-50%)",
-          display: "grid",
-          gap: 6,
-          justifyItems: "end",
-        }}
-      >
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setDrawerOpen((v) => !v);
-          }}
-          style={{
-            padding: "12px 16px",
-            borderRadius: "12px 0 0 12px",
-            border: "1px solid #ccc",
-            background: "#fff",
-            color: "#111827",
-            fontWeight: 900,
-            boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: 52,
-            height: 56,
-          }}
-          title={drawerOpen ? t("taskDrawer", "drawerHandleClose", "Click to hide panel") : t("taskDrawer", "drawerHandleOpen", "Click to expand panel")}
-        >
-          {drawerOpen ? "⇦" : "⇨"}
-        </button>
-        <div
-          style={{
-            background: "rgba(17,24,39,0.85)",
-            color: "#fff",
-            padding: "4px 10px",
-            borderRadius: 999,
-            fontSize: 11,
-            fontWeight: 600,
-            whiteSpace: "nowrap",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
-          }}
-        >
-          {drawerOpen ? t("taskDrawer", "drawerHandleClose", "Click to hide panel") : t("taskDrawer", "drawerHandleOpen", "Click to expand panel")}
-        </div>
-      </div>
+
 
       {/* overlay */}
-      {showOverlay && drawerOpen && (
-        <div
-          onClick={() => setDrawerOpen(false)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.45)",
-            zIndex: 9998,
-          }}
-        />
-      )}
+      {
+        showOverlay && drawerOpen && (
+          <div
+            onClick={() => setDrawerOpen(false)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.45)",
+              zIndex: 9998,
+            }}
+          />
+        )
+      }
 
       {/* CARD */}
       <div
@@ -1277,7 +1278,22 @@ export default function TaskDrawer({
               <div style={{ fontSize: 12, opacity: 0.75 }}>{t("taskDrawer", "photos")}: 0</div>
             )}
 
-            {!hasAfterPhoto && (
+            {isCreate && pendingPhotos.length === 0 && (
+              <div
+                style={{
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: "#9a3412",
+                  background: "rgba(251,191,36,0.2)",
+                  padding: "6px 10px",
+                  borderRadius: 10,
+                }}
+              >
+                {t("taskDrawer", "beforePhotoMissing", "Brak zdjęcia dodaj")}
+              </div>
+            )}
+
+            {!isCreate && !hasAfterPhoto && (
               <div
                 style={{
                   fontSize: 12,

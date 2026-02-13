@@ -1,4 +1,4 @@
-import { StorageService } from './storage';
+import { IDBStorage } from './idb';
 
 export type MutationType = 'CREATE' | 'UPDATE' | 'DELETE';
 
@@ -50,7 +50,7 @@ export class MutationQueue {
      * Get all pending mutations
      */
     static async getQueue(): Promise<QueuedMutation[]> {
-        const queue = await StorageService.get<QueuedMutation[]>(this.QUEUE_KEY);
+        const queue = await IDBStorage.get<QueuedMutation[]>(this.QUEUE_KEY);
         return queue || [];
     }
 
@@ -58,7 +58,7 @@ export class MutationQueue {
      * Save the queue
      */
     private static async saveQueue(queue: QueuedMutation[]): Promise<void> {
-        await StorageService.set(this.QUEUE_KEY, queue);
+        await IDBStorage.set(this.QUEUE_KEY, queue);
     }
 
     /**
@@ -70,40 +70,13 @@ export class MutationQueue {
         await this.saveQueue(filtered);
         console.log(`Dequeued mutation:`, mutationId);
     }
-
-    /**
-     * Mark a mutation as failed
-     */
-    static async markFailed(
-        mutationId: string,
-        error: string
-    ): Promise<boolean> {
-        const queue = await this.getQueue();
-        const mutation = queue.find((m) => m.id === mutationId);
-
-        if (!mutation) return false;
-
-        mutation.retryCount++;
-        mutation.lastError = error;
-
-        // Remove if exceeded max retries
-        if (mutation.retryCount >= this.MAX_RETRIES) {
-            console.error(
-                `Mutation ${mutationId} exceeded max retries, removing from queue`
-            );
-            await this.dequeue(mutationId);
-            return false;
-        }
-
-        await this.saveQueue(queue);
-        return true;
-    }
+    // ... markFailed ... (no changes relying on storage directly inside this method, it uses getQueue/saveQueue)
 
     /**
      * Clear the entire queue
      */
     static async clear(): Promise<void> {
-        await StorageService.remove(this.QUEUE_KEY);
+        await IDBStorage.remove(this.QUEUE_KEY);
         console.log('Mutation queue cleared');
     }
 

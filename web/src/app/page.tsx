@@ -10,6 +10,41 @@ import { PWAInstallBanner } from "@/components/PWAInstallBanner";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { getTaskNumericLabel } from "@/lib/taskNumber";
 import TaskDrawer from "@/components/TaskDrawer";
+import { useSync } from "@/hooks/useSync";
+
+function PendingSyncIndicator() {
+  const { pendingCount, isSyncing } = useSync();
+  const { t } = useLanguage();
+
+  if (pendingCount === 0 && !isSyncing) return null;
+
+  return (
+    <div style={{
+      margin: "0 16px 16px 16px",
+      padding: "12px",
+      background: "#fff",
+      borderRadius: 12,
+      border: "1px solid var(--home-line)",
+      display: "flex",
+      alignItems: "center",
+      gap: 12,
+      boxShadow: "0 2px 8px rgba(0,0,0,0.05)"
+    }}>
+      <div style={{
+        width: 10,
+        height: 10,
+        borderRadius: "50%",
+        background: isSyncing ? "#2f6bff" : "#f59e0b",
+        animation: isSyncing ? "pulse 1s infinite" : "none"
+      }} />
+      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--home-ink)" }}>
+        {isSyncing
+          ? t("home", "syncing", "Syncing data...")
+          : t("home", "pendingTasks", `Pending offline tasks: ${pendingCount}`)}
+      </div>
+    </div>
+  );
+}
 
 type Plan = {
   id: string;
@@ -612,6 +647,10 @@ export default function Home() {
             </button>
           </div>
         </section>
+
+        {/* Offline Sync Indicator */}
+        <PendingSyncIndicator />
+
         {err && <div className="home-card-error">{err}</div>}
         <section className="home-task-panel">
           <div className="home-section-header">
