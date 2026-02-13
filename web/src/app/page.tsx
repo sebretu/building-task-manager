@@ -9,6 +9,20 @@ import type { Language } from "@/lib/translations";
 import { PWAInstallBanner } from "@/components/PWAInstallBanner";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { getTaskNumericLabel } from "@/lib/taskNumber";
+import TaskDrawer from "@/components/TaskDrawer";
+
+type Plan = {
+  id: string;
+  name: string;
+  floor_id: string;
+  version?: number;
+  floor?: {
+    name: string;
+    building?: {
+      name: string;
+    };
+  };
+};
 
 type Project = { id: string; name: string };
 type Task = {
@@ -93,6 +107,77 @@ export default function Home() {
   const [taskTranslating, setTaskTranslating] = useState(false);
   const [taskTranslationError, setTaskTranslationError] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
+
+  // New Task Flow State
+  const [showNewTaskModal, setShowNewTaskModal] = useState(false);
+  const [newTaskProjectId, setNewTaskProjectId] = useState("");
+  const [newTaskPlanId, setNewTaskPlanId] = useState("");
+  const [availablePlans, setAvailablePlans] = useState<Plan[]>([]);
+  const [loadingPlans, setLoadingPlans] = useState(false);
+  const [createDraft, setCreateDraft] = useState<{
+    project_id: string;
+    plan_id: string;
+    x_norm: number;
+    y_norm: number;
+    created_by?: string;
+  } | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  useEffect(() => {
+    if (!showNewTaskModal) return;
+    if (!newTaskProjectId) {
+      setAvailablePlans([]);
+      return;
+    }
+
+    setLoadingPlans(true);
+    apiGet<any[]>(`/api/plans?projectId=${encodeURIComponent(newTaskProjectId)}`)
+      .then((data) => {
+        // Map to simpler Plan structure if needed, or just use what we get
+        // Assuming API returns object with floor_id, etc.
+        // We need building/floor names for better UX, but for now just list them
+        // Should ideally fetch hierarchy or enrich info. 
+        // For simplicity, let's just show Plan version? Or maybe we can fetch floors too?
+        // Let's rely on what we have. API /api/plans returns Plan objects. 
+        // We probably want to group by floor?
+        // Let's just list them for now. 
+        // Ideally we should use the same logic as loadAll in plans page but simplified.
+        setAvailablePlans(data || []);
+        if (data && data.length > 0 && !newTaskPlanId) {
+          setNewTaskPlanId(data[0].id);
+        }
+      })
+      .catch((e) => console.error("Failed to load plans", e))
+      .finally(() => setLoadingPlans(false));
+  }, [showNewTaskModal, newTaskProjectId]);
+
+  const openNewTaskModal = () => {
+    setNewTaskProjectId(projectId || (projects[0]?.id ?? ""));
+    setNewTaskPlanId("");
+    setShowNewTaskModal(true);
+  };
+
+  const closeNewTaskModal = () => {
+    setShowNewTaskModal(false);
+  };
+
+  const handleStartCreateTask = () => {
+    if (!newTaskProjectId || !newTaskPlanId) return;
+
+    setCreateDraft({
+      project_id: newTaskProjectId,
+      plan_id: newTaskPlanId,
+      x_norm: 0.5, // Default center
+      y_norm: 0.5, // Default center
+      created_by: user?.id,
+    });
+    setDrawerOpen(true);
+    closeNewTaskModal();
+  };
+
+  const handleTaskCreated = () => {
+    loadAll(); // Reload tasks list
+  };
 
   useEffect(() => {
     if (sessionLoaded) {
@@ -388,7 +473,17 @@ export default function Home() {
     }
 
     window.addEventListener("task-photo-added", handlePhotoAdded as EventListener);
-    return () => window.removeEventListener("task-photo-added", handlePhotoAdded as EventListener);
+
+    // Listen for task creation to reload list
+    function onTaskCreated() {
+      handleTaskCreated();
+    }
+    window.addEventListener("task-created", onTaskCreated as EventListener);
+
+    return () => {
+      window.removeEventListener("task-photo-added", handlePhotoAdded as EventListener);
+      window.removeEventListener("task-created", onTaskCreated as EventListener);
+    };
   }, [loadThumb]);
 
   function getTileUrl(task: Task) {
@@ -494,6 +589,27 @@ export default function Home() {
               {settingsSaving && <span className="home-card-note">{t("home", "savingSettings")}</span>}
               {settingsError && <span className="home-card-error">{settingsError}</span>}
             </div>
+          </div>
+          <div className="home-control-card" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <button
+              onClick={openNewTaskModal}
+              style={{
+                background: "var(--home-accent)",
+                color: "#000", // Black text
+                border: "none",
+                borderRadius: 12,
+                padding: "12px 24px",
+                fontWeight: 800,
+                fontSize: 14,
+                cursor: "pointer",
+                boxShadow: "0 4px 12px rgba(47, 107, 255, 0.25)",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <span style={{ fontSize: 18 }}>+</span> {t("taskDrawer", "newTask", "New Task")}
+            </button>
           </div>
         </section>
         {err && <div className="home-card-error">{err}</div>}
@@ -803,10 +919,161 @@ export default function Home() {
             </div>
           )}
         </section>
+        {/* New Task Selection Modal */}
+        {showNewTaskModal && (
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 10001,
+              background: "rgba(0,0,0,0.5)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              backdropFilter: "blur(4px)",
+            }}
+            onClick={closeNewTaskModal}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: "#fff",
+                borderRadius: 24,
+                padding: 32,
+                width: "min(400px, 90vw)",
+                display: "grid",
+                gap: 24,
+                boxShadow: "0 25px 50px rgba(0,0,0,0.25)",
+              }}
+            >
+              <div>
+                <h3 style={{ fontSize: 20, fontWeight: 800, color: "#000" }}>
+                  {t("taskDrawer", "newTask", "New Task")}
+                </h3>
+                <p style={{ fontSize: 13, color: "#444", marginTop: 4 }}>
+                  {t("home", "newTaskModalSubtitle", "Select a project and plan to attach the task to.")}
+                </p>
+              </div>
+
+              <label style={{ display: "grid", gap: 8, fontSize: 12, fontWeight: 700, color: "var(--home-muted)" }}>
+                {t("home", "selectProject", "Select Project")}
+                <select
+                  value={newTaskProjectId}
+                  onChange={(e) => {
+                    setNewTaskProjectId(e.target.value);
+                    setNewTaskPlanId("");
+                  }}
+                  style={{
+                    padding: "10px 12px",
+                    borderRadius: 12,
+                    border: "1px solid var(--home-line)",
+                    fontSize: 14,
+                    fontWeight: 600,
+                    backgroundColor: "#333", // Dark background
+                    color: "#fff",          // White text
+                  }}
+                >
+                  {projects.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label style={{ display: "grid", gap: 8, fontSize: 12, fontWeight: 700, color: "var(--home-muted)" }}>
+                {t("home", "selectPlan", "Select Plan")}
+                <select
+                  value={newTaskPlanId}
+                  onChange={(e) => setNewTaskPlanId(e.target.value)}
+                  disabled={loadingPlans || availablePlans.length === 0}
+                  style={{
+                    padding: "10px 12px",
+                    borderRadius: 12,
+                    border: "1px solid var(--home-line)",
+                    fontSize: 14,
+                    fontWeight: 600,
+                    backgroundColor: "#333", // Dark background
+                    color: "#fff",          // White text
+                    opacity: loadingPlans ? 0.6 : 1,
+                  }}
+                >
+                  {availablePlans.length === 0 ? (
+                    <option value="">{loadingPlans ? t("common", "loading") : t("plansPage", "noPlans")}</option>
+                  ) : (
+                    availablePlans.map((p) => {
+                      const bName = p.floor?.building?.name;
+                      const fName = p.floor?.name;
+                      const displayName = bName && fName
+                        ? `${bName} - ${fName}`
+                        : p.name || `Plan v${p.version ?? "?"}`;
+
+                      return (
+                        <option key={p.id} value={p.id}>
+                          {displayName}
+                        </option>
+                      );
+                    })
+                  )}
+                </select>
+              </label>
+
+              <div style={{ display: "flex", gap: 12 }}>
+                <button
+                  onClick={closeNewTaskModal}
+                  style={{
+                    flex: 1,
+                    padding: "12px",
+                    borderRadius: 12,
+                    border: "1px solid var(--home-line)",
+                    background: "#fff",
+                    color: "var(--home-ink)",
+                    fontWeight: 800,
+                    cursor: "pointer",
+                  }}
+                >
+                  {t("common", "cancel")}
+                </button>
+                <button
+                  onClick={() => {
+                    if (newTaskPlanId) {
+                      router.push(`/plan/${newTaskPlanId}`);
+                    }
+                  }}
+                  disabled={!newTaskProjectId || !newTaskPlanId}
+                  style={{
+                    flex: 1,
+                    padding: "12px",
+                    borderRadius: 12,
+                    border: "none",
+                    background: "#000", // Black background
+                    color: "#fff",      // White text
+                    fontWeight: 800,
+                    cursor: !newTaskProjectId || !newTaskPlanId ? "not-allowed" : "pointer",
+                    opacity: !newTaskProjectId || !newTaskPlanId ? 0.5 : 1,
+                  }}
+                >
+                  {t("common", "continue", "Continue")}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Task Drawer for Creation/Edit */}
+        <TaskDrawer
+          open={drawerOpen}
+          taskId={null}
+          createDraft={createDraft}
+          onClose={() => {
+            setDrawerOpen(false);
+            setCreateDraft(null);
+          }}
+          uploadedBy={user?.id || ""}
+          currentUserId={user?.id}
+          currentUserRole={user?.role}
+        />
       </main>
-      <footer className="home-footer">
-        {/* Footer content removed as requested */}
-      </footer>
     </>
   );
 }
