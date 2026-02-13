@@ -225,7 +225,7 @@ export default function TaskDrawer({
         }
       }
 
-      const photoData = await apiGet<TaskPhoto[]>(`/api/task-photos?taskId=${encodeURIComponent(id)}`);
+      const photoData = await apiGet<TaskPhoto[]>(`/api/task-photos?taskId=${encodeURIComponent(id)}&t=${Date.now()}`);
       const fixed = (photoData || []).map((p) => ({ ...p, url: fixStorageUrl(p.url) }));
       setPhotos(fixed);
 

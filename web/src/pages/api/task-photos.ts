@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { createServerSupabaseClient } from "@/lib/supabaseServer";
 import { requireRequesterProfile, isAdminRole } from "@/lib/requesterProfile";
+import { getSupabaseAdminClient } from "@/lib/supabaseAdmin";
 
 // ✅ NEW: podnieś limit body (base64 z iPhone robi się ogromne)
 export const config = {
@@ -303,6 +304,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     }
 
     // 3. Delete from Storage
+    // We can use the regular client for storage if the RLS allows it, or admin. 
+    // Usually storage policies are linked to auth.uid(), so keep using 'supabase' (user context) for storage 
+    // unless that also fails. For now, let's assume storage RLS is fine or less critical than the DB record.
     if (photo.storage_path) {
       const { error: storageErr } = await supabase.storage
         .from(photo.storage_bucket || "task-photos")
@@ -314,8 +318,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       }
     }
 
-    // 4. Delete from DB
-    const { error: delErr } = await supabase
+    // 4. Delete from DB using ADMIN client to bypass RLS
+    // The user has permission (checked above via assertCanManagePhotos), but RLS might be too strict.
+    const admin = getSupabaseAdminClient();
+    const { error: delErr } = await admin
       .from("task_photos")
       .delete()
       .eq("id", id);

@@ -212,7 +212,7 @@ export default function PlansPage() {
           </div>
 
           {/* Plans Grid */}
-          <div className="plans-display-grid" style={{ gridColumn: "1 / -1", display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 48, marginTop: 24 }}>
+          <div className="plans-display-grid">
             {plans.length === 0 && (
               <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: 48, color: "var(--home-muted)" }}>
                 {t("plansPage", "noPlans", "No current plans")}
