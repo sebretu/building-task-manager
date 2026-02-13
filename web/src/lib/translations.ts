@@ -138,6 +138,7 @@ export const translations = {
       prev: "Prev",
       next: "Next",
       limit: "Limit",
+      createNewTask: "Create new task",
     },
     planUpload: {
       kicker: "Upload",
@@ -500,6 +501,7 @@ export const translations = {
       prev: "Poprzednia",
       next: "Następna",
       limit: "Limit",
+      createNewTask: "Utwórz nowe zadanie",
     },
     planUpload: {
       kicker: "Wgrywanie",
@@ -856,6 +858,7 @@ export const translations = {
       prev: "Zurück",
       next: "Weiter",
       limit: "Limit",
+      createNewTask: "Neue Aufgabe erstellen",
     },
     planUpload: {
       kicker: "Upload",
@@ -1121,6 +1124,7 @@ export const translations = {
       prev: "Predchádzajúca",
       next: "Ďalšia",
       limit: "Limit",
+      createNewTask: "Vytvoriť novú úlohu",
     },
     planUpload: {
       kicker: "Nahrávanie",

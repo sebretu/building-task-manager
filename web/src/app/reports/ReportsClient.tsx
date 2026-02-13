@@ -373,7 +373,7 @@ export default function ReportsClient() {
             // --- AUTO TRANSLATION ---
             let finalTasks = enrichedTasks;
 
-            if (language && language !== 'pl') {
+            if (language) {
                 try {
                     setStatusMessage(`Tłumaczenie na ${language}...`);
                     console.log(`[Reports] Translating tasks to ${language}...`);

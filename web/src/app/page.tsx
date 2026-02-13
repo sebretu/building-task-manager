@@ -628,22 +628,17 @@ export default function Home() {
           <div className="home-control-card" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
             <button
               onClick={openNewTaskModal}
-              style={{
-                background: "var(--home-accent)",
-                color: "#000", // Black text
-                border: "none",
-                borderRadius: 12,
-                padding: "12px 24px",
-                fontWeight: 800,
-                fontSize: 14,
-                cursor: "pointer",
-                boxShadow: "0 4px 12px rgba(47, 107, 255, 0.25)",
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-              }}
+              className="hero-btn"
             >
-              <span style={{ fontSize: 18 }}>+</span> {t("taskDrawer", "newTask", "New Task")}
+              <span className="hero-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2L4 5V11C4 16 7.5 20.5 12 22C16.5 20.5 20 16 20 11V5L12 2Z"
+                    stroke="white" strokeWidth="2" />
+                  <path d="M8 12L11 15L16 9"
+                    stroke="white" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </span>
+              {t("home", "createNewTask", "Create new task")}
             </button>
           </div>
         </section>
