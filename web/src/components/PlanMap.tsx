@@ -184,22 +184,26 @@ export default function PlanMap({
     });
   }, []);
 
-  async function loadThumb(taskId: string) {
+  async function loadThumb(taskId: string, phase: "BEFORE" | "AFTER") {
+    const key = `${taskId}:${phase}`;
     try {
       const photos = await apiGet<TaskPhotoRow[]>(
-        `/api/task-photos?taskId=${encodeURIComponent(taskId)}&phase=AFTER&limit=1`
+        `/api/task-photos?taskId=${encodeURIComponent(taskId)}&phase=${phase}&limit=1`
       );
       const raw: string | null = photos && photos.length > 0 ? photos[0].url : null;
       const fixed = raw ? fixStorageUrl(raw) : null;
-      setThumbByTask((p) => ({ ...p, [taskId]: fixed }));
+      setThumbByTask((p) => ({ ...p, [key]: fixed }));
     } catch {
-      setThumbByTask((p) => ({ ...p, [taskId]: null }));
+      setThumbByTask((p) => ({ ...p, [key]: null }));
     }
   }
 
-  function ensureThumb(taskId: string) {
-    if (Object.prototype.hasOwnProperty.call(thumbByTask, taskId)) return;
-    loadThumb(taskId).catch(() => { });
+  function ensureThumb(taskId: string, status?: string) {
+    const s = (status || "OPEN").toUpperCase();
+    const phase = s === "APPROVED" ? "AFTER" : "BEFORE";
+    const key = `${taskId}:${phase}`;
+    if (Object.prototype.hasOwnProperty.call(thumbByTask, key)) return;
+    loadThumb(taskId, phase).catch(() => { });
   }
 
   // ✅ PRZYWRÓCONE: klik w mapę otwiera drawer w trybie CREATE
@@ -229,7 +233,14 @@ export default function PlanMap({
     const onPhotoAdded = (e: any) => {
       const id = e?.detail?.taskId;
       if (!id) return;
-      loadThumb(id).catch(() => { });
+      // Invalidate cache for this task so next click reloads
+      setThumbByTask((prev) => {
+        const next = { ...prev };
+        // We don't know the phase easily here, so clear both potential keys
+        delete next[`${id}:BEFORE`];
+        delete next[`${id}:AFTER`];
+        return next;
+      });
       loadTasks().catch(() => { });
     };
 
@@ -241,7 +252,8 @@ export default function PlanMap({
       setDrawerTaskId(id);
 
       loadTasks().catch(() => { });
-      loadThumb(id).catch(() => { });
+      // New task -> default phase BEFORE
+      loadThumb(id, "BEFORE").catch(() => { });
     };
 
     window.addEventListener("task-photo-added", onPhotoAdded);
@@ -311,7 +323,9 @@ export default function PlanMap({
           .filter((task) => (!focusTaskId ? true : task.id === focusTaskId))
           .map((task) => {
             const ll = CRS.pointToLatLng(L.point(task.x_norm * worldPxW, task.y_norm * worldPxH), meta.maxZoom);
-            const thumb = thumbByTask[task.id];
+            const status = (task.status || "OPEN").toUpperCase();
+            const phase = status === "APPROVED" ? "AFTER" : "BEFORE";
+            const thumb = thumbByTask[`${task.id}:${phase}`];
             const taskNumberLabel = getTaskNumericLabel(task.id);
             const markerIcon = getIconForLabel(taskNumberLabel);
 
@@ -323,9 +337,9 @@ export default function PlanMap({
                 icon={markerIcon ?? undefined}
                 eventHandlers={{
                   click: () => {
-                    ensureThumb(task.id);
-                    setCreateDraft(null);
-                    setDrawerTaskId(task.id);
+                    ensureThumb(task.id, task.status);
+                    // Nie otwieraj od razu drawera – niech otworzy się dymek (Popup).
+                    // Drawer otworzy się dopiero po kliknięciu przycisku w dymku.
                   },
                 }}
               >
@@ -339,6 +353,7 @@ export default function PlanMap({
                         alt=""
                         style={{ width: "100%", height: 90, objectFit: "cover", borderRadius: 10, display: "block" }}
                       />
+
                     ) : (
                       <div
                         style={{
