@@ -16,6 +16,7 @@ export function LanguageSwitcher() {
         value={language}
         onChange={(e) => setLanguage(e.target.value as Language)}
         aria-label="Language"
+        suppressHydrationWarning
       >
         <option value="en">English</option>
         <option value="pl">Polski</option>
