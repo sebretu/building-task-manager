@@ -40,7 +40,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
   const admin = getSupabaseAdminClient();
   const { data, error } = await admin
     .from("plans")
-    .select("id,project_id,floor_id,version,status,pdf_path,image_path,image_width,image_height,is_current,storage_bucket,storage_path,processing_error,created_at,updated_at")
+    .select("id,project_id,floor_id,version,status,pdf_path,image_path,image_width,image_height,is_current,storage_bucket,storage_path,processing_error,created_at,updated_at, project:projects(name), floor:floors(name, building:buildings(name))")
     .eq("id", id)
     .maybeSingle();
 
