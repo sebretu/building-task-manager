@@ -394,31 +394,11 @@ export default function TaskDrawer({
     }
   }, [taskId, isCreate, translationLang, language, translationMap, task?.id, titleDirty, descriptionDirty, title, description]);
 
-  const inputStyle: React.CSSProperties = {
-    width: "100%",
-    padding: "10px 12px",
-    borderRadius: 12,
-    border: "1px solid rgba(17,24,39,0.15)",
-    background: "#fff",
-    color: "#111827",
-    fontSize: 14,
-    outline: "none",
-  };
 
-  const labelStyle: React.CSSProperties = {
-    display: "grid",
-    gap: 6,
-    fontSize: 12,
-    color: "#111827",
-  };
 
-  const translationNoteStyle: React.CSSProperties = {
-    marginTop: 6,
-    fontSize: 12,
-    color: "rgba(17,24,39,0.75)",
-    fontStyle: "italic",
-    lineHeight: 1.5,
-  };
+
+
+
 
   function ensureAfterPhotoPresent() {
     if (!photosLoaded) {
@@ -460,8 +440,8 @@ export default function TaskDrawer({
     const trimmedOriginal = (original ?? "").trim();
     if (trimmedOriginal && trimmedOriginal === trimmedTranslated) return null;
     return (
-      <div style={translationNoteStyle}>
-        <span style={{ fontWeight: 700 }}>{t("taskDrawer", "autoTranslateLabel", "Auto translation")}:</span> {trimmedTranslated}
+      <div className="mt-1.5 text-xs text-muted-foreground italic leading-relaxed">
+        <span className="font-bold">{t("taskDrawer", "autoTranslateLabel", "Auto translation")}:</span> {trimmedTranslated}
       </div>
     );
   };
@@ -734,71 +714,28 @@ export default function TaskDrawer({
   // Always render the handle, it toggles the panel
   return (
     <>
-
-
       {/* overlay */}
-      {
-        showOverlay && drawerOpen && (
-          <div
-            onClick={() => setDrawerOpen(false)}
-            style={{
-              position: "fixed",
-              inset: 0,
-              background: "rgba(0,0,0,0.45)",
-              zIndex: 9998,
-            }}
-          />
-        )
-      }
+      {showOverlay && drawerOpen && (
+        <div
+          onClick={() => setDrawerOpen(false)}
+          className="fixed inset-0 bg-black/45 z-[9998] backdrop-blur-sm transition-opacity"
+        />
+      )}
 
       {/* CARD */}
       <div
-        style={{
-          position: "fixed",
-          top: 24,
-          right: 24,
-          bottom: 24,
-          width: "min(560px, 96vw)",
-          background: "linear-gradient(180deg, #ffffff, #f9fafb)",
-          borderRadius: 18,
-          boxShadow: drawerOpen ? "0 25px 60px rgba(0,0,0,0.35)" : "none",
-          border: "1px solid rgba(0,0,0,0.08)",
-          zIndex: 9999,
-          display: drawerOpen ? "flex" : "none",
-          flexDirection: "column",
-          overflow: "hidden",
-          color: "#111827",
-          transition: "transform 0.3s cubic-bezier(.4,1.2,.4,1)",
-          transform: drawerOpen ? "translateX(0)" : "translateX(100%)",
-        }}
+        className={`fixed top-6 right-6 bottom-6 w-[min(560px,96vw)] bg-card rounded-2xl shadow-2xl border border-border z-[9999] flex flex-col overflow-hidden text-foreground transition-transform duration-300 ${drawerOpen ? "translate-x-0" : "translate-x-[120%]"
+          }`}
       >
         {/* HEADER */}
-        <div
-          style={{
-            padding: "14px 16px",
-            borderBottom: "1px solid rgba(0,0,0,0.08)",
-            fontWeight: 900,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: 10,
-          }}
-        >
-          <div style={{ fontSize: 14 }}>{headerTitle}</div>
+        <div className="p-4 border-b border-border flex justify-between items-center gap-2.5 font-bold bg-muted/30">
+          <div className="text-sm truncate">{headerTitle}</div>
 
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div className="flex items-center gap-2">
             {isAdmin && !isCreate && !!taskId && (
               <button
                 onClick={removeTask}
-                style={{
-                  padding: "6px 10px",
-                  borderRadius: 10,
-                  border: "1px solid rgba(185,28,28,0.35)",
-                  background: "rgba(185,28,28,0.08)",
-                  color: "#b91c1c",
-                  cursor: "pointer",
-                  fontWeight: 900,
-                }}
+                className="px-2.5 py-1.5 rounded-xl border border-red-500/30 bg-red-500/10 text-red-600 cursor-pointer font-bold text-xs hover:bg-red-500/20 transition-colors"
               >
                 {t("common", "delete")}
               </button>
@@ -806,15 +743,7 @@ export default function TaskDrawer({
 
             <button
               onClick={onClose}
-              style={{
-                padding: "6px 10px",
-                borderRadius: 10,
-                border: "1px solid rgba(17,24,39,0.18)",
-                background: "#fff",
-                color: "#111827",
-                cursor: "pointer",
-                fontWeight: 900,
-              }}
+              className="w-8 h-8 flex items-center justify-center rounded-xl border border-border bg-background text-foreground cursor-pointer font-bold hover:bg-muted transition-colors"
             >
               ✕
             </button>
@@ -822,57 +751,63 @@ export default function TaskDrawer({
         </div>
 
         {/* BODY */}
-        <div style={{ padding: 16, overflow: "auto", display: "grid", gap: 16 }}>
+        {/* BODY */}
+        <div className="p-4 overflow-y-auto grid gap-4">
           {err && (
-            <div style={{ color: "#b91c1c", fontWeight: 700, background: "rgba(185,28,28,0.06)", padding: 10, borderRadius: 12 }}>
+            <div className="text-red-700 font-bold bg-red-500/10 p-2.5 rounded-xl border border-red-500/20 text-sm">
               {err}
             </div>
           )}
 
           {!isCreate && translatingContent && (
-            <div style={{ background: "rgba(59,130,246,0.08)", color: "#1e3a8a", padding: 10, borderRadius: 12, fontSize: 12, fontWeight: 600 }}>
+            <div className="bg-blue-500/10 text-blue-700 p-2.5 rounded-xl text-xs font-bold border border-blue-500/20">
               {t("taskDrawer", "autoTranslateLoading", "Translating content...")} ({language.toUpperCase()})
             </div>
           )}
 
           {!isCreate && translationError && (
-            <div style={{ background: "rgba(251,191,36,0.15)", color: "#b45309", padding: 10, borderRadius: 12, fontSize: 12, fontWeight: 600 }}>
+            <div className="bg-amber-500/10 text-amber-700 p-2.5 rounded-xl text-xs font-bold border border-amber-500/20">
               {t("taskDrawer", "autoTranslateError", "Auto translation failed")}: {translationError}
             </div>
           )}
 
-          <label style={labelStyle}>
-            <span style={{ fontWeight: 800 }}>{t("taskDrawer", "title")}</span>
+          <label className="grid gap-1.5 text-xs font-bold text-foreground">
+            <span className="opacity-70 uppercase tracking-wider">{t("taskDrawer", "title")}</span>
             <input
               value={title}
               onChange={(e) => {
                 setTitleDirty(true);
                 setTitle(e.target.value);
               }}
-              style={inputStyle}
+              className="w-full px-3 py-2.5 rounded-xl border border-border bg-background text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 transition-all font-semibold"
               disabled={!canEditFields}
             />
           </label>
           {!isCreate && renderTranslationSegment(makeTranslationKey("task.title", task?.id), task?.title || title)}
 
-          <label style={labelStyle}>
-            <span style={{ fontWeight: 800 }}>{t("taskDrawer", "description")}</span>
+          <label className="grid gap-1.5 text-xs font-bold text-foreground">
+            <span className="opacity-70 uppercase tracking-wider">{t("taskDrawer", "description")}</span>
             <textarea
               value={description}
               onChange={(e) => {
                 setDescriptionDirty(true);
                 setDescription(e.target.value);
               }}
-              style={{ ...inputStyle, minHeight: 110, resize: "vertical" }}
+              className="w-full px-3 py-2.5 rounded-xl border border-border bg-background text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 transition-all min-h-[110px] resize-y"
               disabled={!canEditFields}
             />
           </label>
           {!isCreate && renderTranslationSegment(makeTranslationKey("task.description", task?.id), task?.description || description)}
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <label style={labelStyle}>
-              <span style={{ fontWeight: 800 }}>{t("taskDrawer", "status")}</span>
-              <select value={status} onChange={(e) => setStatus(e.target.value as any)} style={inputStyle} disabled={!isAdmin}>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="grid gap-1.5 text-xs font-bold text-foreground">
+              <span className="opacity-70 uppercase tracking-wider">{t("taskDrawer", "status")}</span>
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value as any)}
+                className="w-full px-3 py-2.5 rounded-xl border border-border bg-background text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 transition-all appearance-none"
+                disabled={!isAdmin}
+              >
                 <option value="OPEN">{t("taskStatus", "OPEN")}</option>
                 <option value="IN_PROGRESS">{t("taskStatus", "IN_PROGRESS")}</option>
                 <option value="DONE_WAITING_APPROVAL">{t("taskStatus", "DONE_WAITING_APPROVAL")}</option>
@@ -881,9 +816,14 @@ export default function TaskDrawer({
               </select>
             </label>
 
-            <label style={labelStyle}>
-              <span style={{ fontWeight: 800 }}>{t("taskDrawer", "assignedUser")}</span>
-              <select value={assignedUserId} onChange={(e) => setAssignedUserId(e.target.value)} style={inputStyle} disabled={!isAdmin}>
+            <label className="grid gap-1.5 text-xs font-bold text-foreground">
+              <span className="opacity-70 uppercase tracking-wider">{t("taskDrawer", "assignedUser")}</span>
+              <select
+                value={assignedUserId}
+                onChange={(e) => setAssignedUserId(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl border border-border bg-background text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 transition-all appearance-none"
+                disabled={!isAdmin}
+              >
                 <option value="">—</option>
                 {profiles.map((p) => (
                   <option key={p.id} value={p.id}>
@@ -894,10 +834,15 @@ export default function TaskDrawer({
             </label>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <label style={labelStyle}>
-              <span style={{ fontWeight: 800 }}>{t("taskDrawer", "priority")}</span>
-              <select value={priority} onChange={(e) => setPriority(e.target.value as any)} style={inputStyle} disabled={!canEditPriority}>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="grid gap-1.5 text-xs font-bold text-foreground">
+              <span className="opacity-70 uppercase tracking-wider">{t("taskDrawer", "priority")}</span>
+              <select
+                value={priority}
+                onChange={(e) => setPriority(e.target.value as any)}
+                className="w-full px-3 py-2.5 rounded-xl border border-border bg-background text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 transition-all appearance-none"
+                disabled={!canEditPriority}
+              >
                 <option value="LOW">{t("taskPriority", "LOW")}</option>
                 <option value="MEDIUM">{t("taskPriority", "MEDIUM")}</option>
                 <option value="HIGH">{t("taskPriority", "HIGH")}</option>
@@ -905,13 +850,13 @@ export default function TaskDrawer({
               </select>
             </label>
 
-            <label style={labelStyle}>
-              <span style={{ fontWeight: 800 }}>{t("taskDrawer", "dueDate")}</span>
+            <label className="grid gap-1.5 text-xs font-bold text-foreground">
+              <span className="opacity-70 uppercase tracking-wider">{t("taskDrawer", "dueDate")}</span>
               <input
                 type="date"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
-                style={inputStyle}
+                className="w-full px-3 py-2.5 rounded-xl border border-border bg-background text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                 disabled={!canEditDueDate}
               />
             </label>
@@ -921,39 +866,21 @@ export default function TaskDrawer({
           {/* Usunięto podgląd mapy z pinem i link do pełnej mapy na prośbę użytkownika */}
           {/* WORKFLOW BUTTONS */}
           {!isCreate && canUpdateStatus && (
-            <div style={{ display: "grid", gap: 8 }}>
-              <div style={{ fontSize: 12, fontWeight: 800, color: "rgba(17,24,39,0.6)" }}>{t("taskDrawer", "workflowActions")}</div>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <div className="grid gap-2">
+              <div className="text-xs font-extrabold text-muted-foreground/70 uppercase tracking-wider">{t("taskDrawer", "workflowActions")}</div>
+              <div className="flex gap-2 flex-wrap">
                 {status === "OPEN" && (
                   <>
                     <button
                       onClick={() => setStatus("IN_PROGRESS")}
-                      style={{
-                        padding: "8px 14px",
-                        borderRadius: 10,
-                        border: "1px solid rgba(59,130,246,0.35)",
-                        background: "rgba(59,130,246,0.08)",
-                        color: "#2563eb",
-                        cursor: "pointer",
-                        fontWeight: 800,
-                        fontSize: 13,
-                      }}
+                      className="px-3.5 py-2 rounded-xl border border-blue-500/30 bg-blue-500/10 text-blue-600 cursor-pointer font-bold text-sm hover:bg-blue-500/20 transition-colors"
                     >
                       {t("taskDrawer", "startWork")}
                     </button>
                     {isAdmin && (
                       <button
                         onClick={() => setStatus("APPROVED")}
-                        style={{
-                          padding: "8px 14px",
-                          borderRadius: 10,
-                          border: "1px solid rgba(34,197,94,0.35)",
-                          background: "rgba(34,197,94,0.08)",
-                          color: "#16a34a",
-                          cursor: "pointer",
-                          fontWeight: 800,
-                          fontSize: 13,
-                        }}
+                        className="px-3.5 py-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 cursor-pointer font-bold text-sm hover:bg-emerald-500/20 transition-colors"
                       >
                         {t("taskDrawer", "approve")}
                       </button>
@@ -975,16 +902,7 @@ export default function TaskDrawer({
                         );
                       }, 0);
                     }}
-                    style={{
-                      padding: "8px 14px",
-                      borderRadius: 10,
-                      border: "1px solid rgba(249,115,22,0.35)",
-                      background: "rgba(249,115,22,0.08)",
-                      color: "#ea580c",
-                      cursor: "pointer",
-                      fontWeight: 800,
-                      fontSize: 13,
-                    }}
+                    className="px-3.5 py-2 rounded-xl border border-orange-500/30 bg-orange-500/10 text-orange-600 cursor-pointer font-bold text-sm hover:bg-orange-500/20 transition-colors"
                   >
                     {t("taskDrawer", "markDone")}
                   </button>
@@ -994,31 +912,13 @@ export default function TaskDrawer({
                   <>
                     <button
                       onClick={() => setStatus("APPROVED")}
-                      style={{
-                        padding: "8px 14px",
-                        borderRadius: 10,
-                        border: "1px solid rgba(34,197,94,0.35)",
-                        background: "rgba(34,197,94,0.08)",
-                        color: "#16a34a",
-                        cursor: "pointer",
-                        fontWeight: 800,
-                        fontSize: 13,
-                      }}
+                      className="px-3.5 py-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 cursor-pointer font-bold text-sm hover:bg-emerald-500/20 transition-colors"
                     >
                       {t("taskDrawer", "approve")}
                     </button>
                     <button
                       onClick={() => setStatus("REJECTED")}
-                      style={{
-                        padding: "8px 14px",
-                        borderRadius: 10,
-                        border: "1px solid rgba(239,68,68,0.35)",
-                        background: "rgba(239,68,68,0.08)",
-                        color: "#dc2626",
-                        cursor: "pointer",
-                        fontWeight: 800,
-                        fontSize: 13,
-                      }}
+                      className="px-3.5 py-2 rounded-xl border border-red-500/30 bg-red-500/10 text-red-600 cursor-pointer font-bold text-sm hover:bg-red-500/20 transition-colors"
                     >
                       {t("taskDrawer", "reject")}
                     </button>
@@ -1026,22 +926,13 @@ export default function TaskDrawer({
                 )}
 
                 {(status === "APPROVED" || status === "REJECTED") && (
-                  <div style={{ fontSize: 13, color: "rgba(17,24,39,0.5)", fontStyle: "italic" }}>
+                  <div className="text-sm text-muted-foreground italic">
                     {t("taskDrawer", "finalStatus")}: {status === "APPROVED" ? t("taskDrawer", "approvedStatus") : t("taskDrawer", "rejectedStatus")}
                   </div>
                 )}
               </div>
               {!hasAfterPhoto && status === "IN_PROGRESS" && (
-                <div
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 700,
-                    color: "#b45309",
-                    background: "rgba(251,191,36,0.25)",
-                    padding: "8px 12px",
-                    borderRadius: 12,
-                  }}
-                >
+                <div className="text-xs font-bold text-amber-700 bg-amber-500/20 px-3 py-2 rounded-xl mt-1">
                   {t("taskDrawer", "afterPhotoHint", "Dodaj zdjęcie po wykonaniu prac, aby zgłosić zadanie do akceptacji.")}
                 </div>
               )}
@@ -1049,20 +940,11 @@ export default function TaskDrawer({
           )}
 
           {/* ACTIONS */}
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <div className="flex gap-3 items-center pt-2">
             <button
               onClick={save}
               disabled={saving || uploading || !canSubmit}
-              style={{
-                flex: 1,
-                padding: "10px 12px",
-                borderRadius: 12,
-                border: "1px solid rgba(17,24,39,0.20)",
-                background: "#111827",
-                color: "#fff",
-                cursor: saving || uploading || !canSubmit ? "not-allowed" : "pointer",
-                fontWeight: 900,
-              }}
+              className="flex-1 px-4 py-3 rounded-xl border border-transparent bg-primary text-primary-foreground font-extrabold shadow-lg shadow-primary/25 hover:bg-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
             >
               {saving ? t("taskDrawer", "saving") : t("common", "save")}
             </button>
@@ -1070,45 +952,45 @@ export default function TaskDrawer({
             <button
               onClick={onClose}
               disabled={saving || uploading}
-              style={{
-                padding: "10px 12px",
-                borderRadius: 12,
-                border: "1px solid rgba(17,24,39,0.18)",
-                background: "#fff",
-                color: "#111827",
-                cursor: saving || uploading ? "not-allowed" : "pointer",
-                fontWeight: 900,
-              }}
+              className="px-4 py-3 rounded-xl border border-border bg-background text-foreground font-extrabold hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {t("taskDrawer", "close")}
             </button>
           </div>
 
-          <hr style={{ border: "none", borderTop: "1px solid rgba(17,24,39,0.10)" }} />
+          <hr className="border-t border-border/50" />
 
           {/* PHOTOS */}
-          <div style={{ display: "grid", gap: 10 }}>
-            <div style={{ fontWeight: 900 }}>{t("taskDrawer", "photos")}</div>
+          <div className="grid gap-4">
+            <div className="font-extrabold text-foreground">{t("taskDrawer", "photos")}</div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10, alignItems: "end" }}>
-              <label style={labelStyle}>
-                <span style={{ fontWeight: 800 }}>{t("taskDrawer", "captionLabel")}</span>
-                <input value={caption} onChange={(e) => setCaption(e.target.value)} style={inputStyle} />
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+              <label className="grid gap-1.5 text-xs font-bold text-foreground">
+                <span className="opacity-70 uppercase tracking-wider">{t("taskDrawer", "captionLabel")}</span>
+                <input value={caption} onChange={(e) => setCaption(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-border bg-background text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 transition-all font-semibold" />
               </label>
 
-              <label style={labelStyle}>
-                <span style={{ fontWeight: 800 }}>{t("taskDrawer", "photoPhase", "Rodzaj zdjęcia")}</span>
-                <select value={nextPhotoType} onChange={(e) => setNextPhotoType(e.target.value as PhotoType)} style={inputStyle}>
+              <label className="grid gap-1.5 text-xs font-bold text-foreground">
+                <span className="opacity-70 uppercase tracking-wider">{t("taskDrawer", "photoPhase", "Rodzaj zdjęcia")}</span>
+                <select
+                  value={nextPhotoType}
+                  onChange={(e) => setNextPhotoType(e.target.value as PhotoType)}
+                  className="w-full px-3 py-2.5 rounded-xl border border-border bg-background text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 transition-all appearance-none"
+                >
                   <option value="BEFORE">{t("taskDrawer", "photoPhaseBefore", "Przed pracą")}</option>
                   <option value="AFTER">{t("taskDrawer", "photoPhaseAfter", "Po pracy")}</option>
                 </select>
               </label>
 
-              <label style={{ ...labelStyle, cursor: uploading || !canManagePhotos ? "not-allowed" : "pointer" }}>
-                <span style={{ fontWeight: 800 }}>{t("taskDrawer", "addPhoto")}</span>
+              <label className={`relative flex flex-col items-center justify-center gap-1 w-full h-[74px] rounded-xl border-2 border-dashed border-border hover:bg-muted/50 hover:border-primary/50 transition-all ${uploading || !canManagePhotos ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}>
+                <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                  <span className="text-xl font-light leading-none">+</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider">{t("taskDrawer", "addPhoto")}</span>
+                </div>
                 <input
                   type="file"
                   accept="image/*"
+                  className="hidden"
                   disabled={uploading || !canManagePhotos}
                   onChange={(e) => {
                     if (!canManagePhotos) return;
@@ -1143,27 +1025,17 @@ export default function TaskDrawer({
 
             {/* CREATE: pending */}
             {pendingPhotos.length > 0 && (
-              <div style={{ display: "grid", gap: 8 }}>
-                <div style={{ fontSize: 12, opacity: 0.8, fontWeight: 800 }}>
+              <div className="grid gap-2">
+                <div className="text-xs font-bold opacity-80">
                   {t("taskDrawer", "pendingPhotos")}
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+                <div className="grid grid-cols-3 gap-2">
                   {pendingPhotos.map((p) => (
-                    <div key={p.id} style={{ position: "relative" }}>
+                    <div key={p.id} className="relative group">
                       <span
-                        style={{
-                          position: "absolute",
-                          top: 6,
-                          left: 6,
-                          padding: "2px 8px",
-                          borderRadius: 999,
-                          fontSize: 10,
-                          fontWeight: 800,
-                          background: p.photoType === "AFTER" ? "rgba(34,197,94,0.85)" : "rgba(59,130,246,0.85)",
-                          color: "#fff",
-                          zIndex: 2,
-                        }}
+                        className={`absolute top-1.5 left-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold text-white z-10 shadow-sm ${p.photoType === "AFTER" ? "bg-emerald-500/90" : "bg-blue-500/90"
+                          }`}
                       >
                         {p.photoType === "AFTER"
                           ? t("taskDrawer", "photoPhaseAfter", "Po pracy")
@@ -1172,28 +1044,17 @@ export default function TaskDrawer({
                       <img
                         src={p.previewUrl}
                         alt=""
-                        style={{ width: "100%", height: 92, objectFit: "cover", borderRadius: 12, border: "1px solid rgba(17,24,39,0.10)" }}
+                        className="w-full h-24 object-cover rounded-xl border border-border bg-muted"
                       />
                       <button
                         onClick={() => removePending(p.id)}
-                        style={{
-                          position: "absolute",
-                          top: 6,
-                          right: 6,
-                          width: 26,
-                          height: 26,
-                          borderRadius: 999,
-                          border: "1px solid rgba(17,24,39,0.25)",
-                          background: "rgba(255,255,255,0.92)",
-                          cursor: "pointer",
-                          fontWeight: 900,
-                        }}
+                        className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-white/90 text-foreground border border-black/10 flex items-center justify-center font-bold shadow-sm hover:bg-white hover:scale-105 transition-all text-xs"
                         title={t("common", "delete")}
                       >
                         ✕
                       </button>
                       {p.caption && (
-                        <div style={{ marginTop: 4, fontSize: 11, opacity: 0.85, wordBreak: "break-word" }}>{p.caption}</div>
+                        <div className="mt-1 text-[11px] leading-tight opacity-80 break-words">{p.caption}</div>
                       )}
                     </div>
                   ))}
@@ -1203,32 +1064,22 @@ export default function TaskDrawer({
 
             {/* EDIT/CREATE: existing photos list */}
             {photos.length > 0 && (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+              <div className="grid grid-cols-3 gap-2">
                 {photos.map((p) => (
-                  <div key={p.id} style={{ position: "relative" }}>
+                  <div key={p.id} className="relative group">
                     <span
-                      style={{
-                        position: "absolute",
-                        top: 6,
-                        left: 6,
-                        padding: "2px 8px",
-                        borderRadius: 999,
-                        fontSize: 10,
-                        fontWeight: 800,
-                        background: (p.photo_type || "BEFORE") === "AFTER" ? "rgba(34,197,94,0.85)" : "rgba(59,130,246,0.85)",
-                        color: "#fff",
-                        zIndex: 2,
-                      }}
+                      className={`absolute top-1.5 left-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold text-white z-10 shadow-sm ${(p.photo_type || "BEFORE") === "AFTER" ? "bg-emerald-500/90" : "bg-blue-500/90"
+                        }`}
                     >
                       {(p.photo_type || "BEFORE") === "AFTER"
                         ? t("taskDrawer", "photoPhaseAfter", "Po pracy")
                         : t("taskDrawer", "photoPhaseBefore", "Przed pracą")}
                     </span>
-                    <a href={p.url} target="_blank" rel="noreferrer" style={{ textDecoration: "none" }}>
+                    <a href={p.url} target="_blank" rel="noreferrer" className="block outline-none focus:ring-2 focus:ring-primary rounded-xl">
                       <img
                         src={p.url}
                         alt={p.caption || ""}
-                        style={{ width: "100%", height: 92, objectFit: "cover", borderRadius: 12, border: "1px solid rgba(17,24,39,0.10)" }}
+                        className="w-full h-24 object-cover rounded-xl border border-border bg-muted hover:opacity-90 transition-opacity"
                         loading="lazy"
                       />
                     </a>
@@ -1248,26 +1099,14 @@ export default function TaskDrawer({
                             setUploading(false);
                           }
                         }}
-                        style={{
-                          position: "absolute",
-                          top: 6,
-                          right: 6,
-                          width: 26,
-                          height: 26,
-                          borderRadius: 999,
-                          border: "1px solid rgba(17,24,39,0.25)",
-                          background: "rgba(255,255,255,0.92)",
-                          cursor: "pointer",
-                          fontWeight: 900,
-                          zIndex: 3
-                        }}
+                        className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-white/90 text-foreground border border-black/10 flex items-center justify-center font-bold shadow-sm hover:bg-white hover:scale-105 transition-all text-xs z-20"
                         title={t("common", "delete")}
                       >
                         ✕
                       </button>
                     )}
                     {p.caption && (
-                      <div style={{ marginTop: 4, fontSize: 11, opacity: 0.85, wordBreak: "break-word" }}>{p.caption}</div>
+                      <div className="mt-1 text-[11px] leading-tight opacity-80 break-words">{p.caption}</div>
                     )}
                   </div>
                 ))}
@@ -1275,35 +1114,17 @@ export default function TaskDrawer({
             )}
 
             {photos.length === 0 && pendingPhotos.length === 0 && (
-              <div style={{ fontSize: 12, opacity: 0.75 }}>{t("taskDrawer", "photos")}: 0</div>
+              <div className="text-xs text-muted-foreground italic">{t("taskDrawer", "photos")}: 0</div>
             )}
 
             {isCreate && pendingPhotos.length === 0 && (
-              <div
-                style={{
-                  fontSize: 12,
-                  fontWeight: 700,
-                  color: "#9a3412",
-                  background: "rgba(251,191,36,0.2)",
-                  padding: "6px 10px",
-                  borderRadius: 10,
-                }}
-              >
+              <div className="text-xs font-bold text-amber-800 bg-amber-500/20 px-3 py-2 rounded-xl">
                 {t("taskDrawer", "beforePhotoMissing", "Brak zdjęcia dodaj")}
               </div>
             )}
 
             {!isCreate && !hasAfterPhoto && (
-              <div
-                style={{
-                  fontSize: 12,
-                  fontWeight: 700,
-                  color: "#9a3412",
-                  background: "rgba(251,191,36,0.2)",
-                  padding: "6px 10px",
-                  borderRadius: 10,
-                }}
-              >
+              <div className="text-xs font-bold text-amber-800 bg-amber-500/20 px-3 py-2 rounded-xl">
                 {t("taskDrawer", "afterPhotoMissing", "Brak zdjęcia po wykonaniu prac.")}
               </div>
             )}
@@ -1312,23 +1133,18 @@ export default function TaskDrawer({
           {/* COMMENTS */}
           {!isCreate && (
             <>
-              <hr style={{ border: "none", borderTop: "1px solid rgba(17,24,39,0.10)" }} />
+              <hr className="border-t border-border/50" />
 
-              <div style={{ display: "grid", gap: 10 }}>
-                <div style={{ fontSize: 14, fontWeight: 800 }}>{t("taskDrawer", "comments")} ({comments.length})</div>
+              <div className="grid gap-4">
+                <div className="text-sm font-extrabold text-foreground">{t("taskDrawer", "comments")} ({comments.length})</div>
 
                 {/* Add comment input */}
-                <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+                <div className="flex gap-2 items-end">
                   <textarea
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
                     placeholder={t("taskDrawer", "addComment")}
-                    style={{
-                      ...inputStyle,
-                      minHeight: 60,
-                      resize: "vertical",
-                      flex: 1,
-                    }}
+                    className="flex-1 w-full px-3 py-2.5 rounded-xl border border-border bg-background text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 transition-all min-h-[60px] resize-y"
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                         e.preventDefault();
@@ -1339,16 +1155,7 @@ export default function TaskDrawer({
                   <button
                     onClick={addComment}
                     disabled={!newComment.trim()}
-                    style={{
-                      padding: "8px 14px",
-                      borderRadius: 10,
-                      border: "1px solid rgba(17,24,39,0.20)",
-                      background: newComment.trim() ? "#111827" : "rgba(17,24,39,0.05)",
-                      color: newComment.trim() ? "#fff" : "rgba(17,24,39,0.4)",
-                      cursor: newComment.trim() ? "pointer" : "not-allowed",
-                      fontWeight: 800,
-                      whiteSpace: "nowrap",
-                    }}
+                    className="px-4 py-2 rounded-xl border border-border bg-background text-foreground font-extrabold hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm whitespace-nowrap h-[42px]"
                   >
                     {t("common", "save")}
                   </button>
@@ -1356,7 +1163,7 @@ export default function TaskDrawer({
 
                 {/* Comments list */}
                 {comments.length > 0 && (
-                  <div style={{ display: "grid", gap: 8, maxHeight: 300, overflowY: "auto" }}>
+                  <div className="grid gap-2 max-h-[300px] overflow-y-auto pr-1">
                     {comments.map((c) => {
                       const profile = profiles.find((p) => p.id === c.user_id);
                       const userName = profile?.full_name || c.user_id.slice(0, 8);
@@ -1369,20 +1176,12 @@ export default function TaskDrawer({
                       });
 
                       return (
-                        <div
-                          key={c.id}
-                          style={{
-                            padding: 10,
-                            borderRadius: 10,
-                            border: "1px solid rgba(17,24,39,0.10)",
-                            background: "rgba(17,24,39,0.02)",
-                          }}
-                        >
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                            <div style={{ fontWeight: 800, fontSize: 12 }}>{userName}</div>
-                            <div style={{ fontSize: 11, opacity: 0.6 }}>{timestamp}</div>
+                        <div key={c.id} className="p-3 rounded-xl border border-border bg-muted/30">
+                          <div className="flex justify-between items-center mb-1.5">
+                            <div className="font-bold text-xs text-foreground">{userName}</div>
+                            <div className="text-[10px] text-muted-foreground">{timestamp}</div>
                           </div>
-                          <div style={{ fontSize: 13, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{c.comment}</div>
+                          <div className="text-sm text-foreground whitespace-pre-wrap break-words">{c.comment}</div>
                           {renderTranslationSegment(makeTranslationKey("comment", c.id), c.comment)}
                         </div>
                       );
@@ -1391,17 +1190,17 @@ export default function TaskDrawer({
                 )}
 
                 {comments.length === 0 && (
-                  <div style={{ fontSize: 12, opacity: 0.75 }}>{t("taskDrawer", "noComments")}</div>
+                  <div className="text-xs text-muted-foreground italic">{t("taskDrawer", "noComments")}</div>
                 )}
               </div>
 
-              <hr style={{ border: "none", borderTop: "1px solid rgba(17,24,39,0.10)" }} />
+              <hr className="border-t border-border/50" />
 
-              <div style={{ display: "grid", gap: 10 }}>
-                <div style={{ fontSize: 14, fontWeight: 800 }}>{t("taskDrawer", "history")}</div>
+              <div className="grid gap-4">
+                <div className="text-sm font-extrabold text-foreground">{t("taskDrawer", "history")}</div>
 
                 {history.length > 0 ? (
-                  <div style={{ display: "grid", gap: 8, maxHeight: 260, overflowY: "auto" }}>
+                  <div className="grid gap-2 max-h-[260px] overflow-y-auto pr-1">
                     {history.map((h) => {
                       const actor = profiles.find((p) => p.id === h.changed_by);
                       const actorName = actor?.full_name || (h.changed_by ? h.changed_by.slice(0, 8) : "—");
@@ -1419,24 +1218,16 @@ export default function TaskDrawer({
                         .replace("{user}", actorName);
 
                       return (
-                        <div
-                          key={h.id}
-                          style={{
-                            padding: 10,
-                            borderRadius: 10,
-                            border: "1px solid rgba(17,24,39,0.10)",
-                            background: "rgba(17,24,39,0.02)",
-                          }}
-                        >
-                          <div style={{ fontSize: 13, fontWeight: 700, whiteSpace: "pre-wrap", wordBreak: "break-word", marginBottom: 4 }}>{action}</div>
-                          <div style={{ fontSize: 11, opacity: 0.65, marginBottom: 6 }}>{historyMeta}</div>
+                        <div key={h.id} className="p-3 rounded-xl border border-border bg-muted/10">
+                          <div className="text-xs font-bold text-foreground mb-1 whitespace-pre-wrap break-words">{action}</div>
+                          <div className="text-[10px] text-muted-foreground">{historyMeta}</div>
                           {renderTranslationSegment(makeTranslationKey("history", h.id), action)}
                         </div>
                       );
                     })}
                   </div>
                 ) : (
-                  <div style={{ fontSize: 12, opacity: 0.75 }}>{t("taskDrawer", "noHistory", "No history yet")}</div>
+                  <div className="text-xs text-muted-foreground italic">{t("taskDrawer", "noHistory", "No history yet")}</div>
                 )}
               </div>
             </>
