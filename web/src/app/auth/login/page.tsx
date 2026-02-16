@@ -73,12 +73,12 @@ export default function LoginPage() {
             <LanguageSwitcher />
           </div>
 
-          <div style={{ textAlign: "center", marginBottom: "24px" }}>
+          <div style={{ textAlign: "center", marginBottom: "2" }}>
             <Image
               src="/inspecthero-logo.png"
               alt="InspectHero logo"
-              width={400}
-              height={250}
+              width={200}
+              height={150}
               priority
               style={{ display: "inline-block", marginBottom: "16px" }}
             />
