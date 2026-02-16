@@ -36,7 +36,7 @@ export default function LoginPage() {
 
       // Wait a moment for auth state to update
       await new Promise((r) => setTimeout(r, 300));
-      
+
       // Redirect to home
       router.push("/");
       router.refresh();
@@ -59,111 +59,68 @@ export default function LoginPage() {
           fontFamily: "system-ui, -apple-system, sans-serif",
         }}
       >
-      <div
-        style={{
-          background: "white",
-          padding: "40px",
-          borderRadius: "12px",
-          boxShadow: "0 10px 40px rgba(0, 0, 0, 0.3)",
-          width: "100%",
-          maxWidth: "400px",
-        }}
-      >
-        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "20px" }}>
-          <LanguageSwitcher />
-        </div>
-
-        <div style={{ textAlign: "center", marginBottom: "24px" }}>
-          <Image
-            src="/inspecthero-logo.png"
-            alt="InspectHero logo"
-            width={72}
-            height={72}
-            priority
-            style={{ display: "inline-block", marginBottom: "16px" }}
-          />
-          <h1
-            style={{
-              margin: 0,
-              color: "#1f2933",
-              fontSize: "30px",
-              letterSpacing: "0.5px",
-            }}
-          >
-            {t("auth", "title")}
-          </h1>
-        </div>
-
-        {error && (
-          <div
-            style={{
-              background: "#fee2e2",
-              border: "1px solid #fca5a5",
-              color: "#c92a2a",
-              padding: "12px",
-              borderRadius: "6px",
-              marginBottom: "20px",
-              fontSize: "14px",
-            }}
-          >
-            ⚠️ {error}
+        <div
+          style={{
+            background: "white",
+            padding: "40px",
+            borderRadius: "12px",
+            boxShadow: "0 10px 40px rgba(0, 0, 0, 0.3)",
+            width: "100%",
+            maxWidth: "400px",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "20px" }}>
+            <LanguageSwitcher />
           </div>
-        )}
 
-        <form onSubmit={handleLogin}>
-          <div style={{ marginBottom: "20px" }}>
-            <label
-              style={{
-                display: "block",
-                marginBottom: "8px",
-                fontWeight: "600",
-                color: "#333",
-                fontSize: "14px",
-              }}
-            >
-              {t("auth", "demoEmail")}
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={loading}
-              style={{
-                width: "100%",
-                padding: "12px",
-                border: "1px solid #ddd",
-                borderRadius: "6px",
-                fontSize: "14px",
-                boxSizing: "border-box",
-                background: loading ? "#f5f5f5" : "white",
-                color: "#333",
-              }}
-              required
+          <div style={{ textAlign: "center", marginBottom: "24px" }}>
+            <Image
+              src="/inspecthero-logo.png"
+              alt="InspectHero logo"
+              width={400}
+              height={250}
+              priority
+              style={{ display: "inline-block", marginBottom: "16px" }}
             />
           </div>
 
-          <div style={{ marginBottom: "20px" }}>
-            <label
+          {error && (
+            <div
               style={{
-                display: "block",
-                marginBottom: "8px",
-                fontWeight: "600",
-                color: "#333",
+                background: "#fee2e2",
+                border: "1px solid #fca5a5",
+                color: "#c92a2a",
+                padding: "12px",
+                borderRadius: "6px",
+                marginBottom: "20px",
                 fontSize: "14px",
               }}
             >
-              {t("auth", "demoPassword")}
-            </label>
-            <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+              ⚠️ {error}
+            </div>
+          )}
+
+          <form onSubmit={handleLogin}>
+            <div style={{ marginBottom: "20px" }}>
+              <label
+                style={{
+                  display: "block",
+                  marginBottom: "8px",
+                  fontWeight: "600",
+                  color: "#333",
+                  fontSize: "14px",
+                }}
+              >
+                {t("auth", "demoEmail")}
+              </label>
               <input
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 disabled={loading}
                 style={{
                   width: "100%",
                   padding: "12px",
-                  paddingRight: "40px",
                   border: "1px solid #ddd",
                   borderRadius: "6px",
                   fontSize: "14px",
@@ -173,46 +130,79 @@ export default function LoginPage() {
                 }}
                 required
               />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                disabled={loading}
+            </div>
+
+            <div style={{ marginBottom: "20px" }}>
+              <label
                 style={{
-                  position: "absolute",
-                  right: "12px",
-                  background: "none",
-                  border: "none",
-                  cursor: loading ? "not-allowed" : "pointer",
-                  fontSize: "18px",
-                  opacity: loading ? 0.5 : 1,
+                  display: "block",
+                  marginBottom: "8px",
+                  fontWeight: "600",
+                  color: "#333",
+                  fontSize: "14px",
                 }}
               >
-                {showPassword ? t("auth", "showPassword") : t("auth", "hidePassword")}
-              </button>
+                {t("auth", "demoPassword")}
+              </label>
+              <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={loading}
+                  style={{
+                    width: "100%",
+                    padding: "12px",
+                    paddingRight: "40px",
+                    border: "1px solid #ddd",
+                    borderRadius: "6px",
+                    fontSize: "14px",
+                    boxSizing: "border-box",
+                    background: loading ? "#f5f5f5" : "white",
+                    color: "#333",
+                  }}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  disabled={loading}
+                  style={{
+                    position: "absolute",
+                    right: "12px",
+                    background: "none",
+                    border: "none",
+                    cursor: loading ? "not-allowed" : "pointer",
+                    fontSize: "18px",
+                    opacity: loading ? 0.5 : 1,
+                  }}
+                >
+                  {showPassword ? t("auth", "showPassword") : t("auth", "hidePassword")}
+                </button>
+              </div>
             </div>
-          </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              width: "100%",
-              padding: "12px",
-              background: loading ? "#ccc" : "#667eea",
-              color: "white",
-              border: "none",
-              borderRadius: "6px",
-              fontSize: "16px",
-              fontWeight: "600",
-              cursor: loading ? "not-allowed" : "pointer",
-              transition: "background 0.3s",
-            }}
-          >
-            {loading ? t("auth", "loggingIn") : t("auth", "loginButton")}
-          </button>
-        </form>
+            <button
+              type="submit"
+              disabled={loading}
+              style={{
+                width: "100%",
+                padding: "12px",
+                background: loading ? "#ccc" : "#667eea",
+                color: "white",
+                border: "none",
+                borderRadius: "6px",
+                fontSize: "16px",
+                fontWeight: "600",
+                cursor: loading ? "not-allowed" : "pointer",
+                transition: "background 0.3s",
+              }}
+            >
+              {loading ? t("auth", "loggingIn") : t("auth", "loginButton")}
+            </button>
+          </form>
 
-      </div>
+        </div>
       </div>
     </>
   );

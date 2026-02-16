@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 import { apiGet, apiPost } from "@/lib/apiClient";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { getTaskNumericLabel } from "@/lib/taskNumber";
@@ -146,6 +148,8 @@ const urlToBase64 = async (url: string, token?: string | null): Promise<string |
 }
 
 export default function ReportsClient() {
+    const router = useRouter();
+    const [sessionLoaded, setSessionLoaded] = useState(false);
     const { t, language } = useLanguage();
     const [projects, setProjects] = useState<Project[]>([]);
     const [selectedProjectId, setSelectedProjectId] = useState<string>("");
@@ -167,6 +171,16 @@ export default function ReportsClient() {
     const [statusMessage, setStatusMessage] = useState("");
     const [customFileName, setCustomFileName] = useState("");
     const [savedReports, setSavedReports] = useState<{ filename: string; createdAt: string; size: number }[]>([]);
+
+    useEffect(() => {
+        supabase.auth.getSession().then(({ data, error }) => {
+            if (error || !data.session) {
+                router.push("/auth/login");
+            } else {
+                setSessionLoaded(true);
+            }
+        });
+    }, [router]);
 
     const fetchSavedReports = async () => {
         try {
@@ -634,220 +648,221 @@ export default function ReportsClient() {
     };
 
     return (
-        <main className="home-main upload-main">
-            <section className="upload-panel">
-                <div className="upload-header-centered">
-                    <div>
-                        <div className="home-hero-kicker">{t("reports", "title", "Raporty")}</div>
-                        <h2>{t("reports", "generateTitle", "Generuj raport zadań (PDF)")}</h2>
-                        <p>{t("reports", "selectParameters", "Wybierz parametry...")}</p>
-                    </div>
-                </div>
-
-                {/* Main Content: Two Columns (or Stacked) - Generation + Saved Reports */}
-                <div style={{ maxWidth: "800px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "40px" }}>
-
-                    {/* GENERATION CARD */}
-                    <div className="upload-card">
-
-                        {/* Project Selector */}
-                        <div className="upload-section">
-                            <div className="upload-section-header">
-                                <span className="upload-section-title">{t("reports", "project", "Projekt")}</span>
-                            </div>
-                            <div className="upload-field">
-                                <select
-                                    className="upload-select"
-                                    value={selectedProjectId}
-                                    onChange={(e) => setSelectedProjectId(e.target.value)}
-                                >
-                                    {projects.map(p => (
-                                        <option key={p.id} value={p.id}>{p.name}</option>
-                                    ))}
-                                </select>
-                            </div>
+        !sessionLoaded ? <div style={{ padding: 24 }}>{t("common", "loading", "Loading...")}</div> :
+            <main className="home-main upload-main">
+                <section className="upload-panel">
+                    <div className="upload-header-centered">
+                        <div>
+                            <div className="home-hero-kicker">{t("reports", "title", "Raporty")}</div>
+                            <h2>{t("reports", "generateTitle", "Generuj raport zadań (PDF)")}</h2>
+                            <p>{t("reports", "selectParameters", "Wybierz parametry...")}</p>
                         </div>
+                    </div>
 
-                        {/* Custom Filename */}
-                        <div className="upload-section">
-                            <div className="upload-section-header">
-                                <span className="upload-section-title">{t("reports", "reportNameLabel") || "Fileneme"}</span>
-                            </div>
-                            <div className="upload-field">
-                                <input
-                                    type="text"
-                                    className="upload-input"
-                                    placeholder="raport"
-                                    value={customFileName}
-                                    onChange={(e) => setCustomFileName(e.target.value)}
-                                />
-                                <div className="text-xs text-gray-500 mt-1">
-                                    {customFileName.trim() || "raport"}_{new Date().toISOString().slice(0, 10)}_... .pdf
+                    {/* Main Content: Two Columns (or Stacked) - Generation + Saved Reports */}
+                    <div style={{ maxWidth: "800px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "40px" }}>
+
+                        {/* GENERATION CARD */}
+                        <div className="upload-card">
+
+                            {/* Project Selector */}
+                            <div className="upload-section">
+                                <div className="upload-section-header">
+                                    <span className="upload-section-title">{t("reports", "project", "Projekt")}</span>
+                                </div>
+                                <div className="upload-field">
+                                    <select
+                                        className="upload-select"
+                                        value={selectedProjectId}
+                                        onChange={(e) => setSelectedProjectId(e.target.value)}
+                                    >
+                                        {projects.map(p => (
+                                            <option key={p.id} value={p.id}>{p.name}</option>
+                                        ))}
+                                    </select>
                                 </div>
                             </div>
-                        </div>
 
-                        {/* Plans Selector */}
-                        <div className="upload-section">
-                            <div className="upload-section-header">
-                                <span className="upload-section-title">{t("reports", "selectPlans", "Wybierz plany")}</span>
+                            {/* Custom Filename */}
+                            <div className="upload-section">
+                                <div className="upload-section-header">
+                                    <span className="upload-section-title">{t("reports", "reportNameLabel") || "Fileneme"}</span>
+                                </div>
+                                <div className="upload-field">
+                                    <input
+                                        type="text"
+                                        className="upload-input"
+                                        placeholder="raport"
+                                        value={customFileName}
+                                        onChange={(e) => setCustomFileName(e.target.value)}
+                                    />
+                                    <div className="text-xs text-gray-500 mt-1">
+                                        {customFileName.trim() || "raport"}_{new Date().toISOString().slice(0, 10)}_... .pdf
+                                    </div>
+                                </div>
                             </div>
-                            <div className="upload-field">
-                                <div className="border rounded p-2 max-h-60 overflow-y-auto bg-gray-50 flex flex-col gap-1">
-                                    {plans.length === 0 && <span className="text-gray-400 text-sm">{t("reports", "noPlans", "Brak planów")}</span>}
-                                    {plans.map(plan => {
-                                        const floor = floors.find(f => f.id === plan.floor_id);
-                                        const building = buildings.find(b => b.id === floor?.building_id);
-                                        const label = `${building?.name || "?"} - ${floor?.name || "?"} (v${plan.version})`;
-                                        return (
-                                            <label key={plan.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-100 p-1 rounded w-full block">
+
+                            {/* Plans Selector */}
+                            <div className="upload-section">
+                                <div className="upload-section-header">
+                                    <span className="upload-section-title">{t("reports", "selectPlans", "Wybierz plany")}</span>
+                                </div>
+                                <div className="upload-field">
+                                    <div className="border rounded p-2 max-h-60 overflow-y-auto bg-gray-50 flex flex-col gap-1">
+                                        {plans.length === 0 && <span className="text-gray-400 text-sm">{t("reports", "noPlans", "Brak planów")}</span>}
+                                        {plans.map(plan => {
+                                            const floor = floors.find(f => f.id === plan.floor_id);
+                                            const building = buildings.find(b => b.id === floor?.building_id);
+                                            const label = `${building?.name || "?"} - ${floor?.name || "?"} (v${plan.version})`;
+                                            return (
+                                                <label key={plan.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-100 p-1 rounded w-full block">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selectedPlanIds.has(plan.id)}
+                                                        onChange={() => handlePlanToggle(plan.id)}
+                                                        className="w-4 h-4"
+                                                    />
+                                                    <span className="text-sm">{label}</span>
+                                                </label>
+                                            );
+                                        })}
+                                    </div>
+                                    <div className="flex flex-col gap-2 mt-2">
+                                        <div className="text-xs text-blue-600 cursor-pointer hover:underline" onClick={() => setSelectedPlanIds(new Set(plans.map(p => p.id)))}>{t("reports", "selectAll", "Zaznacz wszystkie")}</div>
+                                        <div className="text-xs text-blue-600 cursor-pointer hover:underline" onClick={() => setSelectedPlanIds(new Set())}>{t("reports", "deselectAll", "Odznacz wszystkie")}</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Status Selector */}
+                            <div className="upload-section">
+                                <div className="upload-section-header">
+                                    <span className="upload-section-title">{t("reports", "statuses", "Statusy")}</span>
+                                </div>
+                                <div className="upload-field">
+                                    <div className="border rounded p-2 bg-gray-50 flex flex-col gap-1">
+                                        {ALL_STATUSES.map(status => (
+                                            <label key={status} className="flex items-center gap-2 cursor-pointer hover:bg-gray-100 p-1 rounded w-full block">
                                                 <input
                                                     type="checkbox"
-                                                    checked={selectedPlanIds.has(plan.id)}
-                                                    onChange={() => handlePlanToggle(plan.id)}
+                                                    checked={selectedStatuses.has(status)}
+                                                    onChange={() => handleStatusToggle(status)}
                                                     className="w-4 h-4"
                                                 />
-                                                <span className="text-sm">{label}</span>
+                                                <span className="text-sm">{t("taskStatus", status, status)}</span>
                                             </label>
-                                        );
-                                    })}
-                                </div>
-                                <div className="flex flex-col gap-2 mt-2">
-                                    <div className="text-xs text-blue-600 cursor-pointer hover:underline" onClick={() => setSelectedPlanIds(new Set(plans.map(p => p.id)))}>{t("reports", "selectAll", "Zaznacz wszystkie")}</div>
-                                    <div className="text-xs text-blue-600 cursor-pointer hover:underline" onClick={() => setSelectedPlanIds(new Set())}>{t("reports", "deselectAll", "Odznacz wszystkie")}</div>
+                                        ))}
+                                    </div>
+                                    <div className="flex flex-col gap-2 mt-2">
+                                        <div className="text-xs text-blue-600 cursor-pointer hover:underline" onClick={() => setSelectedStatuses(new Set(ALL_STATUSES))}>{t("reports", "selectAll", "Zaznacz wszystkie")}</div>
+                                        <div className="text-xs text-blue-600 cursor-pointer hover:underline" onClick={() => setSelectedStatuses(new Set())}>{t("reports", "deselectAll", "Odznacz wszystkie")}</div>
+                                    </div>
                                 </div>
                             </div>
+
+                            {/* Date Range */}
+                            <div className="upload-section">
+                                <div className="upload-section-header">
+                                    <span className="upload-section-title">{t("reports", "dateRange", "Zakres dat")}</span>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <input
+                                        type="date"
+                                        className="upload-input"
+                                        value={dateFrom}
+                                        onChange={(e) => setDateFrom(e.target.value)}
+                                    />
+                                    <input
+                                        type="date"
+                                        className="upload-input"
+                                        value={dateTo}
+                                        onChange={(e) => setDateTo(e.target.value)}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Photo Mode */}
+                            <div className="upload-section">
+                                <div className="upload-section-header">
+                                    <span className="upload-section-title">{t("reports", "photosInReport", "Zdjęcia w raporcie")}</span>
+                                </div>
+                                <div className="flex gap-4">
+                                    <label className="flex items-center gap-2">
+                                        <input type="radio" name="photoMode" value="BOTH" checked={photoMode === "BOTH"} onChange={() => setPhotoMode("BOTH")} />
+                                        <span className="text-sm">{t("reports", "bothPhotos", "Oba (Przed i Po)")}</span>
+                                    </label>
+                                    <label className="flex items-center gap-2">
+                                        <input type="radio" name="photoMode" value="BEFORE" checked={photoMode === "BEFORE"} onChange={() => setPhotoMode("BEFORE")} />
+                                        <span className="text-sm">{t("reports", "beforeOnly", "Tylko Przed")}</span>
+                                    </label>
+                                    <label className="flex items-center gap-2">
+                                        <input type="radio" name="photoMode" value="AFTER" checked={photoMode === "AFTER"} onChange={() => setPhotoMode("AFTER")} />
+                                        <span className="text-sm">{t("reports", "afterOnly", "Tylko Po")}</span>
+                                    </label>
+                                </div>
+                            </div>
+
+
+                            {/* Action */}
+                            <div className="mt-8">
+                                <button
+                                    onClick={generateAndDownloadReport}
+                                    disabled={selectedPlanIds.size === 0 || isGenerating}
+                                    className="upload-btn-primary w-full"
+                                    style={{ padding: "12px", fontSize: "16px" }}
+                                >
+                                    {isGenerating ? statusMessage || t("reports", "generating", "Generowanie...") : t("reports", "downloadPdf", "Pobierz Raport PDF")}
+                                </button>
+                            </div>
+
                         </div>
 
-                        {/* Status Selector */}
-                        <div className="upload-section">
-                            <div className="upload-section-header">
-                                <span className="upload-section-title">{t("reports", "statuses", "Statusy")}</span>
+                        {/* SAVED REPORTS LIST - Matching Style */}
+                        <div className="upload-card">
+                            <div className="upload-section-header mb-4">
+                                <span className="upload-section-title" style={{ fontSize: "1.2rem" }}>{t("reports", "savedReports") || "Saved Reports"}</span>
                             </div>
-                            <div className="upload-field">
-                                <div className="border rounded p-2 bg-gray-50 flex flex-col gap-1">
-                                    {ALL_STATUSES.map(status => (
-                                        <label key={status} className="flex items-center gap-2 cursor-pointer hover:bg-gray-100 p-1 rounded w-full block">
-                                            <input
-                                                type="checkbox"
-                                                checked={selectedStatuses.has(status)}
-                                                onChange={() => handleStatusToggle(status)}
-                                                className="w-4 h-4"
-                                            />
-                                            <span className="text-sm">{t("taskStatus", status, status)}</span>
-                                        </label>
+
+                            {savedReports.length === 0 ? (
+                                <div className="text-gray-500 text-center py-8 bg-gray-50 rounded">
+                                    {t("reports", "noSavedReports") || "No saved reports"}
+                                </div>
+                            ) : (
+                                <div className="flex flex-col gap-3">
+                                    {savedReports.map((report) => (
+                                        <div key={report.filename} className="flex items-center justify-between p-3 bg-white border rounded shadow-sm hover:shadow-md transition-shadow">
+                                            <div className="flex flex-col overflow-hidden">
+                                                <span className="font-medium text-gray-800 truncate" title={report.filename}>
+                                                    {report.filename}
+                                                </span>
+                                                <span className="text-xs text-gray-500">
+                                                    {new Date(report.createdAt).toLocaleString()} • {(report.size / 1024).toFixed(1)} KB
+                                                </span>
+                                            </div>
+                                            <div className="flex gap-2 shrink-0">
+                                                <button
+                                                    onClick={() => handleDownloadReport(report.filename)}
+                                                    className="p-2 text-blue-600 hover:bg-blue-50 rounded bg-blue-50/50"
+                                                    title={t("common", "download")}
+                                                >
+                                                    📥
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteReport(report.filename)}
+                                                    className="p-2 text-red-600 hover:bg-red-50 rounded bg-red-50/50"
+                                                    title={t("common", "delete")}
+                                                >
+                                                    🗑️
+                                                </button>
+                                            </div>
+                                        </div>
                                     ))}
                                 </div>
-                                <div className="flex flex-col gap-2 mt-2">
-                                    <div className="text-xs text-blue-600 cursor-pointer hover:underline" onClick={() => setSelectedStatuses(new Set(ALL_STATUSES))}>{t("reports", "selectAll", "Zaznacz wszystkie")}</div>
-                                    <div className="text-xs text-blue-600 cursor-pointer hover:underline" onClick={() => setSelectedStatuses(new Set())}>{t("reports", "deselectAll", "Odznacz wszystkie")}</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Date Range */}
-                        <div className="upload-section">
-                            <div className="upload-section-header">
-                                <span className="upload-section-title">{t("reports", "dateRange", "Zakres dat")}</span>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <input
-                                    type="date"
-                                    className="upload-input"
-                                    value={dateFrom}
-                                    onChange={(e) => setDateFrom(e.target.value)}
-                                />
-                                <input
-                                    type="date"
-                                    className="upload-input"
-                                    value={dateTo}
-                                    onChange={(e) => setDateTo(e.target.value)}
-                                />
-                            </div>
-                        </div>
-
-                        {/* Photo Mode */}
-                        <div className="upload-section">
-                            <div className="upload-section-header">
-                                <span className="upload-section-title">{t("reports", "photosInReport", "Zdjęcia w raporcie")}</span>
-                            </div>
-                            <div className="flex gap-4">
-                                <label className="flex items-center gap-2">
-                                    <input type="radio" name="photoMode" value="BOTH" checked={photoMode === "BOTH"} onChange={() => setPhotoMode("BOTH")} />
-                                    <span className="text-sm">{t("reports", "bothPhotos", "Oba (Przed i Po)")}</span>
-                                </label>
-                                <label className="flex items-center gap-2">
-                                    <input type="radio" name="photoMode" value="BEFORE" checked={photoMode === "BEFORE"} onChange={() => setPhotoMode("BEFORE")} />
-                                    <span className="text-sm">{t("reports", "beforeOnly", "Tylko Przed")}</span>
-                                </label>
-                                <label className="flex items-center gap-2">
-                                    <input type="radio" name="photoMode" value="AFTER" checked={photoMode === "AFTER"} onChange={() => setPhotoMode("AFTER")} />
-                                    <span className="text-sm">{t("reports", "afterOnly", "Tylko Po")}</span>
-                                </label>
-                            </div>
-                        </div>
-
-
-                        {/* Action */}
-                        <div className="mt-8">
-                            <button
-                                onClick={generateAndDownloadReport}
-                                disabled={selectedPlanIds.size === 0 || isGenerating}
-                                className="upload-btn-primary w-full"
-                                style={{ padding: "12px", fontSize: "16px" }}
-                            >
-                                {isGenerating ? statusMessage || t("reports", "generating", "Generowanie...") : t("reports", "downloadPdf", "Pobierz Raport PDF")}
-                            </button>
+                            )}
                         </div>
 
                     </div>
-
-                    {/* SAVED REPORTS LIST - Matching Style */}
-                    <div className="upload-card">
-                        <div className="upload-section-header mb-4">
-                            <span className="upload-section-title" style={{ fontSize: "1.2rem" }}>{t("reports", "savedReports") || "Saved Reports"}</span>
-                        </div>
-
-                        {savedReports.length === 0 ? (
-                            <div className="text-gray-500 text-center py-8 bg-gray-50 rounded">
-                                {t("reports", "noSavedReports") || "No saved reports"}
-                            </div>
-                        ) : (
-                            <div className="flex flex-col gap-3">
-                                {savedReports.map((report) => (
-                                    <div key={report.filename} className="flex items-center justify-between p-3 bg-white border rounded shadow-sm hover:shadow-md transition-shadow">
-                                        <div className="flex flex-col overflow-hidden">
-                                            <span className="font-medium text-gray-800 truncate" title={report.filename}>
-                                                {report.filename}
-                                            </span>
-                                            <span className="text-xs text-gray-500">
-                                                {new Date(report.createdAt).toLocaleString()} • {(report.size / 1024).toFixed(1)} KB
-                                            </span>
-                                        </div>
-                                        <div className="flex gap-2 shrink-0">
-                                            <button
-                                                onClick={() => handleDownloadReport(report.filename)}
-                                                className="p-2 text-blue-600 hover:bg-blue-50 rounded bg-blue-50/50"
-                                                title={t("common", "download")}
-                                            >
-                                                📥
-                                            </button>
-                                            <button
-                                                onClick={() => handleDeleteReport(report.filename)}
-                                                className="p-2 text-red-600 hover:bg-red-50 rounded bg-red-50/50"
-                                                title={t("common", "delete")}
-                                            >
-                                                🗑️
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-
-                </div>
-            </section>
-        </main>
+                </section>
+            </main>
     );
 }
