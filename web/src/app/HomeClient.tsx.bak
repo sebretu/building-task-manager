@@ -246,14 +246,11 @@ export default function Home() {
 
   function fixStorageUrl(u: string) {
     if (!u) return u;
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    if (supabaseUrl) {
-      return u.replace(/^https?:\/\/[^/]+(?::\d+)?(?=\/storage\/v1)/i, supabaseUrl);
-    }
     if (typeof window === "undefined") return u;
+
     const host = window.location.hostname;
     const proto = window.location.protocol;
-    return u.replace(/^http:\/\/[^/]+:54321/i, `${proto}//${host}`);
+    return u.replace(/^http:\/\/[^/]+:54321/i, `${proto}//${host}:54321`);
   }
 
   type TaskPhotoRow = { id: string; url?: string | null; photo_type?: "BEFORE" | "AFTER" | null };
@@ -262,13 +259,15 @@ export default function Home() {
     try {
       const fetchPhotos = async (phase?: "AFTER" | "BEFORE") => {
         const phaseParam = phase ? `&phase=${phase}` : "";
-        return apiGet<TaskPhotoRow[]>(`/api/task-photos?taskId=${encodeURIComponent(taskId)}${phaseParam}&limit=1`
+        return apiGet<{ ok: boolean; data: TaskPhotoRow[] }>(`/api/task-photos?taskId=${encodeURIComponent(taskId)}${phaseParam}&limit=1`
         );
       };
 
-      let photos = await fetchPhotos("AFTER");
+      let res = await fetchPhotos("AFTER");
+      let photos = res?.data ?? [];
       if (!Array.isArray(photos) || photos.length === 0) {
-        photos = await fetchPhotos();
+        res = await fetchPhotos();
+        photos = res?.data ?? [];
       }
 
       const selected = Array.isArray(photos) && photos.length > 0 ? photos[0] : null;

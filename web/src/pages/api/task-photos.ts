@@ -117,7 +117,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       return res.status(status).json({ ok: false, error: { code: err?.code || "FORBIDDEN", message: err?.message || "Access denied", meta: err?.meta } });
     }
 
-    let query = supabase
+    // Use admin client to bypass RLS — auth is already checked above via getTaskAssignment
+    const adminClient = getSupabaseAdminClient();
+    let query = adminClient
       .from("task_photos")
       .select("*")
       .eq("task_id", taskId)

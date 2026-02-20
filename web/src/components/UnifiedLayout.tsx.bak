@@ -245,7 +245,32 @@ export default function UnifiedLayout({ children }: { children: React.ReactNode 
             </Link>
           </div>
 
+          <button
+            className="topbar__toggle"
+            type="button"
+            aria-label="Toggle navigation"
+            onClick={() => setMenuOpen((prev) => !prev)}
+          >
+            <span />
+            <span />
+            <span />
+          </button>
 
+          <nav className="topbar__nav" aria-label="Primary">
+            {navLinks.map((link) => {
+              const isActive = pathname === link.href;
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={`topbar__link ${isActive ? "is-active" : ""}`}
+                  onClick={() => setMenuOpen(false)}
+                >
+                  {link.label}
+                </Link>
+              );
+            })}
+          </nav>
         </div>
       </header>
       <nav className={styles.navStrip} aria-label="Primary">

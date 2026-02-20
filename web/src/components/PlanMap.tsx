@@ -179,9 +179,9 @@ export default function PlanMap({
   async function loadThumb(taskId: string, phase: "BEFORE" | "AFTER") {
     const key = `${taskId}:${phase}`;
     try {
-      const res = await apiGet<{ ok: boolean; data: TaskPhotoRow[] }>(`/api/task-photos?taskId=${encodeURIComponent(taskId)}&phase=${phase}&limit=1`);
-      const photos = res?.data ?? [];
-      const raw: string | null = photos.length > 0 ? (photos[0].url ?? null) : null;
+      const photos = await apiGet<TaskPhotoRow[]>(`/api/task-photos?taskId=${encodeURIComponent(taskId)}&phase=${phase}&limit=1`);
+      const arr = Array.isArray(photos) ? photos : [];
+      const raw: string | null = arr.length > 0 ? (arr[0].url ?? null) : null;
       setThumbByTask((p) => ({ ...p, [key]: raw }));
     } catch {
       setThumbByTask((p) => ({ ...p, [key]: null }));
