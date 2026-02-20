@@ -211,8 +211,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
 
     if (!publicUrl) return bad(res, "Failed to create public URL");
 
-    // Najpierw insert do task_photos, aby RLS w storage.objects widział wpis
-    const inserted = await (supabase as any)
+    // Use admin client to bypass RLS for insert
+    const adminForInsert = getSupabaseAdminClient();
+    const inserted = await (adminForInsert as any)
       .from("task_photos")
       .insert({
         task_id,
@@ -228,16 +229,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
 
     if (inserted.error) return supaErr(res, inserted.error);
 
-    // Upload do Storage (po zapisaniu rekordu, żeby polityka RLS mogła przejść)
-    const uploadResult = await supabase.storage.from(bucket).upload(storage_path, buf, {
+    // Upload do Storage — use admin client to bypass storage RLS
+    const adminForUpload = getSupabaseAdminClient();
+    const uploadResult = await adminForUpload.storage.from(bucket).upload(storage_path, buf, {
       upsert: false,
       contentType,
       cacheControl: "3600",
     });
 
     if (uploadResult.error) {
-      // Spróbuj posprzątać rekord, żeby nie zostawić martwego wpisu
-      await (supabase as any)
+      // Sprzątanie: usuń rekord z DB żeby nie zostało martwe
+      await (adminForInsert as any)
         .from("task_photos")
         .delete()
         .eq("id", inserted.data?.id)
@@ -253,8 +255,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     const id = String(req.query.id || "").trim();
     if (!id) return bad(res, "Missing query: id");
 
-    // 1. Get photo record
-    const { data: photo, error: fetchErr } = await supabase
+    // 1. Get photo record — use admin client to bypass RLS
+    const adminForFetch = getSupabaseAdminClient();
+    const { data: photo, error: fetchErr } = await adminForFetch
       .from("task_photos")
       .select("*")
       .eq("id", id)
@@ -271,12 +274,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       return res.status(status).json({ ok: false, error: { code: err?.code || "FORBIDDEN", message: err?.message || "Access denied", meta: err?.meta } });
     }
 
-    // 3. Delete from Storage
-    // We can use the regular client for storage if the RLS allows it, or admin. 
-    // Usually storage policies are linked to auth.uid(), so keep using 'supabase' (user context) for storage 
-    // unless that also fails. For now, let's assume storage RLS is fine or less critical than the DB record.
+    // 3. Delete from Storage — use admin client to bypass storage RLS
     if (photo.storage_path) {
-      const { error: storageErr } = await supabase.storage
+      const adminForStorage = getSupabaseAdminClient();
+      const { error: storageErr } = await adminForStorage.storage
         .from(photo.storage_bucket || "task-photos")
         .remove([photo.storage_path]);
 
