@@ -1,3 +1,4 @@
+import "server-only";
 export type RequesterProfile = {
   id: string;
   role: string | null;

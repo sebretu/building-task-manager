@@ -52,11 +52,10 @@
   object-position: center;
 }
 
-:global(.topbar__toggle),
-:global(.topbar__nav),
-:global(.topbar__actions) {
-  display: none !important;
-}
+:global(.topbar__toggle) { display: none !important; }
+:global(.topbar__nav) { display: flex !important; }
+:global(.topbar__actions) { display: flex !important; }
+
 
 .layoutRoot {
   min-height: 100vh;
@@ -208,4 +207,9 @@
   .main {
     padding-top: 88px;
   }
+}
+
+/* --- FIX: ensure nav is visible by default --- */
+:global(.topbar__nav) {
+  display: flex !important;
 }

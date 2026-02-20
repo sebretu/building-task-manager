@@ -78,15 +78,7 @@ function isUuid(v: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
 }
 
-// ✅ FIX: podmień dowolny "http://<host>:54321" na "{proto}//{hostname}:54321"
-function fixStorageUrl(u: string) {
-  if (!u) return u;
-  if (typeof window === "undefined") return u;
 
-  const host = window.location.hostname;
-  const proto = window.location.protocol; // "http:" albo "https:"
-  return u.replace(/^http:\/\/[^/]+:54321/i, `${proto}//${host}:54321`);
-}
 
 async function fileToBase64(file: File): Promise<string> {
   const buf = await file.arrayBuffer();
@@ -226,8 +218,7 @@ export default function TaskDrawer({
       }
 
       const photoData = await apiGet<TaskPhoto[]>(`/api/task-photos?taskId=${encodeURIComponent(id)}&t=${Date.now()}`);
-      const fixed = (photoData || []).map((p) => ({ ...p, url: fixStorageUrl(p.url) }));
-      setPhotos(fixed);
+      setPhotos(photoData || []);
 
       const commentData = await apiGet<TaskComment[]>(`/api/task-comments?taskId=${encodeURIComponent(id)}`);
       setComments(commentData || []);
@@ -489,7 +480,7 @@ export default function TaskDrawer({
       photo_type: photoType,
     });
 
-    const newPhoto: TaskPhoto = { ...data, url: fixStorageUrl(data.url) };
+    const newPhoto: TaskPhoto = data;
     return newPhoto;
   }
 

@@ -1,3 +1,5 @@
+"use client";
+
 import { supabase } from "./supabase";
 
 function looksLikeJwt(t: string | null | undefined) {
@@ -12,7 +14,7 @@ function looksLikeJwt(t: string | null | undefined) {
 export async function getToken(): Promise<string | null> {
   const { data } = await supabase.auth.getSession();
   const tok = data.session?.access_token ?? null;
-  console.log('[apiClient] getToken:', tok);
+  console.log('[apiClient] getToken:', tok ? (tok.slice(0,12)+'...') : null);
   return looksLikeJwt(tok) ? tok : null;
 }
 

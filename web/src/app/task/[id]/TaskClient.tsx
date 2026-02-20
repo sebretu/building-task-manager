@@ -90,24 +90,12 @@ export default function TaskClient({ id }: { id: string }) {
         if (!active) return;
 
         const authId = data.session?.user?.id;
-        if (!authId) {
-          setCurrentUser(null);
-          return;
-        }
+        const token = data.session?.access_token;
+        const r = await fetch("/api/me", { headers: { Authorization: `Bearer ${token}` } });
+        if (!r.ok) { setCurrentUser(null); return; }
+        const j = await r.json();
+        setCurrentUser(j.profile || null);
 
-        try {
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("id, role")
-            .eq("id", authId)
-            .single();
-
-          if (!active) return;
-          setCurrentUser(profile || null);
-        } catch {
-          if (!active) return;
-          setCurrentUser(null);
-        }
       } catch {
         if (!active) return;
         setCurrentUser(null);

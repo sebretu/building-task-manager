@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { createServerSupabaseClient, createServiceSupabaseClient } from "@/lib/supabaseServer";
-import { requireRequesterProfile, isAdminRole } from "@/lib/requesterProfile";
+import { requireRequesterProfile, isAdminRole } from "@/lib/server/requesterProfile";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST" && req.method !== "GET" && req.method !== "PATCH" && req.method !== "DELETE") {

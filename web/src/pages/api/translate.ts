@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { createServerSupabaseClient } from "@/lib/supabaseServer";
-import { requireRequesterProfile } from "@/lib/requesterProfile";
+import { requireRequesterProfile } from "@/lib/server/requesterProfile";
 import { translateTexts } from "@/lib/translator";
 import type { Language } from "@/lib/translations";
 

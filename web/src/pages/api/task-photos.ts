@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { createServerSupabaseClient } from "@/lib/supabaseServer";
-import { requireRequesterProfile, isAdminRole } from "@/lib/requesterProfile";
+import { requireRequesterProfile, isAdminRole } from "@/lib/server/requesterProfile";
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin";
 
 // ✅ NEW: podnieś limit body (base64 z iPhone robi się ogromne)
@@ -133,27 +133,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     const { data, error } = await query;
 
     if (error) return supaErr(res, error);
-    // In development, rewrite public URLs that point to localhost so the
-    // browser can reach them via the developer-facing host.
-    if (process.env.NODE_ENV !== "production" && Array.isArray(data)) {
-      const devHost = process.env.DEV_SUPABASE_HOST || "188.245.42.178";
-      const devPort = process.env.DEV_SUPABASE_PORT || "54321";
-      const mapped = data.map((row: any) => {
-        try {
-          if (!row || !row.url) return row;
-          const u = new URL(row.url);
-          if (["localhost", "127.0.0.1", "0.0.0.0"].includes(u.hostname)) {
-            u.hostname = devHost;
-            u.port = devPort;
-            row.url = u.toString().replace(/\/$/, "");
-          }
-        } catch (e) {
-          // ignore parse errors
-        }
-        return row;
-      });
-      return res.status(200).json({ ok: true, data: mapped ?? [] });
-    }
+
 
     return res.status(200).json({ ok: true, data: data ?? [] });
   }
@@ -220,26 +200,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     // Choose NEXT_PUBLIC_SUPABASE_URL when available. For local dev, avoid
     // generating URLs that point at localhost/127.0.0.1 — rewrite to the
     // developer-facing host so clients can fetch the image.
-    let PUBLIC_SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "") || "http://188.245.42.178:54321";
+    let PUBLIC_SUPABASE_URL =
+      process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "");
 
-    if (process.env.NODE_ENV !== "production") {
-      const devHost = process.env.DEV_SUPABASE_HOST || "188.245.42.178";
-      const devPort = process.env.DEV_SUPABASE_PORT || undefined;
-      try {
-        const u = new URL(PUBLIC_SUPABASE_URL);
-        if (["localhost", "127.0.0.1", "0.0.0.0"].includes(u.hostname)) {
-          u.hostname = devHost;
-          if (devPort) u.port = devPort;
-          // remove trailing slash
-          PUBLIC_SUPABASE_URL = u.toString().replace(/\/$/, "");
-        }
-      } catch (e) {
-        // If URL parse fails, fallback to simple replacement
-        PUBLIC_SUPABASE_URL = PUBLIC_SUPABASE_URL.replace(/localhost|127\.0\.0\.1|0\.0\.0\.0/, devHost);
-      }
-    }
 
-    const publicUrl = `${PUBLIC_SUPABASE_URL}/storage/v1/object/public/${bucket}/${storage_path}`;
+
+    const publicUrl = PUBLIC_SUPABASE_URL ? `${PUBLIC_SUPABASE_URL}/storage/v1/object/public/${bucket}/${storage_path}` : null;
 
     if (!publicUrl) return bad(res, "Failed to create public URL");
 

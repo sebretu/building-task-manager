@@ -2,9 +2,7 @@
 const nextConfig = {
   // Allow development origins
   allowedDevOrigins: [
-    '188.245.42.178',
-    'localhost',
-    '127.0.0.1',
+    "http://192.168.178.4:3000",
   ],
 
   // Enable static export for mobile builds

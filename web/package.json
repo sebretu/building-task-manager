@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "NEXT_DISABLE_TURBOPACK=1 next dev",
+    "dev": "next dev -H 0.0.0.0 -p 3000",
     "build": "next build",
     "build:mobile": "NEXT_PUBLIC_PLATFORM=mobile next build",
     "start": "next start",
@@ -38,10 +38,10 @@
     "formidable": "^3.5.4",
     "franc-min": "^6.2.0",
     "leaflet": "^1.9.4",
-    "next": "16.1.6",
+    "next": "^16.1.6",
     "pdfjs-dist": "^5.4.624",
-    "react": "19.2.3",
-    "react-dom": "19.2.3",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
     "react-leaflet": "^5.0.0",
     "react-pdf": "^10.3.0"
   },

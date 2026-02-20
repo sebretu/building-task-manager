@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { createServerSupabaseClient, createServiceSupabaseClient } from "@/lib/supabaseServer";
-import { requireRequesterProfile, isAdminRole } from "@/lib/requesterProfile";
+import { requireRequesterProfile, isAdminRole } from "@/lib/server/requesterProfile";
 
 type ApiOk = { ok: true; data: { signedUrl: string } };
 type ApiErr = { ok: false; error: { code: string; message: string; meta?: any } };

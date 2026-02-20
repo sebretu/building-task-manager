@@ -70,7 +70,25 @@ export class MutationQueue {
         await this.saveQueue(filtered);
         console.log(`Dequeued mutation:`, mutationId);
     }
-    // ... markFailed ... (no changes relying on storage directly inside this method, it uses getQueue/saveQueue)
+    /**
+     * Mark a mutation as failed and increment retry count
+     * Returns true if should retry, false if max retries reached
+     */
+    static async markFailed(mutationId: string, error: string): Promise<boolean> {
+        const queue = await this.getQueue();
+        const mutation = queue.find((m) => m.id === mutationId);
+
+        if (!mutation) {
+            return false;
+        }
+
+        mutation.retryCount = (mutation.retryCount || 0) + 1;
+        mutation.lastError = error;
+
+        await this.saveQueue(queue);
+
+        return mutation.retryCount < this.MAX_RETRIES;
+    }
 
     /**
      * Clear the entire queue

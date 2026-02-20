@@ -1,5 +1,5 @@
 import { createServerSupabaseClient } from "@/lib/supabaseServer";
-import { requireRequesterProfile } from "@/lib/requesterProfile";
+import { requireRequesterProfile } from "@/lib/server/requesterProfile";
 import ReportsClient from "./ReportsClient";
 import UnifiedLayout from "@/components/UnifiedLayout";
 import { redirect } from "next/navigation";

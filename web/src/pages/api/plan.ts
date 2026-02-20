@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { createServerSupabaseClient } from "@/lib/supabaseServer";
-import { requireRequesterProfile, isAdminRole } from "@/lib/requesterProfile";
+import { requireRequesterProfile, isAdminRole } from "@/lib/server/requesterProfile";
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin";
 
 type ApiOk = { ok: true; data: any };

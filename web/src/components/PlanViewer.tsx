@@ -173,22 +173,12 @@ export default function PlanViewer({
       if (!alive) return;
 
       if (session?.user?.id) {
-        try {
-          // Optimization: if we already have the profile for this user, don't re-fetch
-          if (viewerProfile?.id === session.user.id) return;
+        const token = session.access_token;
+        const r = await fetch("/api/me", { headers: { Authorization: `Bearer ${token}` } });
+        if (!r.ok) { setViewerProfile(null); return; }
+        const j = await r.json();
+        setViewerProfile(j.profile || null);
 
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("id, role")
-            .eq("id", session.user.id)
-            .single();
-
-          if (!alive) return;
-          setViewerProfile(profile || null);
-        } catch {
-          if (!alive) return;
-          setViewerProfile(null);
-        }
       } else {
         setViewerProfile(null);
       }

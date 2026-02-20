@@ -75,15 +75,7 @@ function statusBadge(status?: string) {
   return <span style={common}>{s}</span>;
 }
 
-// ✅ FIX: podmień dowolny "http://<host>:54321" na "{proto}//{hostname}:54321"
-function fixStorageUrl(u: string) {
-  if (!u) return u;
-  if (typeof window === "undefined") return u;
 
-  const host = window.location.hostname;
-  const proto = window.location.protocol; // "http:" albo "https:"
-  return u.replace(/^http:\/\/[^/]+:54321/i, `${proto}//${host}:54321`);
-}
 
 export default function PlanMap({
   planId,
@@ -187,12 +179,10 @@ export default function PlanMap({
   async function loadThumb(taskId: string, phase: "BEFORE" | "AFTER") {
     const key = `${taskId}:${phase}`;
     try {
-      const photos = await apiGet<TaskPhotoRow[]>(
-        `/api/task-photos?taskId=${encodeURIComponent(taskId)}&phase=${phase}&limit=1`
-      );
-      const raw: string | null = photos && photos.length > 0 ? photos[0].url : null;
-      const fixed = raw ? fixStorageUrl(raw) : null;
-      setThumbByTask((p) => ({ ...p, [key]: fixed }));
+      const res = await apiGet<{ ok: boolean; data: TaskPhotoRow[] }>(`/api/task-photos?taskId=${encodeURIComponent(taskId)}&phase=${phase}&limit=1`);
+      const photos = res?.data ?? [];
+      const raw: string | null = photos.length > 0 ? (photos[0].url ?? null) : null;
+      setThumbByTask((p) => ({ ...p, [key]: raw }));
     } catch {
       setThumbByTask((p) => ({ ...p, [key]: null }));
     }

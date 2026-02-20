@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { createServerSupabaseClient } from "@/lib/supabaseServer";
-import { requireRequesterProfile, isAdminRole } from "@/lib/requesterProfile";
+import { requireRequesterProfile, isAdminRole } from "@/lib/server/requesterProfile";
 
 export const config = {
   api: {

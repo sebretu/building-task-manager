@@ -3,7 +3,7 @@ import fs from "fs/promises";
 import path from "path";
 import { createServerSupabaseClient } from "@/lib/supabaseServer";
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin";
-import { requireRequesterProfile, isAdminRole } from "@/lib/requesterProfile";
+import { requireRequesterProfile, isAdminRole } from "@/lib/server/requesterProfile";
 
 type ApiOk = { ok: true; data: any };
 type ApiErr = { ok: false; error: { code: string; message: string; meta?: any } };
