@@ -5,6 +5,7 @@ import { LanguageProvider } from "@/contexts/LanguageContext";
 import UnifiedLayoutClient from "@/components/UnifiedLayoutClient";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { NotificationBar } from "@/components/NotificationBar";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -52,13 +53,15 @@ export default function RootLayout({
         <link rel="icon" href="/favicon.ico" />
         <link rel="apple-touch-icon" href="/icon-192x192.png" />
       </head>
-      <body className={`${geistSans.variable} ${geistMono.variable}`}>
-        <LanguageProvider>
-          <NotificationProvider>
-            <NotificationBar />
-            <UnifiedLayoutClient>{children}</UnifiedLayoutClient>
-          </NotificationProvider>
-        </LanguageProvider>
+      <body className={`${geistSans.variable} ${geistMono.variable} transition-colors`}>
+        <ThemeProvider attribute="data-theme" defaultTheme="dark-blue" enableSystem={false}>
+          <LanguageProvider>
+            <NotificationProvider>
+              <NotificationBar />
+              <UnifiedLayoutClient>{children}</UnifiedLayoutClient>
+            </NotificationProvider>
+          </LanguageProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

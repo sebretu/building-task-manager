@@ -5,6 +5,7 @@ import Link from "next/link";
 import styles from "./UnifiedLayout.module.css";
 import { usePathname } from "next/navigation";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LogoutButton } from "@/components/LogoutButton";
 
@@ -265,11 +266,19 @@ export default function UnifiedLayout({ children }: { children: React.ReactNode 
             })}
           </div>
           <div className={styles.navStripControls}>
+            <button
+              className={styles.navUpload}
+              onClick={() => window.dispatchEvent(new CustomEvent("open-new-task"))}
+              style={{ cursor: "pointer", border: "1px solid rgba(15,23,42,0.15)" }}
+            >
+              + {t("home", "createNewTask", "Neue Aufgabe")}
+            </button>
             {isAdmin && (
               <Link href="/plans/upload" className={styles.navUpload}>
                 Upload plan
               </Link>
             )}
+            <ThemeSwitcher />
             <LanguageSwitcher />
             <LogoutButton className={styles.navLogout} />
           </div>

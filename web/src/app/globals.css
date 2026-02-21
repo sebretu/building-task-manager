@@ -1,4 +1,101 @@
+@import "tailwindcss";
+
 @import url("https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700;800&display=swap");
+
+@theme {
+  --color-ui-bg: var(--ui-bg);
+  --color-ui-text: var(--ui-text);
+  --color-ui-muted: var(--ui-muted);
+  --color-ui-accent: var(--ui-accent);
+  --color-ui-glow-1: var(--ui-glow-1);
+  --color-ui-glow-2: var(--ui-glow-2);
+  --color-ui-nav-bg: var(--ui-nav-bg);
+  --color-ui-nav-border: var(--ui-nav-border);
+  --color-home-accent: var(--home-accent);
+  --color-home-ink: var(--home-ink);
+  --color-home-muted: var(--home-muted);
+  --color-home-line: var(--home-line);
+  --color-home-card: var(--home-card);
+  --color-home-soft: var(--home-soft);
+}
+
+/* ========== COLOUR THEMES ========== */
+/* ── Dark Blue (default) ─────────────────────────── */
+[data-theme="dark-blue"] {
+  --ui-bg: #94a3b8;
+  --home-card: #dde3ed;
+  /* light blue-gray tint */
+  --home-soft: #f1f4f8;
+  /* near-white for task cards */
+}
+
+/* ── Dark Green ──────────────────────────────────── */
+[data-theme="dark-green"] {
+  --ui-bg: #4ade80;
+  --home-card: #d1fae5;
+  /* light green tint */
+  --home-soft: #f0fdf4;
+  /* near-white green for task cards */
+}
+
+/* ── Dark Purple ─────────────────────────────────── */
+[data-theme="dark-purple"] {
+  --ui-bg: #c084fc;
+  --home-card: #ede9fe;
+  /* light purple tint */
+  --home-soft: #f5f3ff;
+  /* near-white purple for task cards */
+}
+
+/* ── Ocean (Cyan) ────────────────────────────────── */
+[data-theme="ocean"] {
+  --ui-bg: #22d3ee;
+  --home-card: #cffafe;
+  /* light cyan tint */
+  --home-soft: #ecfeff;
+  /* near-white cyan for task cards */
+}
+
+/* ── Light ───────────────────────────────────────── */
+[data-theme="light"] {
+  --ui-bg: #cbd5e1;
+  --home-card: #e8ecf1;
+  /* light slate tint */
+  --home-soft: #f8fafc;
+  /* near-white for task cards */
+}
+
+/* ── Midnight ───────────────────────────────────── */
+[data-theme="midnight"] {
+  --ui-bg: #475569;
+  --home-card: #b2bfcf;
+  /* medium slate panel */
+  --home-soft: #dde3ec;
+  /* lighter slate for task cards */
+}
+
+/* ── Red Alert ───────────────────────────────────── */
+[data-theme="red-alert"] {
+  --ui-bg: #f87171;
+  --home-card: #fee2e2;
+  /* light red tint */
+  --home-soft: #fff1f1;
+  /* near-white red for task cards */
+}
+
+/* ── Amber ──────────────────────────────────────── */
+[data-theme="amber"] {
+  --ui-bg: #fbbf24;
+  --home-card: #fde68a;
+  /* light amber tint */
+  --home-soft: #fef9e3;
+  /* near-white amber for task cards */
+}
+
+html {
+  background: var(--ui-bg, #f6f8fb);
+  color: var(--ui-text, #0f172a);
+}
 
 :root {
   --primary: #111318;
@@ -72,6 +169,15 @@ a:focus {
   outline: none;
 }
 
+a.task-card:hover,
+a.task-card:focus {
+  background: var(--ui-bg);
+  color: var(--home-ink);
+  box-shadow: 0 25px 45px -10px rgba(0, 0, 0, 0.15);
+  border-color: var(--ui-bg);
+  outline: none;
+}
+
 @media (prefers-color-scheme: dark) {
   html {
     color-scheme: dark;
@@ -85,12 +191,6 @@ a:focus {
 :root {
   --page-max-width: 1240px;
   --page-gutter: clamp(20px, 6vw, 120px);
-  --home-ink: #111827;
-  --home-muted: #64748b;
-  --home-accent: #2F6BFF;
-  --home-line: #e2e8f0;
-  --home-card: #ffffff;
-  --home-soft: #f1f5f9;
 }
 
 .home-hero {
@@ -456,11 +556,21 @@ a:focus {
 
 .home-control-card {
   background: var(--home-card);
-  border: 1px solid var(--home-line);
-  border-radius: 16px;
-  padding: 16px;
+  border: 1.5px solid var(--home-line);
+  border-bottom-width: 6px;
+  border-radius: 20px;
+  padding: 24px;
   display: grid;
   gap: 12px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  transform: translateY(0);
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+
+.home-control-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 25px 30px -5px rgba(0, 0, 0, 0.15), 0 15px 15px -5px rgba(0, 0, 0, 0.08);
+  border-color: var(--ui-bg);
 }
 
 .home-card-title {
@@ -509,11 +619,15 @@ a:focus {
 
 .home-task-panel {
   background: var(--home-card);
-  border: 1px solid var(--home-line);
-  border-radius: 18px;
-  padding: 20px;
+  border: 1.5px solid var(--home-line);
+  border-bottom-width: 8px;
+  border-radius: 24px;
+  padding: 32px;
   display: grid;
-  gap: 16px;
+  gap: 20px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+  transform: translateY(0);
+  transition: box-shadow 0.2s, border-color 0.2s;
 }
 
 .home-filters {
@@ -525,17 +639,23 @@ a:focus {
 .home-filters label {
   display: grid;
   gap: 6px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
-  color: var(--home-muted);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--home-ink);
 }
 
 .home-filters input,
 .home-filters select {
-  padding: 8px 10px;
-  border-radius: 10px;
-  border: 1px solid var(--home-line);
-  font-size: 13px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1.5px solid var(--home-line);
+  font-size: 14px;
+  font-weight: 500;
+  background: var(--home-soft);
+  color: var(--home-ink);
+  width: 100%;
 }
 
 .home-status-filter {
@@ -630,19 +750,22 @@ a:focus {
   gap: 32px;
   padding: 48px;
   border-radius: 36px;
-  border: 1px solid var(--home-line);
-  background: linear-gradient(135deg, rgba(47, 107, 255, 0.12), rgba(255, 255, 255, 0.85));
-  box-shadow: 0 35px 90px rgba(47, 107, 255, 0.18);
+  border: 1.5px solid var(--home-line);
+  border-bottom-width: 8px;
+  background: var(--home-soft);
+  color: var(--home-ink);
+  box-shadow: 0 15px 35px -10px rgba(0, 0, 0, 0.1);
   isolation: isolate;
   min-height: 420px;
-  transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
+  transform: translateY(0);
+  transition: transform 0.2s, box-shadow 0.2s, background 0.2s, border-color 0.2s;
 }
 
 .task-card:hover {
-  background: #fff;
   transform: translateY(-4px);
-  box-shadow: 0 40px 100px rgba(47, 107, 255, 0.22);
-  color: inherit;
+  box-shadow: 0 25px 45px -10px rgba(0, 0, 0, 0.15);
+  border-color: var(--ui-bg);
+  color: var(--home-ink);
   outline: none;
 }
 
@@ -904,6 +1027,18 @@ a:focus {
   transform: translateY(-2px);
   box-shadow: 0 12px 30px rgba(47, 107, 255, 0.25);
 }
+
+.task-card__media img,
+.task-card__map img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
 
 @media (max-width: 1400px) {
   .tasks-grid {
@@ -1554,14 +1689,14 @@ a:focus {
    =========================== */
 
 body.dark {
-  --home-ink:    #e8edf5;
-  --home-muted:  #8b99b5;
+  --home-ink: #e8edf5;
+  --home-muted: #8b99b5;
   --home-accent: #4d84ff;
-  --home-line:   #2a2f3d;
-  --home-card:   #1a1f2e;
-  --home-soft:   #141824;
-  background:    #0f1117;
-  color:         #e8edf5;
+  --home-line: #2a2f3d;
+  --home-card: #1a1f2e;
+  --home-soft: #141824;
+  background: #0f1117;
+  color: #e8edf5;
 }
 
 body.dark .home-hero {

@@ -127,23 +127,7 @@ export default function Home() {
   const [projectId, setProjectId] = useState("");
   const [tasks, setTasks] = useState<Task[]>([]);
   const [thumbByTask, setThumbByTask] = useState<Record<string, TaskThumb>>({});
-  const [isDark, setIsDark] = useState(false);
 
-  // Załaduj preferencję z localStorage
-  useEffect(() => {
-    const saved = localStorage.getItem("theme");
-    if (saved === "dark") {
-      setIsDark(true);
-      document.body.classList.add("dark");
-    }
-  }, []);
-
-  const toggleTheme = () => {
-    const next = !isDark;
-    setIsDark(next);
-    document.body.classList.toggle("dark", next);
-    localStorage.setItem("theme", next ? "dark" : "light");
-  };
   const [metaByPlan, setMetaByPlan] = useState<Record<string, PlanMeta | null>>({});
   const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
   const [q, setQ] = useState("");
@@ -525,9 +509,16 @@ export default function Home() {
     }
     window.addEventListener("task-created", onTaskCreated as EventListener);
 
+    // Listen for nav bar button to open create task modal
+    function onOpenNewTask() {
+      openNewTaskModal();
+    }
+    window.addEventListener("open-new-task", onOpenNewTask as EventListener);
+
     return () => {
       window.removeEventListener("task-photo-added", handlePhotoAdded as EventListener);
       window.removeEventListener("task-created", onTaskCreated as EventListener);
+      window.removeEventListener("open-new-task", onOpenNewTask as EventListener);
     };
   }, [loadThumb]);
 
@@ -590,78 +581,7 @@ export default function Home() {
     <>
       <PWAInstallBanner />
 
-      {/* Przycisk dark/light mode */}
-      <button
-        className="theme-toggle"
-        onClick={toggleTheme}
-        title={isDark ? "Tryb jasny" : "Tryb ciemny"}
-        aria-label="Przełącz motyw"
-      >
-        {isDark ? "☀️" : "🌙"}
-      </button>
-
       <main className="home-main">
-        <section className="home-control">
-          <div className="home-control-card">
-            <div className="home-card-title">{t("home", "notifications")}</div>
-            <div className="home-toggle-row">
-              <label className="home-toggle">
-                <input
-                  type="checkbox"
-                  checked={notificationSettings.notify_on_create}
-                  onChange={(e) => {
-                    const next = { ...notificationSettings, notify_on_create: e.target.checked };
-                    setNotificationSettings(next);
-                    saveNotificationSettings(next).catch(() => { });
-                  }}
-                />
-                {t("home", "notifyOnCreate")}
-              </label>
-              <label className="home-toggle">
-                <input
-                  type="checkbox"
-                  checked={notificationSettings.notify_on_status}
-                  onChange={(e) => {
-                    const next = { ...notificationSettings, notify_on_status: e.target.checked };
-                    setNotificationSettings(next);
-                    saveNotificationSettings(next).catch(() => { });
-                  }}
-                />
-                {t("home", "notifyOnStatus")}
-              </label>
-              <label className="home-toggle">
-                <input
-                  type="checkbox"
-                  checked={notificationSettings.notify_on_assign}
-                  onChange={(e) => {
-                    const next = { ...notificationSettings, notify_on_assign: e.target.checked };
-                    setNotificationSettings(next);
-                    saveNotificationSettings(next).catch(() => { });
-                  }}
-                />
-                {t("home", "notifyOnAssign")}
-              </label>
-              {settingsSaving && <span className="home-card-note">{t("home", "savingSettings")}</span>}
-              {settingsError && <span className="home-card-error">{settingsError}</span>}
-            </div>
-          </div>
-          <div className="home-control-card" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <button
-              onClick={openNewTaskModal}
-              className="hero-btn"
-            >
-              <span className="hero-icon">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                  <path d="M12 2L4 5V11C4 16 7.5 20.5 12 22C16.5 20.5 20 16 20 11V5L12 2Z"
-                    stroke="white" strokeWidth="2" />
-                  <path d="M8 12L11 15L16 9"
-                    stroke="white" strokeWidth="2" strokeLinecap="round" />
-                </svg>
-              </span>
-              {t("home", "createNewTask", "Create new task")}
-            </button>
-          </div>
-        </section>
 
         {/* Offline Sync Indicator */}
         <PendingSyncIndicator />
@@ -1127,6 +1047,53 @@ export default function Home() {
           currentUserId={user?.id}
           currentUserRole={user?.role}
         />
+
+        {/* Notifications panel at bottom */}
+        <section className="home-control" style={{ marginTop: 16 }}>
+          <div className="home-control-card">
+            <div className="home-card-title">{t("home", "notifications")}</div>
+            <div className="home-toggle-row">
+              <label className="home-toggle">
+                <input
+                  type="checkbox"
+                  checked={notificationSettings.notify_on_create}
+                  onChange={(e) => {
+                    const next = { ...notificationSettings, notify_on_create: e.target.checked };
+                    setNotificationSettings(next);
+                    saveNotificationSettings(next).catch(() => { });
+                  }}
+                />
+                {t("home", "notifyOnCreate")}
+              </label>
+              <label className="home-toggle">
+                <input
+                  type="checkbox"
+                  checked={notificationSettings.notify_on_status}
+                  onChange={(e) => {
+                    const next = { ...notificationSettings, notify_on_status: e.target.checked };
+                    setNotificationSettings(next);
+                    saveNotificationSettings(next).catch(() => { });
+                  }}
+                />
+                {t("home", "notifyOnStatus")}
+              </label>
+              <label className="home-toggle">
+                <input
+                  type="checkbox"
+                  checked={notificationSettings.notify_on_assign}
+                  onChange={(e) => {
+                    const next = { ...notificationSettings, notify_on_assign: e.target.checked };
+                    setNotificationSettings(next);
+                    saveNotificationSettings(next).catch(() => { });
+                  }}
+                />
+                {t("home", "notifyOnAssign")}
+              </label>
+              {settingsSaving && <span className="home-card-note">{t("home", "savingSettings")}</span>}
+              {settingsError && <span className="home-card-error">{settingsError}</span>}
+            </div>
+          </div>
+        </section>
       </main>
     </>
   );
