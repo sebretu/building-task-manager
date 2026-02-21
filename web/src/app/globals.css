@@ -1548,3 +1548,111 @@ a:focus {
   display: flex;
   align-items: center;
 }
+
+/* ===========================
+   DARK MODE
+   =========================== */
+
+body.dark {
+  --home-ink:    #e8edf5;
+  --home-muted:  #8b99b5;
+  --home-accent: #4d84ff;
+  --home-line:   #2a2f3d;
+  --home-card:   #1a1f2e;
+  --home-soft:   #141824;
+  background:    #0f1117;
+  color:         #e8edf5;
+}
+
+body.dark .home-hero {
+  background: linear-gradient(135deg, #13192a 0%, #1a2240 50%, #131928 100%);
+  border-bottom-color: var(--home-line);
+}
+
+body.dark .home-task-panel,
+body.dark .home-control-card {
+  background: var(--home-card);
+  border-color: var(--home-line);
+}
+
+body.dark .home-filters input,
+body.dark .home-filters select {
+  background: #1a1f2e;
+  border-color: var(--home-line);
+  color: var(--home-ink);
+}
+
+body.dark .home-pill,
+body.dark .home-toggle,
+body.dark .home-pagination button {
+  background: #1a1f2e;
+  border-color: var(--home-line);
+  color: var(--home-ink);
+}
+
+body.dark .home-pill.active,
+body.dark .home-toggle.active,
+body.dark .home-toggle:hover {
+  background: var(--home-accent);
+  color: #fff;
+  border-color: var(--home-accent);
+}
+
+body.dark .task-card {
+  background: linear-gradient(135deg, rgba(77, 132, 255, 0.08), rgba(26, 31, 46, 0.95));
+  border-color: var(--home-line);
+}
+
+body.dark .task-card:hover {
+  background: #1e2438;
+}
+
+body.dark .task-card__pill {
+  background: #1a1f2e;
+  border-color: var(--home-line);
+  color: var(--home-ink);
+}
+
+body.dark .task-card__media-placeholder,
+body.dark .task-card__map-placeholder {
+  background: #151a27;
+  border-color: rgba(77, 132, 255, 0.2);
+  color: var(--home-muted);
+}
+
+body.dark .hero-btn {
+  background: linear-gradient(135deg, #1d3b7a 0%, #2a52a8 50%, #1d3b7a 100%);
+}
+
+/* === THEME TOGGLE BUTTON === */
+
+.theme-toggle {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  background: var(--home-card, #ffffff);
+  border: 2px solid var(--home-line, #e2e8f0);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  transition: transform 0.2s, box-shadow 0.2s, background 0.3s;
+}
+
+.theme-toggle:hover {
+  transform: scale(1.1);
+  box-shadow: 0 8px 28px rgba(47, 107, 255, 0.25);
+}
+
+body.dark .theme-toggle {
+  background: #1a1f2e;
+  border-color: #2a2f3d;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}

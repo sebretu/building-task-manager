@@ -127,6 +127,23 @@ export default function Home() {
   const [projectId, setProjectId] = useState("");
   const [tasks, setTasks] = useState<Task[]>([]);
   const [thumbByTask, setThumbByTask] = useState<Record<string, TaskThumb>>({});
+  const [isDark, setIsDark] = useState(false);
+
+  // Załaduj preferencję z localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem("theme");
+    if (saved === "dark") {
+      setIsDark(true);
+      document.body.classList.add("dark");
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const next = !isDark;
+    setIsDark(next);
+    document.body.classList.toggle("dark", next);
+    localStorage.setItem("theme", next ? "dark" : "light");
+  };
   const [metaByPlan, setMetaByPlan] = useState<Record<string, PlanMeta | null>>({});
   const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
   const [q, setQ] = useState("");
@@ -572,6 +589,16 @@ export default function Home() {
   return (
     <>
       <PWAInstallBanner />
+
+      {/* Przycisk dark/light mode */}
+      <button
+        className="theme-toggle"
+        onClick={toggleTheme}
+        title={isDark ? "Tryb jasny" : "Tryb ciemny"}
+        aria-label="Przełącz motyw"
+      >
+        {isDark ? "☀️" : "🌙"}
+      </button>
 
       <main className="home-main">
         <section className="home-control">
