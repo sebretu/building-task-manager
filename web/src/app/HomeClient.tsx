@@ -906,10 +906,11 @@ export default function Home() {
               justifyContent: "center",
               backdropFilter: "blur(4px)",
             }}
-            onClick={closeNewTaskModal}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) closeNewTaskModal();
+            }}
           >
             <div
-              onClick={(e) => e.stopPropagation()}
               style={{
                 background: "#fff",
                 borderRadius: 24,

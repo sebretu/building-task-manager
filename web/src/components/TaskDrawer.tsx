@@ -213,7 +213,9 @@ export default function TaskDrawer({
           const planData = await apiGet<PlanRow>(`/api/plan?id=${encodeURIComponent(taskData.plan_id)}`);
           setPlan(planData);
         } catch (e) {
-          console.log("Could not load plan:", e);
+        const [plan, setPlan] = useState<PlanRow | null>(null);
+        const [plans, setPlans] = useState<PlanRow[]>([]);
+        const [plansLoaded, setPlansLoaded] = useState(false);
         }
       }
 

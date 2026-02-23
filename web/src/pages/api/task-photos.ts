@@ -238,12 +238,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     });
 
     if (uploadResult.error) {
-      // Sprzątanie: usuń rekord z DB żeby nie zostało martwe
-      await (adminForInsert as any)
-        .from("task_photos")
-        .delete()
-        .eq("id", inserted.data?.id)
-        .catch(() => undefined);
+      try {
+        await (adminForInsert as any)
+          .from("task_photos")
+          .delete()
+          .eq("id", inserted.data?.id);
+      } catch (e) { }
       return supaErr(res, uploadResult.error);
     }
 
