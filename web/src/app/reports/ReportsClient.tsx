@@ -1,3 +1,4 @@
+    const [selectedUserId, setSelectedUserId] = useState<string>("");
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
@@ -62,29 +63,28 @@ const urlToBase64 = async (url: string, token?: string | null): Promise<string |
         const headers: RequestInit = {};
 
         // Use Bearer token if provided, otherwise rely on public access (for external photos)
-        if (token) {
-                        // Batch fetch all photos for filtered tasks
-                        const phases = [];
-                        if (photoMode === "BEFORE" || photoMode === "BOTH") phases.push("BEFORE");
-                        if (photoMode === "AFTER" || photoMode === "BOTH") phases.push("AFTER");
-                        const params = qs.stringify({
-                            taskIds: filtered.map((t) => t.id),
-                            phases,
-                            limit: 1,
-                        }, { arrayFormat: "repeat" });
-                        const allPhotos = await apiGet<any[]>(`/api/task-photos/batch?${params}`);
-                        const photoMap: Record<string, Record<string, any>> = {};
-                        for (const p of allPhotos) {
-                            if (!photoMap[p.id]) photoMap[p.id] = {};
-                            photoMap[p.id][p.photo_type || "BEFORE"] = p;
+                    if (!res.ok) {
+                        let err = {};
+                        try { err = await res.json(); } catch {}
+                        console.error("[Reports] Save failed:", err);
+                        alert("Failed to save report to archive: " + (err.error || res.status));
+                    } else {
+                        console.log("[Reports] Report saved successfully");
+                        fetchSavedReports();
+                        // iOS/Safari: tylko link do pobrania, bez automatycznego otwierania
+                        if (isIOS || isSafari) {
+                            setStatusMessage(`Raport zapisany. <br /><a href=\"/api/reports/${encodeURIComponent(filename)}\" target=\"_blank\" rel=\"noopener\" style=\"color:blue;text-decoration:underline;font-size:18px\">Kliknij tutaj, aby pobrać PDF</a>`);
+                        } else {
+                            const url = URL.createObjectURL(blob);
+                            const link = document.createElement('a');
+                            link.href = url;
+                            link.download = filename;
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            URL.revokeObjectURL(url);
                         }
-                        const enrichedTasks = await Promise.all(filtered.map(async (task) => {
-                            try {
-                                let beforePhoto = null;
-                                let afterPhoto = null;
-                                if (photoMode === "BEFORE" || photoMode === "BOTH") {
-                                    const before = photoMap[task.id]?.BEFORE;
-                                    if (before && before.url) beforePhoto = await urlToBase64(before.url, null);
+                    }
                                 }
                                 if (photoMode === "AFTER" || photoMode === "BOTH") {
                                     const after = photoMap[task.id]?.AFTER;
@@ -257,23 +257,7 @@ export default function ReportsClient() {
         }
     };
 
-    const [users, setUsers] = useState<any[]>([]);
-
-    // Load Projects & Users
-    useEffect(() => {
-        // Load Projects
-        apiGet<Project[]>("/api/projects").then((data) => {
-            setProjects(data || []);
-            if (data && data.length > 0) {
-                setSelectedProjectId(data[0].id);
-            }
-        }).catch(err => console.error("Failed to load projects", err));
-
-        // Load Users (for assignee names)
-        apiGet<any[]>("/api/users").then((data) => {
-            setUsers(data || []);
-        }).catch(err => console.error("Failed to load users", err));
-    }, []);
+    // Usuwamy ładowanie users z API
 
     // Load Plans, Buildings, Floors when Project changes
     useEffect(() => {
@@ -333,6 +317,10 @@ export default function ReportsClient() {
             if (dateFrom) query.append("due_from", dateFrom);
             if (dateTo) query.append("due_to", dateTo);
 
+            // Dodaj filtr assigned_user_id jeśli wybrany
+            if (selectedUserId) query.append("assigned_user_id", selectedUserId);
+
+
             let allTasks: any[] = [];
             let offset = 0;
             const limit = 200;
@@ -351,6 +339,18 @@ export default function ReportsClient() {
                     offset += limit;
                 }
             }
+
+            // Wyciągnij unikalnych użytkowników przypisanych do tasków
+            const userIdSet = new Set<string>();
+            const userIdToName: Record<string, string> = {};
+            allTasks.forEach(t => {
+                if (t.assigned_user_id) {
+                    userIdSet.add(t.assigned_user_id);
+                    if (t.assigneeName) userIdToName[t.assigned_user_id] = t.assigneeName;
+                    else if (t.assigned_user_name) userIdToName[t.assigned_user_id] = t.assigned_user_name;
+                }
+            });
+            const assignedUsers = Array.from(userIdSet).map(id => ({ id, name: userIdToName[id] || id }));
 
             // Filter by selected plans and statuses
             const filtered = allTasks.filter(t =>
@@ -612,54 +612,96 @@ export default function ReportsClient() {
                 />
             ).toBlob();
 
-            // Trigger Download
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-
             // Construct filename: [CustomName OR raport]_[Date]_[Timestamp].pdf
-            // Sanitization happens here for the download, and also on server for save
             const safeCustomName = customFileName.trim().replace(/[^a-zA-Z0-9\s._-]+/g, "").replace(/\s+/g, "_");
             const prefix = safeCustomName || "raport";
             const filename = `${prefix}_${new Date().toISOString().slice(0, 10)}_${Date.now()}.pdf`;
 
-            link.href = url;
-            link.download = filename;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-
-            // Auto-Save to Server
+            // Najpierw auto-zapis na serwerze, potem pobranie/otwarcie PDF
             setStatusMessage("Archiwizacja raportu...");
+            console.log("[Reports][DEBUG] Start FileReader for auto-save", { filename, blob });
             const reader = new FileReader();
             reader.readAsDataURL(blob);
             reader.onloadend = async () => {
                 try {
-                    const base64data = reader.result as string;
-                    // strip prefix
-                    const b64 = base64data.includes("base64,") ? base64data.split('base64,')[1] : base64data;
-
-                    console.log("[Reports] Saving report to server:", filename);
-                    const res = await fetch("/api/reports", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            filename: filename,
-                            base64: b64
-                        })
-                    });
-
+                    const isIOS = typeof window !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
+                    const isSafari = typeof window !== 'undefined' && /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+                    let res;
+                    if (isIOS || isSafari) {
+                        // Wysyłka przez FormData (plik, nie base64)
+                        const formData = new FormData();
+                        formData.append('file', blob, filename);
+                        formData.append('filename', filename);
+                        try {
+                            res = await fetch("/api/reports", {
+                                method: "POST",
+                                body: formData
+                            });
+                        } catch (fetchErr) {
+                            console.error("[Reports][DEBUG] Fetch error (FormData):", fetchErr);
+                            alert("Błąd sieci lub fetch podczas zapisu raportu (FormData): " + (fetchErr instanceof Error ? fetchErr.message : fetchErr));
+                            return;
+                        }
+                        console.log("[Reports][DEBUG] POST /api/reports (FormData) response", { status: res.status, ok: res.ok });
+                    } else {
+                        // PC: base64 jak dotychczas
+                        const base64data = reader.result as string;
+                        // strip prefix
+                        const b64 = base64data.includes("base64,") ? base64data.split('base64,')[1] : base64data;
+                        const b64Length = b64.length;
+                        console.log("[Reports][DEBUG] FileReader finished", { resultPreview: base64data.slice(0, 100), b64Length });
+                        console.log("[Reports][DEBUG] Ready to POST /api/reports", { filename, b64Preview: b64.slice(0, 100), b64Length });
+                        try {
+                            res = await fetch("/api/reports", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                    filename: filename,
+                                    base64: b64
+                                })
+                            });
+                        } catch (fetchErr) {
+                            console.error("[Reports][DEBUG] Fetch error:", fetchErr);
+                            alert("Błąd sieci lub fetch podczas zapisu raportu: " + (fetchErr instanceof Error ? fetchErr.message : fetchErr));
+                            return;
+                        }
+                        console.log("[Reports][DEBUG] POST /api/reports response", { status: res.status, ok: res.ok });
+                    }
                     if (!res.ok) {
-                        const err = await res.json();
+                        let err = {};
+                        try { err = await res.json(); } catch {}
                         console.error("[Reports] Save failed:", err);
-                        alert("Failed to save report to archive: " + err.error);
+                        alert("Failed to save report to archive: " + (err.error || res.status));
                     } else {
                         console.log("[Reports] Report saved successfully");
                         fetchSavedReports();
+                        // Teraz pobierz/otwórz PDF
+                        if (isIOS || isSafari) {
+                            // Wyświetl link do pobrania PDF z serwera
+                            setStatusMessage(`Raport zapisany. <a href="/api/reports/${encodeURIComponent(filename)}" target="_blank" rel="noopener" style="color:blue;text-decoration:underline">Kliknij tutaj, aby pobrać PDF</a>`);
+                        } else {
+                            const url = URL.createObjectURL(blob);
+                            const link = document.createElement('a');
+                            link.href = url;
+                            link.download = filename;
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            URL.revokeObjectURL(url);
+                        }
                     }
                 } catch (e) {
-                    console.error("[Reports] Save error:", e);
+                    if (e instanceof TypeError) {
+                        console.error("[Reports] Save error: TypeError", e);
+                        alert("Błąd przeglądarki podczas zapisu raportu (TypeError). Możliwe ograniczenie rozmiaru lub problem z FileReader/fetch na tym urządzeniu/przeglądarce.");
+                    } else {
+                        console.error("[Reports] Save error:", e);
+                        alert("Nieznany błąd podczas zapisu raportu: " + (e instanceof Error ? e.message : e));
+                    }
                 }
+            };
+            reader.onerror = (e) => {
+                console.error("[Reports][DEBUG] FileReader error", e);
             };
 
         } catch (e) {
@@ -687,6 +729,10 @@ export default function ReportsClient() {
 
                     {/* GENERATION CARD */}
                     <div className="upload-card">
+                        {/* Status Message (HTML for iOS download link) */}
+                        {statusMessage && statusMessage.includes('<a ') && (
+                            <div className="p-3 bg-blue-50 rounded text-blue-800 mb-4" style={{fontSize: '16px'}} dangerouslySetInnerHTML={{ __html: statusMessage }} />
+                        )}
 
                         {/* Project Selector */}
                         <div className="upload-section">
@@ -706,7 +752,27 @@ export default function ReportsClient() {
                             </div>
                         </div>
 
-                        {/* Custom Filename */}
+                        {/* User Selector (zawsze widoczny) */}
+                        <div className="upload-section">
+                            <div className="upload-section-header">
+                                <span className="upload-section-title">{t("reports", "assignedUser", "Przypisany użytkownik")}</span>
+                            </div>
+                            <div className="upload-field">
+                                <select
+                                    className="upload-select"
+                                    value={selectedUserId}
+                                    onChange={(e) => setSelectedUserId(e.target.value)}
+                                >
+                                    <option value="">{t("reports", "allUsers", "Wszyscy użytkownicy")}</option>
+                                    {assignedUsers.map(u => (
+                                        <option key={u.id} value={u.id}>{u.name}</option>
+                                    ))}
+                                </select>
+                                {assignedUsers.length === 0 && (
+                                    <div className="text-xs text-gray-500 mt-1">Brak przypisanych użytkowników w zadaniach</div>
+                                )}
+                            </div>
+                        </div>
                         <div className="upload-section">
                             <div className="upload-section-header">
                                 <span className="upload-section-title">{t("reports", "reportNameLabel") || "Fileneme"}</span>

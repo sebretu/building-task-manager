@@ -37,22 +37,55 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
     try {
-        const body = await req.json();
-        const { filename, base64 } = body;
-
-        if (!filename || !base64) {
-            return NextResponse.json({ ok: false, error: "Missing filename or base64" }, { status: 400 });
+        const contentType = req.headers.get('content-type') || '';
+        if (contentType.startsWith('multipart/form-data')) {
+            // --- Handle FormData (file upload) ---
+            // Parse multipart (no native support in Next.js API routes, so use workaround)
+            // Read raw body
+            const boundaryMatch = contentType.match(/boundary=(.*)$/);
+            if (!boundaryMatch) {
+                return NextResponse.json({ ok: false, error: "Missing boundary in multipart/form-data" }, { status: 400 });
+            }
+            const boundary = boundaryMatch[1];
+            const raw = Buffer.from(await req.arrayBuffer());
+            // Minimal multipart parser (only for single file and filename field)
+            const parts = raw.toString().split(`--${boundary}`);
+            let fileBuffer = null;
+            let filename = null;
+            for (const part of parts) {
+                if (part.includes('Content-Disposition: form-data;') && part.includes('filename=')) {
+                    // File part
+                    const match = part.match(/filename="([^"]+)"/);
+                    if (match) filename = match[1];
+                    const fileStart = part.indexOf('\r\n\r\n');
+                    if (fileStart !== -1) {
+                        fileBuffer = Buffer.from(part.slice(fileStart + 4, part.lastIndexOf('\r\n')));
+                    }
+                }
+            }
+            if (!filename || !fileBuffer) {
+                return NextResponse.json({ ok: false, error: "Missing file or filename in multipart" }, { status: 400 });
+            }
+            // Basic sanitization
+            const safeName = filename.replace(/[^a-zA-Z0-9._-]+/g, "_");
+            const filePath = path.join(REPORTS_DIR, safeName);
+            fs.writeFileSync(filePath, fileBuffer);
+            return NextResponse.json({ ok: true, message: "Saved (FormData)" });
+        } else {
+            // --- Handle JSON (base64) ---
+            const body = await req.json();
+            const { filename, base64 } = body;
+            if (!filename || !base64) {
+                return NextResponse.json({ ok: false, error: "Missing filename or base64" }, { status: 400 });
+            }
+            // Basic sanitization
+            const safeName = filename.replace(/[^a-zA-Z0-9._-]+/g, "_");
+            const filePath = path.join(REPORTS_DIR, safeName);
+            // Write file
+            const buffer = Buffer.from(base64, "base64");
+            fs.writeFileSync(filePath, buffer);
+            return NextResponse.json({ ok: true, message: "Saved" });
         }
-
-        // Basic sanitization
-        const safeName = filename.replace(/[^a-zA-Z0-9._-]+/g, "_");
-        const filePath = path.join(REPORTS_DIR, safeName);
-
-        // Write file
-        const buffer = Buffer.from(base64, "base64");
-        fs.writeFileSync(filePath, buffer);
-
-        return NextResponse.json({ ok: true, message: "Saved" });
     } catch (e: any) {
         return NextResponse.json({ ok: false, error: e.message }, { status: 500 });
     }

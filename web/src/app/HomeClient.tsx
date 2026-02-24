@@ -127,8 +127,6 @@ export default function Home() {
   const [projectId, setProjectId] = useState("");
   const [tasks, setTasks] = useState<Task[]>([]);
   const [thumbByTask, setThumbByTask] = useState<Record<string, TaskThumb>>({});
-  // Virtualization
-  const [visibleTasks, setVisibleTasks] = useState<Task[]>([]);
 
   const [metaByPlan, setMetaByPlan] = useState<Record<string, PlanMeta | null>>({});
   const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
@@ -151,7 +149,6 @@ export default function Home() {
   const [newTaskPlanId, setNewTaskPlanId] = useState("");
   const [availablePlans, setAvailablePlans] = useState<Plan[]>([]);
   const [loadingPlans, setLoadingPlans] = useState(false);
-  const [plansCache, setPlansCache] = useState<Record<string, Plan[]>>({});
   const [createDraft, setCreateDraft] = useState<{
     project_id: string;
     plan_id: string;
@@ -167,19 +164,19 @@ export default function Home() {
       setAvailablePlans([]);
       return;
     }
-    // Prefetch plans, cache
-    if (plansCache[newTaskProjectId]) {
-      setAvailablePlans(plansCache[newTaskProjectId]);
-      setLoadingPlans(false);
-      if (plansCache[newTaskProjectId].length > 0 && !newTaskPlanId) {
-        setNewTaskPlanId(plansCache[newTaskProjectId][0].id);
-      }
-      return;
-    }
+
     setLoadingPlans(true);
     apiGet<any[]>(`/api/plans?projectId=${encodeURIComponent(newTaskProjectId)}`)
       .then((data) => {
-        setPlansCache((prev) => ({ ...prev, [newTaskProjectId]: data || [] }));
+        // Map to simpler Plan structure if needed, or just use what we get
+        // Assuming API returns object with floor_id, etc.
+        // We need building/floor names for better UX, but for now just list them
+        // Should ideally fetch hierarchy or enrich info. 
+        // For simplicity, let's just show Plan version? Or maybe we can fetch floors too?
+        // Let's rely on what we have. API /api/plans returns Plan objects. 
+        // We probably want to group by floor?
+        // Let's just list them for now. 
+        // Ideally we should use the same logic as loadAll in plans page but simplified.
         setAvailablePlans(data || []);
         if (data && data.length > 0 && !newTaskPlanId) {
           setNewTaskPlanId(data[0].id);
@@ -187,8 +184,7 @@ export default function Home() {
       })
       .catch((e) => console.error("Failed to load plans", e))
       .finally(() => setLoadingPlans(false));
-  }, [showNewTaskModal, newTaskProjectId, plansCache, newTaskPlanId]);
-  // Skeleton loading dla modala: {loadingPlans && <div className="newtask-skeleton">Loading plans...</div>}
+  }, [showNewTaskModal, newTaskProjectId]);
 
   const openNewTaskModal = () => {
     setNewTaskProjectId(projectId || (projects[0]?.id ?? ""));
@@ -263,20 +259,27 @@ export default function Home() {
 
   type TaskPhotoRow = { id: string; url?: string | null; photo_type?: "BEFORE" | "AFTER" | null };
 
-  // Batch fetch miniatur
-  const loadThumbsBatch = useCallback(async (taskIds: string[]) => {
-    if (!taskIds.length) return;
+  const loadThumb = useCallback(async (taskId: string) => {
     try {
-      const idsParam = taskIds.map(id => `taskId=${encodeURIComponent(id)}`).join('&');
-      const photos = await apiGet<TaskPhotoRow[]>(`/api/task-photos/batch?${idsParam}`);
-      const thumbMap: Record<string, TaskThumb> = {};
-      for (const row of photos) {
-        const fixed = row.url ? fixStorageUrl(row.url) : null;
-        thumbMap[row.id] = { url: fixed, type: row.photo_type ?? null };
+      const fetchPhotos = async (phase?: "AFTER" | "BEFORE") => {
+        const phaseParam = phase ? `&phase=${phase}` : "";
+        return apiGet<TaskPhotoRow[]>(`/api/task-photos?taskId=${encodeURIComponent(taskId)}${phaseParam}&limit=1`
+        );
+      };
+
+      let photos = await fetchPhotos("AFTER");
+      if (!Array.isArray(photos) || photos.length === 0) {
+        photos = await fetchPhotos();
       }
-      setThumbByTask((prev) => ({ ...prev, ...thumbMap }));
-    } catch (err) {
-      console.warn("[home] loadThumbsBatch failed", err);
+
+      const selected = Array.isArray(photos) && photos.length > 0 ? photos[0] : null;
+      const raw = selected?.url ?? null;
+      const fixed = raw ? fixStorageUrl(raw) : null;
+      const phase = selected?.photo_type ?? null;
+      setThumbByTask((prev) => ({ ...prev, [taskId]: { url: fixed, type: phase } }));
+    } catch (loadErr) {
+      console.warn("[home] loadThumb failed", loadErr);
+      setThumbByTask((prev) => ({ ...prev, [taskId]: { url: null, type: null } }));
     }
   }, []);
 
@@ -471,23 +474,24 @@ export default function Home() {
   }, [q]);
 
   useEffect(() => {
-    // Virtualization: pokaż tylko pierwsze 30 tasków (możesz użyć react-window dla pełnej virtualizacji)
-    setVisibleTasks(tasks.slice(0, 30));
-    // Batch fetch miniatur
-    const missingThumbs = tasks.filter(t => !thumbByTask[t.id]).map(t => t.id);
-    if (missingThumbs.length) loadThumbsBatch(missingThumbs);
-    // Plan meta
+    tasks.forEach((task) => {
+      if (!Object.prototype.hasOwnProperty.call(thumbByTask, task.id)) {
+        loadThumb(task.id).catch(() => { });
+      }
+    });
+
     const planIds = new Set(
       tasks
         .map((task) => task.plan_id)
         .filter((id): id is string => typeof id === "string" && id.length > 0)
     );
+
     planIds.forEach((planId) => {
       if (!Object.prototype.hasOwnProperty.call(metaByPlan, planId)) {
         loadPlanMeta(planId).catch(() => { });
       }
     });
-  }, [tasks, thumbByTask, metaByPlan, loadThumbsBatch]);
+  }, [tasks, thumbByTask, metaByPlan, loadThumb]);
 
   useEffect(() => {
     function handlePhotoAdded(event: Event) {
@@ -761,20 +765,15 @@ export default function Home() {
 
           {viewMode === "list" ? (
             <div className="tasks-grid">
-              {visibleTasks.map((task) => {
+              {tasks.map((task) => {
                 const thumb = thumbByTask[task.id];
                 // Użyj thumb_url jeśli dostępny, w przeciwnym razie url
                 const thumbUrl = thumb?.thumb_url || thumb?.url || null;
-                // Preferuj webp jeśli dostępny, wymuszaj webp na mobile
+                // Preferuj webp jeśli dostępny
                 let thumbSrc = thumbUrl;
                 if (thumbUrl && thumbUrl.endsWith('.jpg')) {
                   const webpUrl = thumbUrl.replace(/\.jpg$/, '.webp');
                   thumbSrc = webpUrl;
-                }
-                // Lazy loading i webp optymalizacja
-                const isMobile = typeof window !== "undefined" && /iPhone|Android|Mobile/i.test(window.navigator.userAgent);
-                if (isMobile && thumbSrc && !thumbSrc.endsWith('.webp')) {
-                  thumbSrc = thumbSrc.replace(/\.jpg$/, '.webp');
                 }
                 const thumbType = thumb?.type || null;
                 const thumbAlt =
@@ -811,7 +810,7 @@ export default function Home() {
                     <div className="task-card__media">
                       {thumbUrl ? (
                         <>
-                          <img src={thumbSrc} alt={thumbAlt} loading="lazy" style={{ width: "100%", height: "auto", objectFit: "cover" }} />
+                          <img src={thumbUrl} alt={thumbAlt} />
                           {thumbBadge && (
                             <span
                               className={`task-card__media-badge ${thumbType === "AFTER" ? "task-card__media-badge--after" : "task-card__media-badge--before"
