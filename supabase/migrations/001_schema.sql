@@ -206,6 +206,8 @@ create table if not exists public.task_photos (
   id uuid primary key default gen_random_uuid(),
   task_id uuid not null references public.tasks(id) on delete cascade,
   url text not null,
+  thumb_url text,
+  thumb_url_webp text,
   caption text,
   uploaded_by uuid not null references public.profiles(id) on delete restrict,
   created_at timestamptz not null default now()

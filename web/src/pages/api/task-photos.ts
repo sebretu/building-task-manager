@@ -211,24 +211,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
 
     if (!publicUrl) return bad(res, "Failed to create public URL");
 
-    // Use admin client to bypass RLS for insert
-    const adminForInsert = getSupabaseAdminClient();
-    const inserted = await (adminForInsert as any)
-      .from("task_photos")
-      .insert({
-        task_id,
-        uploaded_by,
-        caption,
-        url: publicUrl,
-        storage_bucket: bucket,
-        storage_path,
-        photo_type,
-      } as any)
-      .select("*")
-      .single();
-
-    if (inserted.error) return supaErr(res, inserted.error);
-
     // Upload do Storage — use admin client to bypass storage RLS
     const adminForUpload = getSupabaseAdminClient();
     const uploadResult = await adminForUpload.storage.from(bucket).upload(storage_path, buf, {
@@ -238,14 +220,48 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     });
 
     if (uploadResult.error) {
-      try {
-        await (adminForInsert as any)
-          .from("task_photos")
-          .delete()
-          .eq("id", inserted.data?.id);
-      } catch (e) { }
       return supaErr(res, uploadResult.error);
     }
+
+    // Wywołanie Edge Function generate-thumbnail
+    let thumbUrl = null;
+    let thumbUrlWebp = null;
+    try {
+      const edgeFunctionUrl = process.env.GENERATE_THUMBNAIL_EDGE_URL || "https://phvtrpskgupxkktbznac.functions.supabase.co/generate-thumbnail";
+      const efResp = await fetch(edgeFunctionUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": process.env.SUPABASE_ANON_KEY || "your-anon-key-here"
+        },
+        body: JSON.stringify({ imagePath: storage_path }),
+      });
+      const efJson = await efResp.json();
+      thumbUrl = efJson.thumbUrl || null;
+      thumbUrlWebp = efJson.thumbUrlWebp || null;
+    } catch (e) {
+      console.warn("Edge Function thumbnail error", e);
+    }
+
+    // Use admin client to bypass RLS for insert
+    const adminForInsert = getSupabaseAdminClient();
+    const inserted = await (adminForInsert as any)
+      .from("task_photos")
+      .insert({
+        task_id,
+        uploaded_by,
+        caption,
+        url: publicUrl,
+        thumb_url: thumbUrl,
+        thumb_url_webp: thumbUrlWebp,
+        storage_bucket: bucket,
+        storage_path,
+        photo_type,
+      } as any)
+      .select("*")
+      .single();
+
+    if (inserted.error) return supaErr(res, inserted.error);
 
     return res.status(200).json({ ok: true, data: inserted.data });
   }

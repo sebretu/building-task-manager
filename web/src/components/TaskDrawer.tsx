@@ -1,7 +1,11 @@
+import WindowedSelect from "react-windowed-select";
+import { FixedSizeList as VList } from "react-window";
+import { FixedSizeGrid as Grid } from "react-window";
 "use client";
 
 import { useEffect, useMemo, useState, useRef } from "react";
 import { apiGet, apiPost, apiPatch, apiDelete } from "@/lib/apiClient";
+import qs from "qs";
 import { useLanguage } from "@/contexts/LanguageContext";
 import type { Language } from "@/lib/translations";
 
@@ -16,65 +20,78 @@ type TaskRow = {
   description: string | null;
   status: "OPEN" | "IN_PROGRESS" | "DONE_WAITING_APPROVAL" | "APPROVED" | "REJECTED";
   priority: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
-  due_date: string | null;
-  assigned_user_id: string | null;
-  plan_id?: string;
-  x_norm?: number | null;
-  y_norm?: number | null;
-};
-
-type TaskPhoto = {
-  id: string;
-  task_id: string;
-  url: string;
-  caption: string | null;
-  created_at: string;
-  photo_type?: PhotoType | null;
-};
-
-type ProfileRow = {
-  id: string;
-  full_name: string;
-  email?: string;
-};
-
-type TaskComment = {
-  id: string;
-  task_id: string;
-  user_id: string;
-  comment: string;
-  created_at: string;
-};
-
-type TaskHistoryRow = {
-  id: string;
-  task_id: string;
-  changed_by: string | null;
-  action?: string | null;
-  summary?: string | null;
-  meta?: any;
-  created_at: string;
-};
-
-type PlanRow = {
-  id: string;
-  project_id: string;
-  name: string;
-  floor: string;
-  version: number;
-  pdf_url: string | null;
-  created_at: string;
-};
-
-type PendingPhoto = {
-  id: string;
-  file: File;
-  previewUrl: string;
-  caption: string | null;
-  photoType: PhotoType;
-};
-
-function isUuid(v: string) {
+  useEffect(() => {
+    if (!canShow) return;
+    setErr(null);
+    setPhotosLoaded(isCreate);
+    setTask(null);
+    setPlan(null);
+    setPhotos([]);
+    setComments([]);
+    setHistory([]);
+    setPendingPhotos([]);
+    setTitle("");
+    setDescription("");
+    setTitleDirty(false);
+    setDescriptionDirty(false);
+    setStatus("OPEN");
+    setPriority("MEDIUM");
+    setDueDate("");
+    setAssignedUserId("");
+    setCaption("");
+    setNextPhotoType("BEFORE");
+    setNewComment("");
+    setSaving(false);
+    setUploading(false);
+    setTranslationMap({});
+    setTranslationLang(null);
+    setTranslatingContent(false);
+    setTranslationError(null);
+    setProfiles([]);
+    setProfilesLoaded(false);
+    setTileStatus("unknown");
+    if (isCreate) return;
+    // Pobierz task, plan, zdjęcia, komentarze, historię, profile równolegle
+    const fetchWithLog = async (label: string, fn: () => Promise<any>) => {
+      const start = performance.now();
+      const res = await fn();
+      const end = performance.now();
+      let size = 0;
+      try {
+        size = JSON.stringify(res).length;
+      } catch {}
+      console.log(`[FETCH] ${label}: ${(end - start).toFixed(1)}ms, ${size} bytes`);
+      return res;
+    };
+    Promise.all([
+      fetchWithLog("task", () => apiGet<TaskRow>(`/api/tasks/${taskId}`)),
+      fetchWithLog("photos", () => {
+        const params = qs.stringify({ taskIds: [taskId] }, { arrayFormat: "repeat" });
+        return apiGet<TaskPhoto[]>(`/api/task-photos/batch?${params}`);
+      }),
+      fetchWithLog("comments", () => apiGet<TaskComment[]>(`/api/task-comments?taskId=${taskId}`)),
+      fetchWithLog("history", () => apiGet<TaskHistoryRow[]>(`/api/task-history?taskId=${taskId}`)),
+      fetchWithLog("profiles", () => apiGet<ProfileRow[]>(`/api/profiles?limit=1000`))
+    ]).then(([t, photos, comments, history, profiles]) => {
+      setTask(t);
+      setTitle(t.title || "");
+      setDescription(t.description || "");
+      setStatus(t.status);
+      setPriority(t.priority);
+      setDueDate(t.due_date || "");
+      setAssignedUserId(t.assigned_user_id || "");
+      fetchWithLog("plan", () => apiGet<PlanRow>(`/api/plans/${t.plan_id}`)).then(setPlan);
+      setPhotos(photos);
+      setComments(comments);
+      setHistory(history);
+      setProfiles(profiles);
+      setProfilesLoaded(true);
+      setPhotosLoaded(true);
+    }).catch((e) => setErr(String(e?.message || e)));
+  }, [canShow, taskId, isCreate]);
+  // Skeleton loading
+  const isLoading = !task && !isCreate;
+  // Dodaj skeleton w JSX: {isLoading && <div className="taskdrawer-skeleton">Loading...</div>}
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
 }
 
@@ -219,7 +236,8 @@ export default function TaskDrawer({
         }
       }
 
-      const photoData = await apiGet<TaskPhoto[]>(`/api/task-photos?taskId=${encodeURIComponent(id)}&t=${Date.now()}`);
+      const params = qs.stringify({ taskIds: [id] }, { arrayFormat: "repeat" });
+      const photoData = await apiGet<TaskPhoto[]>(`/api/task-photos/batch?${params}`);
       setPhotos(photoData || []);
 
       const commentData = await apiGet<TaskComment[]>(`/api/task-comments?taskId=${encodeURIComponent(id)}`);
@@ -876,14 +894,19 @@ export default function TaskDrawer({
 
             <label style={labelStyle}>
               <span style={{ fontWeight: 800 }}>{t("taskDrawer", "assignedUser")}</span>
-              <select value={assignedUserId} onChange={(e) => setAssignedUserId(e.target.value)} style={inputStyle} disabled={!isAdmin}>
-                <option value="">—</option>
-                {profiles.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.full_name}
-                  </option>
-                ))}
-              </select>
+              <WindowedSelect
+                isDisabled={!isAdmin}
+                value={profiles.find((p) => p.id === assignedUserId) ? { value: assignedUserId, label: profiles.find((p) => p.id === assignedUserId)?.full_name } : null}
+                onChange={(opt) => setAssignedUserId(opt ? opt.value : "")}
+                options={profiles.map((p) => ({ value: p.id, label: p.full_name }))}
+                placeholder="—"
+                styles={{
+                  container: (base) => ({ ...base, width: "100%" }),
+                  control: (base) => ({ ...base, minHeight: 36, borderRadius: 8, borderColor: "#d1d5db" }),
+                  menu: (base) => ({ ...base, zIndex: 9999 }),
+                }}
+                isClearable
+              />
             </label>
           </div>
 
@@ -1196,38 +1219,49 @@ export default function TaskDrawer({
 
             {/* EDIT/CREATE: existing photos list */}
             {photos.length > 0 && (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
-                {photos.map((p) => (
-                  <div key={p.id} style={{ position: "relative" }}>
-                    <span
-                      style={{
-                        position: "absolute",
-                        top: 6,
-                        left: 6,
-                        padding: "2px 8px",
-                        borderRadius: 999,
-                        fontSize: 10,
-                        fontWeight: 800,
-                        background: (p.photo_type || "BEFORE") === "AFTER" ? "rgba(34,197,94,0.85)" : "rgba(59,130,246,0.85)",
-                        color: "#fff",
-                        zIndex: 2,
-                      }}
-                    >
-                      {(p.photo_type || "BEFORE") === "AFTER"
-                        ? t("taskDrawer", "photoPhaseAfter", "Po pracy")
-                        : t("taskDrawer", "photoPhaseBefore", "Przed pracą")}
-                    </span>
-                    <a href={p.url} target="_blank" rel="noreferrer" style={{ textDecoration: "none" }}>
-                      <img
-                        src={p.url}
-                        alt={p.caption || ""}
-                        style={{ width: "100%", height: 92, objectFit: "cover", borderRadius: 12, border: "1px solid rgba(17,24,39,0.10)" }}
-                        loading="lazy"
-                      />
-                    </a>
-                    {canManagePhotos && (
-                      <button
-                        onClick={async (e) => {
+              <Grid
+                columnCount={3}
+                columnWidth={120}
+                height={Math.min(Math.ceil(photos.length / 3), 6) * 110}
+                rowCount={Math.ceil(photos.length / 3)}
+                rowHeight={110}
+                width={380}
+              >
+                {({ columnIndex, rowIndex, style }) => {
+                  const idx = rowIndex * 3 + columnIndex;
+                  if (idx >= photos.length) return null;
+                  const p = photos[idx];
+                  return (
+                    <div key={p.id} style={{ ...style, position: "relative", padding: 4 }}>
+                      <span
+                        style={{
+                          position: "absolute",
+                          top: 10,
+                          left: 10,
+                          padding: "2px 8px",
+                          borderRadius: 999,
+                          fontSize: 10,
+                          fontWeight: 800,
+                          background: (p.photo_type || "BEFORE") === "AFTER" ? "rgba(34,197,94,0.85)" : "rgba(59,130,246,0.85)",
+                          color: "#fff",
+                          zIndex: 2,
+                        }}
+                      >
+                        {(p.photo_type || "BEFORE") === "AFTER"
+                          ? t("taskDrawer", "photoPhaseAfter", "Po pracy")
+                          : t("taskDrawer", "photoPhaseBefore", "Przed pracą")}
+                      </span>
+                      <a href={p.url} target="_blank" rel="noreferrer" style={{ textDecoration: "none" }}>
+                        <img
+                          src={p.url}
+                          alt={p.caption || ""}
+                          style={{ width: 110, height: 82, objectFit: "cover", borderRadius: 12, border: "1px solid rgba(17,24,39,0.10)" }}
+                          loading="lazy"
+                        />
+                      </a>
+                      {canManagePhotos && (
+                        <button
+                          onClick={async (e) => {
                           e.preventDefault();
                           if (!confirm(t("common", "confirmDelete", "Delete?"))) return;
                           try {
@@ -1350,22 +1384,34 @@ export default function TaskDrawer({
                 {/* Comments list */}
                 {comments.length > 0 && (
                   <div style={{ display: "grid", gap: 8, maxHeight: 300, overflowY: "auto" }}>
-                    {comments.map((c) => {
-                      const profile = profiles.find((p) => p.id === c.user_id);
-                      const userName = profile?.full_name || c.user_id.slice(0, 8);
-                      const timestamp = new Date(c.created_at).toLocaleString(localeByLang[language] || "en-US", {
-                        year: "numeric",
-                        month: "2-digit",
-                        day: "2-digit",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      });
-
-                      return (
-                        <div
-                          key={c.id}
-                          style={{
-                            padding: 10,
+                    <VList
+                      height={Math.min(comments.length, 8) * 70}
+                      itemCount={comments.length}
+                      itemSize={70}
+                      width={360}
+                      style={{ overflowX: "hidden" }}
+                    >
+                      {({ index, style }) => {
+                        const c = comments[index];
+                        const profile = profiles.find((p) => p.id === c.user_id);
+                        const userName = profile?.full_name || c.user_id.slice(0, 8);
+                        const timestamp = new Date(c.created_at).toLocaleString(localeByLang[language] || "en-US", {
+                          year: "numeric",
+                          month: "2-digit",
+                          day: "2-digit",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        });
+                        return (
+                          <div
+                            key={c.id}
+                            style={{ ...style, padding: 10 }}
+                          >
+                            {/* ...istniejący kod renderujący komentarz... */}
+                          </div>
+                        );
+                      }}
+                    </VList>
                             borderRadius: 10,
                             border: "1px solid rgba(17,24,39,0.10)",
                             background: "rgba(17,24,39,0.02)",
@@ -1395,27 +1441,39 @@ export default function TaskDrawer({
 
                 {history.length > 0 ? (
                   <div style={{ display: "grid", gap: 8, maxHeight: 260, overflowY: "auto" }}>
-                    {history.map((h) => {
-                      const actor = profiles.find((p) => p.id === h.changed_by);
-                      const actorName = actor?.full_name || (h.changed_by ? h.changed_by.slice(0, 8) : "—");
-                      const timestamp = new Date(h.created_at).toLocaleString(localeByLang[language] || "en-US", {
-                        year: "numeric",
-                        month: "2-digit",
-                        day: "2-digit",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      });
-                      const action = h.action || h.summary || t("taskDrawer", "historyUpdate");
-                      const historyMetaTemplate = t("taskDrawer", "historyMeta", "{date} • {user}");
-                      const historyMeta = historyMetaTemplate
-                        .replace("{date}", timestamp)
-                        .replace("{user}", actorName);
-
-                      return (
-                        <div
-                          key={h.id}
-                          style={{
-                            padding: 10,
+                    <VList
+                      height={Math.min(history.length, 8) * 60}
+                      itemCount={history.length}
+                      itemSize={60}
+                      width={360}
+                      style={{ overflowX: "hidden" }}
+                    >
+                      {({ index, style }) => {
+                        const h = history[index];
+                        const actor = profiles.find((p) => p.id === h.changed_by);
+                        const actorName = actor?.full_name || (h.changed_by ? h.changed_by.slice(0, 8) : "—");
+                        const timestamp = new Date(h.created_at).toLocaleString(localeByLang[language] || "en-US", {
+                          year: "numeric",
+                          month: "2-digit",
+                          day: "2-digit",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        });
+                        const action = h.action || h.summary || t("taskDrawer", "historyUpdate");
+                        const historyMetaTemplate = t("taskDrawer", "historyMeta", "{date} • {user}");
+                        const historyMeta = historyMetaTemplate
+                          .replace("{date}", timestamp)
+                          .replace("{user}", actorName);
+                        return (
+                          <div
+                            key={h.id}
+                            style={{ ...style, padding: 10 }}
+                          >
+                            {/* ...istniejący kod renderujący historię... */}
+                          </div>
+                        );
+                      }}
+                    </VList>
                             borderRadius: 10,
                             border: "1px solid rgba(17,24,39,0.10)",
                             background: "rgba(17,24,39,0.02)",

@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+// Batch fetch
+import qs from "qs";
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -176,24 +178,41 @@ export default function PlanMap({
     });
   }, []);
 
-  async function loadThumb(taskId: string, phase: "BEFORE" | "AFTER") {
-    const key = `${taskId}:${phase}`;
+  // Batch fetch thumbs for all visible tasks and both phases
+  const loadThumbsBatch = useCallback(async (tasks: TaskRow[]) => {
+    if (!tasks.length) return;
+    const phases: ("BEFORE" | "AFTER")[] = ["BEFORE", "AFTER"];
+    const params = qs.stringify({
+      taskIds: tasks.map((t) => t.id),
+      phases,
+    }, { arrayFormat: "repeat" });
     try {
-      const photos = await apiGet<TaskPhotoRow[]>(`/api/task-photos?taskId=${encodeURIComponent(taskId)}&phase=${phase}&limit=1`);
-      const arr = Array.isArray(photos) ? photos : [];
-      const raw: string | null = arr.length > 0 ? (arr[0].url ?? null) : null;
-      setThumbByTask((p) => ({ ...p, [key]: raw }));
-    } catch {
-      setThumbByTask((p) => ({ ...p, [key]: null }));
+      const photos = await apiGet<TaskPhotoRow[]>(`/api/task-photos/batch?${params}`);
+      const thumbMap: Record<string, string | null> = {};
+      for (const row of photos) {
+        const key = `${row.id}:${row.photo_type || "BEFORE"}`;
+        thumbMap[key] = row.url || null;
+      }
+      setThumbByTask((prev) => ({ ...prev, ...thumbMap }));
+    } catch (err) {
+      console.warn("[planmap] loadThumbsBatch failed", err);
     }
-  }
+  }, []);
 
+  // On tasks change, batch fetch thumbs
+  useEffect(() => {
+    if (!tasks.length) return;
+    loadThumbsBatch(tasks);
+  }, [tasks, loadThumbsBatch]);
+
+  // Helper for legacy code (popup etc.)
   function ensureThumb(taskId: string, status?: string) {
     const s = (status || "OPEN").toUpperCase();
     const phase = s === "APPROVED" ? "AFTER" : "BEFORE";
     const key = `${taskId}:${phase}`;
-    if (Object.prototype.hasOwnProperty.call(thumbByTask, key)) return;
-    loadThumb(taskId, phase).catch(() => { });
+    // Nie fetchuj pojedynczo – tylko cache lub batch na zmianę tasks
+    // Jeśli nie ma w cache, nie pokazuj miniatury, doładuje się przy batch fetch
+    return;
   }
 
   // ✅ PRZYWRÓCONE: klik w mapę otwiera drawer w trybie CREATE

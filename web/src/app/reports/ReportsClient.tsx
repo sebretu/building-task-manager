@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { apiGet, apiPost } from "@/lib/apiClient";
+import qs from "qs";
+import qs from "qs";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { getTaskNumericLabel } from "@/lib/taskNumber";
 import dynamic from "next/dynamic";
@@ -61,13 +63,43 @@ const urlToBase64 = async (url: string, token?: string | null): Promise<string |
 
         // Use Bearer token if provided, otherwise rely on public access (for external photos)
         if (token) {
-            // For tile API, we can use Header OR Query param. 
-            // Let's use Header for cleaner requests, but some endpoints might expect query param?
-            // The tiles route supports both. Let's try Header first.
-            // Actually, standard fetch with Authorization header is best.
-            headers.headers = {
-                "Authorization": `Bearer ${token}`
-            };
+                        // Batch fetch all photos for filtered tasks
+                        const phases = [];
+                        if (photoMode === "BEFORE" || photoMode === "BOTH") phases.push("BEFORE");
+                        if (photoMode === "AFTER" || photoMode === "BOTH") phases.push("AFTER");
+                        const params = qs.stringify({
+                            taskIds: filtered.map((t) => t.id),
+                            phases,
+                            limit: 1,
+                        }, { arrayFormat: "repeat" });
+                        const allPhotos = await apiGet<any[]>(`/api/task-photos/batch?${params}`);
+                        const photoMap: Record<string, Record<string, any>> = {};
+                        for (const p of allPhotos) {
+                            if (!photoMap[p.id]) photoMap[p.id] = {};
+                            photoMap[p.id][p.photo_type || "BEFORE"] = p;
+                        }
+                        const enrichedTasks = await Promise.all(filtered.map(async (task) => {
+                            try {
+                                let beforePhoto = null;
+                                let afterPhoto = null;
+                                if (photoMode === "BEFORE" || photoMode === "BOTH") {
+                                    const before = photoMap[task.id]?.BEFORE;
+                                    if (before && before.url) beforePhoto = await urlToBase64(before.url, null);
+                                }
+                                if (photoMode === "AFTER" || photoMode === "BOTH") {
+                                    const after = photoMap[task.id]?.AFTER;
+                                    if (after && after.url) afterPhoto = await urlToBase64(after.url, null);
+                                }
+                                return {
+                                    ...task,
+                                    beforePhoto,
+                                    afterPhoto,
+                                    userName: userMap[task.assigned_user_id] || "—",
+                                };
+                            } catch (e) {
+                                return { ...task, beforePhoto: null, afterPhoto: null, userName: userMap[task.assigned_user_id] || "—" };
+                            }
+                        }));
         }
 
         const response = await fetch(url, headers);
@@ -334,27 +366,33 @@ export default function ReportsClient() {
             // Enrich with photo data AND User Names
             const userMap = users.reduce((acc, u) => ({ ...acc, [u.id]: u.full_name || u.name || u.email || "User" }), {} as Record<string, string>);
 
+            // Batch fetch all photos for filtered tasks
+            const phases = [];
+            if (photoMode === "BEFORE" || photoMode === "BOTH") phases.push("BEFORE");
+            if (photoMode === "AFTER" || photoMode === "BOTH") phases.push("AFTER");
+            const params = qs.stringify({
+                taskIds: filtered.map((t) => t.id),
+                phases,
+                limit: 1,
+            }, { arrayFormat: "repeat" });
+            const allPhotos = await apiGet<any[]>(`/api/task-photos/batch?${params}`);
+            const photoMap: Record<string, Record<string, any>> = {};
+            for (const p of allPhotos) {
+                if (!photoMap[p.id]) photoMap[p.id] = {};
+                photoMap[p.id][p.photo_type || "BEFORE"] = p;
+            }
             const enrichedTasks = await Promise.all(filtered.map(async (task) => {
                 try {
                     let beforePhoto = null;
                     let afterPhoto = null;
-
                     if (photoMode === "BEFORE" || photoMode === "BOTH") {
-                        const beforeRes = await apiGet<any[]>(`/api/task-photos?taskId=${task.id}&phase=BEFORE&limit=1`);
-                        if (beforeRes && beforeRes.length > 0) {
-                            // Fetch External Photos (Public, no token needed)
-                            beforePhoto = await urlToBase64(beforeRes[0].url, null);
-                        }
+                        const before = photoMap[task.id]?.BEFORE;
+                        if (before && before.url) beforePhoto = await urlToBase64(before.url, null);
                     }
-
                     if (photoMode === "AFTER" || photoMode === "BOTH") {
-                        const afterRes = await apiGet<any[]>(`/api/task-photos?taskId=${task.id}&phase=AFTER&limit=1`);
-                        if (afterRes && afterRes.length > 0) {
-                            // Fetch External Photos (Public, no token needed)
-                            afterPhoto = await urlToBase64(afterRes[0].url, null);
-                        }
+                        const after = photoMap[task.id]?.AFTER;
+                        if (after && after.url) afterPhoto = await urlToBase64(after.url, null);
                     }
-
                     return {
                         ...task,
                         beforePhoto,
