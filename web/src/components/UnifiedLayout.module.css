@@ -83,7 +83,7 @@
   z-index: 60;
   width: calc(100% - 48px);
   max-width: 1240px;
-  margin: 12px auto;
+  margin: 12px auto 0 auto;
   background: var(--home-card);
   border: 1.5px solid var(--home-line);
   border-bottom-width: 5px;
@@ -186,7 +186,7 @@
 .main {
   flex: 1;
   width: 100%;
-  padding: 96px 0 48px;
+  padding: 16px 0 48px;
 }
 
 .footer {
@@ -225,4 +225,29 @@
 /* --- FIX: ensure nav is visible by default --- */
 :global(.topbar__nav) {
   display: flex !important;
+}
+
+/* --- Dark mode nav colors --- */
+:global(body.dark) .navStrip {
+  background: #1a1f2e;
+  border-color: #2a2f3d;
+  box-shadow: 0 15px 35px -10px rgba(0, 0, 0, 0.4);
+}
+
+:global(body.dark) .navStripLink {
+  color: #e8edf5;
+}
+
+:global(body.dark) .navStripLink:hover {
+  color: #4d84ff;
+}
+
+:global(body.dark) .navStripLinkActive {
+  color: #4d84ff;
+}
+
+:global(body.dark) .navUpload {
+  background: rgba(255, 255, 255, 0.08);
+  color: #e8edf5;
+  border-color: rgba(255, 255, 255, 0.15);
 }

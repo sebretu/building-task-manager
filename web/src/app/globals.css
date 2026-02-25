@@ -123,7 +123,10 @@ html {
     }
   }
 
-  html,
+  html {
+    max-width: 100vw;
+  }
+
   body {
     max-width: 100vw;
     overflow-x: hidden;
@@ -1039,6 +1042,32 @@ a.task-card:focus {
   left: 0;
 }
 
+/* Hover overlay label on photo and map sections */
+.task-card__hover-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.52);
+  color: #fff;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+  pointer-events: none;
+  z-index: 5;
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+.task-card__media:hover .task-card__hover-label,
+.task-card__map:hover .task-card__hover-label {
+  opacity: 1;
+}
 
 @media (max-width: 1400px) {
   .tasks-grid {
@@ -1790,4 +1819,36 @@ body.dark .theme-toggle {
   background: #1a1f2e;
   border-color: #2a2f3d;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+/* === DARK MODE: NAV BAR ELEMENTS === */
+
+/* Language switcher */
+body.dark .lang-switcher {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+body.dark .lang-select {
+  color: #e8edf5;
+}
+
+body.dark .lang-caret {
+  color: #8b99b5;
+}
+
+/* Theme switcher dropdown container */
+body.dark [class*="flex"][class*="rounded-full"][class*="border"] select {
+  color: #e8edf5 !important;
+}
+
+/* Logout button: username text */
+body.dark [data-navstrip] span[style*="fontWeight: 600"],
+body.dark [data-navstrip] span[style*="font-weight"] {
+  color: #e8edf5;
+}
+
+/* All text inside nav strip in dark mode */
+body.dark [data-navstrip] {
+  color: #e8edf5;
 }

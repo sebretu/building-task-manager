@@ -73,7 +73,7 @@ export function LogoutButton({ className }: LogoutButtonProps) {
       style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}
       aria-live="polite"
     >
-      <span style={{ fontWeight: 600 }}>{nameLabel}</span>
+      <span style={{ fontWeight: 600, color: "var(--home-ink, inherit)" }}>{nameLabel}</span>
       <button
         type="button"
         className={className || ""}

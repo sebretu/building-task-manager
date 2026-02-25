@@ -813,8 +813,17 @@ export default function Home() {
                 const descriptionContent = hasDescription ? descriptionPreview : t("home", "noDescription");
 
                 return (
-                  <Link href={`/task/${task.id}`} key={task.id} className="task-card">
-                    <div className="task-card__media">
+                  <div key={task.id} className="task-card">
+                    {/* Kliknięcie w zdjęcie → edycja taska */}
+                    <div
+                      className="task-card__media"
+                      onClick={() => router.push(`/task/${task.id}`)}
+                      style={{ cursor: "pointer" }}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => e.key === "Enter" && router.push(`/task/${task.id}`)}
+                      aria-label={translatedTitle || task.title}
+                    >
                       {thumbUrl ? (
                         <>
                           <img src={thumbUrl} alt={thumbAlt} />
@@ -833,8 +842,17 @@ export default function Home() {
                           <small>{t("home", "noPhoto", "No photo yet")}</small>
                         </div>
                       )}
+                      <span className="task-card__hover-label" aria-hidden="true">{t("common", "edit", "Edit")}</span>
                     </div>
-                    <div className="task-card__body">
+                    {/* Kliknięcie w tytuł/body → edycja taska */}
+                    <div
+                      className="task-card__body"
+                      onClick={() => router.push(`/task/${task.id}`)}
+                      style={{ cursor: "pointer" }}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => e.key === "Enter" && router.push(`/task/${task.id}`)}
+                    >
                       <h3>{translatedTitle || task.title}</h3>
                       <p className={descriptionClasses}>{descriptionContent}</p>
                       <p className="task-card__note">
@@ -842,7 +860,26 @@ export default function Home() {
                       </p>
                     </div>
 
-                    <div className="task-card__map">
+                    {/* Kliknięcie w mapę → plan z podświetlonym markerem */}
+                    <div
+                      className="task-card__map"
+                      onClick={() => {
+                        if (task.plan_id) {
+                          router.push(`/plan/${task.plan_id}?taskId=${task.id}`);
+                        } else {
+                          router.push(`/task/${task.id}`);
+                        }
+                      }}
+                      style={{ cursor: task.plan_id ? "pointer" : "default" }}
+                      role={task.plan_id ? "button" : undefined}
+                      tabIndex={task.plan_id ? 0 : undefined}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && task.plan_id) {
+                          router.push(`/plan/${task.plan_id}?taskId=${task.id}`);
+                        }
+                      }}
+                      aria-label={task.plan_id ? t("home", "openPlanLabel", "Open plan") : undefined}
+                    >
                       {tileUrl ? (
                         <img src={tileUrl} alt={t("home", "mapLabel")} />
                       ) : (
@@ -854,14 +891,24 @@ export default function Home() {
                       {taskNumberLabel && (
                         <span className="task-card__map-marker task-marker task-marker--thumb">{taskNumberLabel}</span>
                       )}
+                      {task.plan_id && (
+                        <span className="task-card__hover-label" aria-hidden="true">{t("home", "openMap", "Map")}</span>
+                      )}
                     </div>
 
-                    <div className="task-card__footer">
+                    <div
+                      className="task-card__footer"
+                      onClick={() => router.push(`/task/${task.id}`)}
+                      style={{ cursor: "pointer" }}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => e.key === "Enter" && router.push(`/task/${task.id}`)}
+                    >
                       <span>
                         {priorityLabel} · {dueLabel}
                       </span>
                     </div>
-                  </Link>
+                  </div>
                 );
               })}
             </div>

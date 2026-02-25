@@ -51,7 +51,8 @@ export function ThemeSwitcher() {
       <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-[var(--home-line)] bg-[var(--home-soft)] shadow-sm">
         <span className="text-sm" aria-hidden="true">🎨</span>
         <select
-          className="bg-transparent text-xs font-bold text-black outline-none cursor-pointer appearance-none pr-1"
+          className="bg-transparent text-xs font-bold outline-none cursor-pointer appearance-none pr-1"
+          style={{ color: "inherit" }}
           value={theme || "dark-blue"}
           onChange={(e) => setTheme(e.target.value)}
           aria-label="Color theme"

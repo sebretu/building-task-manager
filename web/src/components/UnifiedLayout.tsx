@@ -245,11 +245,15 @@ export default function UnifiedLayout({ children }: { children: React.ReactNode 
               <img src="/inspecthero-logo.png" alt="InspectHero logo" />
             </Link>
           </div>
-
-
         </div>
       </header>
-      <nav className={styles.navStrip} aria-label="Primary">
+
+      {/* Nav Strip */}
+      <nav
+        className={styles.navStrip}
+        aria-label="Primary"
+        data-navstrip
+      >
         <div className={`${styles.navStripInner} container`}>
           <div className={styles.navStripLinks}>
             {navLinks.map((link) => {
@@ -284,6 +288,7 @@ export default function UnifiedLayout({ children }: { children: React.ReactNode 
           </div>
         </div>
       </nav>
+
       <main className={styles.main}>{children}</main>
       <footer className={styles.footer}>
         InspectHero © {currentYear} — {footerTagline}

@@ -139,6 +139,7 @@ export const translations = {
       next: "Next",
       limit: "Limit",
       createNewTask: "Create new task",
+      openMap: "Map",
     },
     planUpload: {
       kicker: "Upload",
@@ -504,6 +505,7 @@ export const translations = {
       next: "Następna",
       limit: "Limit",
       createNewTask: "Utwórz nowe zadanie",
+      openMap: "Mapa",
     },
     planUpload: {
       kicker: "Wgrywanie",
@@ -863,6 +865,7 @@ export const translations = {
       next: "Weiter",
       limit: "Limit",
       createNewTask: "Neue Aufgabe erstellen",
+      openMap: "Karte",
     },
     planUpload: {
       kicker: "Upload",
@@ -1131,6 +1134,7 @@ export const translations = {
       next: "Ďalšia",
       limit: "Limit",
       createNewTask: "Vytvoriť novú úlohu",
+      openMap: "Mapa",
     },
     planUpload: {
       kicker: "Nahrávanie",

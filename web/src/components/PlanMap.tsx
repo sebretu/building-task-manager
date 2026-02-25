@@ -328,7 +328,6 @@ export default function PlanMap({
         <FocusOnTask target={focusLatLng} />
 
         {tasks
-          .filter((task) => (!focusTaskId ? true : task.id === focusTaskId))
           .map((task) => {
             const ll = CRS.pointToLatLng(L.point(task.x_norm * worldPxW, task.y_norm * worldPxH), meta.maxZoom);
             const status = (task.status || "OPEN").toUpperCase();
@@ -337,12 +336,22 @@ export default function PlanMap({
             const taskNumberLabel = getTaskNumericLabel(task.id);
             const markerIcon = getIconForLabel(taskNumberLabel);
 
+            const isFocused = focusTaskId === task.id;
+
             return (
               <Marker
                 key={task.id}
                 position={ll}
                 // @ts-ignore
                 icon={markerIcon ?? undefined}
+                ref={(markerRef: any) => {
+                  if (isFocused && markerRef) {
+                    // Auto-open popup after map has panned (short delay)
+                    setTimeout(() => {
+                      try { markerRef.openPopup(); } catch { }
+                    }, 600);
+                  }
+                }}
                 eventHandlers={{
                   click: () => {
                     ensureThumb(task.id, task.status);
