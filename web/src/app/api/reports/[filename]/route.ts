@@ -7,7 +7,23 @@ const REPORTS_DIR = path.join(process.cwd(), "private_reports");
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ filename: string }> }) {
     try {
-        const { userId } = createServerSupabaseClient(req);
+        // Accept token from Authorization header OR ?token= query param (for iOS Safari links)
+        let token = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim() || null;
+        if (!token) {
+            token = req.nextUrl.searchParams.get("token");
+        }
+        if (!token) {
+            return NextResponse.json({ error: "Unauthorized - Bearer token required" }, { status: 401 });
+        }
+        // Decode userId from JWT
+        let userId: string | null = null;
+        try {
+            const parts = token.split(".");
+            if (parts.length === 3) {
+                const decoded = JSON.parse(Buffer.from(parts[1], "base64").toString());
+                userId = decoded.sub || null;
+            }
+        } catch { /* invalid token */ }
         if (!userId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }

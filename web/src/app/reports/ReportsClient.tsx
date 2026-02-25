@@ -175,7 +175,10 @@ export default function ReportsClient() {
         apiGet<Project[]>("/api/projects").then((data) => {
             if (Array.isArray(data) && data.length > 0) {
                 setProjects(data);
-                setSelectedProjectId(data[0].id);
+                // Use localStorage to remember last selected project
+                const saved = typeof window !== 'undefined' ? localStorage.getItem('selectedProjectId') : null;
+                const preferred = saved && data.find(p => p.id === saved) ? saved : data[0].id;
+                setSelectedProjectId(preferred);
             }
         }).catch(err => console.error("Failed to load projects", err));
     }, []);
@@ -686,8 +689,21 @@ export default function ReportsClient() {
                         fetchSavedReports();
                         // Teraz pobierz/otwórz PDF
                         if (isIOS || isSafari) {
-                            // Wyświetl link do pobrania PDF z serwera
-                            setStatusMessage(`Raport zapisany. <a href="/api/reports/${encodeURIComponent(filename)}" target="_blank" rel="noopener" style="color:blue;text-decoration:underline">Kliknij tutaj, aby pobrać PDF</a>`);
+                            // iOS: use createObjectURL directly from the blob (no server re-download)
+                            try {
+                                const blobUrl = URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = blobUrl;
+                                a.download = filename;
+                                document.body.appendChild(a);
+                                a.click();
+                                document.body.removeChild(a);
+                                setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
+                            } catch {
+                                // Fallback: link with token in URL
+                                const tok = token || "";
+                                setStatusMessage(`Raport zapisany. <a href="/api/reports/${encodeURIComponent(filename)}?token=${encodeURIComponent(tok)}" target="_blank" rel="noopener" style="color:blue;text-decoration:underline">Kliknij tutaj, aby pobrać PDF</a>`);
+                            }
                         } else {
                             const url = URL.createObjectURL(blob);
                             const link = document.createElement('a');

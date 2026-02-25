@@ -39,38 +39,24 @@ export async function POST(req: NextRequest) {
     try {
         const contentType = req.headers.get('content-type') || '';
         if (contentType.startsWith('multipart/form-data')) {
-            // --- Handle FormData (file upload) ---
-            // Parse multipart (no native support in Next.js API routes, so use workaround)
-            // Read raw body
-            const boundaryMatch = contentType.match(/boundary=(.*)$/);
-            if (!boundaryMatch) {
-                return NextResponse.json({ ok: false, error: "Missing boundary in multipart/form-data" }, { status: 400 });
+            // --- Handle FormData (file upload from iOS) ---
+            // Use built-in req.formData() — correctly handles binary PDF bytes
+            const formData = await req.formData();
+            const file = formData.get('file') as File | null;
+            const filenameFallback = formData.get('filename') as string | null;
+
+            if (!file || file.size === 0) {
+                return NextResponse.json({ ok: false, error: "Missing or empty file in FormData" }, { status: 400 });
             }
-            const boundary = boundaryMatch[1];
-            const raw = Buffer.from(await req.arrayBuffer());
-            // Minimal multipart parser (only for single file and filename field)
-            const parts = raw.toString().split(`--${boundary}`);
-            let fileBuffer = null;
-            let filename = null;
-            for (const part of parts) {
-                if (part.includes('Content-Disposition: form-data;') && part.includes('filename=')) {
-                    // File part
-                    const match = part.match(/filename="([^"]+)"/);
-                    if (match) filename = match[1];
-                    const fileStart = part.indexOf('\r\n\r\n');
-                    if (fileStart !== -1) {
-                        fileBuffer = Buffer.from(part.slice(fileStart + 4, part.lastIndexOf('\r\n')));
-                    }
-                }
-            }
-            if (!filename || !fileBuffer) {
-                return NextResponse.json({ ok: false, error: "Missing file or filename in multipart" }, { status: 400 });
-            }
-            // Basic sanitization
+
+            const filename = file.name || filenameFallback || `report_${Date.now()}.pdf`;
             const safeName = filename.replace(/[^a-zA-Z0-9._-]+/g, "_");
             const filePath = path.join(REPORTS_DIR, safeName);
-            fs.writeFileSync(filePath, fileBuffer);
+
+            const arrayBuffer = await file.arrayBuffer();
+            fs.writeFileSync(filePath, Buffer.from(arrayBuffer));
             return NextResponse.json({ ok: true, message: "Saved (FormData)" });
+
         } else {
             // --- Handle JSON (base64) ---
             const body = await req.json();
