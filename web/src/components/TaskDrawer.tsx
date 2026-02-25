@@ -1120,6 +1120,9 @@ export default function TaskDrawer({
                         const ph = await uploadOne(taskId, f, caption.trim() === "" ? null : caption.trim(), nextPhotoType);
                         setCaption("");
                         setPhotos((prev) => [ph, ...prev]);
+                        apiGet<TaskHistoryRow[]>(`/api/task-history?taskId=${encodeURIComponent(taskId)}`)
+                          .then(historyData => setHistory(historyData || []))
+                          .catch(() => { });
                         window.dispatchEvent(new CustomEvent("task-photo-added", { detail: { taskId } }));
                       } catch (e2: any) {
                         setErr(e2?.message || String(e2));
@@ -1232,6 +1235,11 @@ export default function TaskDrawer({
                             setUploading(true);
                             await apiDelete(`/api/task-photos?id=${p.id}`);
                             setPhotos((prev) => prev.filter((x) => x.id !== p.id));
+                            if (taskId) {
+                              apiGet<TaskHistoryRow[]>(`/api/task-history?taskId=${encodeURIComponent(taskId)}`)
+                                .then(historyData => setHistory(historyData || []))
+                                .catch(() => { });
+                            }
                             window.dispatchEvent(new CustomEvent("task-photo-deleted", { detail: { photoId: p.id, taskId } }));
                           } catch (err: any) {
                             setErr(err.message || String(err));
@@ -1415,12 +1423,13 @@ export default function TaskDrawer({
                           style={{
                             padding: 10,
                             borderRadius: 10,
-                            border: "1px solid rgba(17,24,39,0.10)",
-                            background: "rgba(17,24,39,0.02)",
+                            border: "1px solid rgba(17,24,39,0.15)",
+                            background: "var(--home-card, #fff)",
+                            boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
                           }}
                         >
-                          <div style={{ fontSize: 13, fontWeight: 700, whiteSpace: "pre-wrap", wordBreak: "break-word", marginBottom: 4 }}>{action}</div>
-                          <div style={{ fontSize: 11, opacity: 0.65, marginBottom: 6 }}>{historyMeta}</div>
+                          <div style={{ fontSize: 13, fontWeight: 800, whiteSpace: "pre-wrap", wordBreak: "break-word", marginBottom: 4, color: "#111827" }}>{action}</div>
+                          <div style={{ fontSize: 12, color: "var(--brand-primary, #3b82f6)", fontWeight: 700, marginBottom: 4 }}>{historyMeta}</div>
                           {renderTranslationSegment(makeTranslationKey("history", h.id), action)}
                         </div>
                       );

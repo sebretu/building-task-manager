@@ -263,6 +263,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
 
     if (inserted.error) return supaErr(res, inserted.error);
 
+    const { error: histErr } = await (adminForInsert as any).from("task_history").insert({
+      task_id,
+      changed_by: uploaded_by,
+      action: photo_type === "AFTER" ? "Added AFTER photo" : "Added BEFORE photo"
+    });
+    if (histErr) console.error("History fail:", histErr);
+
     return res.status(200).json({ ok: true, data: inserted.data });
   }
 
@@ -312,6 +319,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       .eq("id", id);
 
     if (delErr) return supaErr(res, delErr);
+
+    const { error: histErr } = await admin.from("task_history").insert({
+      task_id: photo.task_id,
+      changed_by: requester.id,
+      action: photo.photo_type === "AFTER" ? "Removed AFTER photo" : "Removed BEFORE photo"
+    });
+    if (histErr) console.error("History fail:", histErr);
 
     return res.status(200).json({ ok: true, data: { deleted: true } });
   }

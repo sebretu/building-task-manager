@@ -581,6 +581,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
 
             const friendlyFields = changedFields.map((field) => fieldLabels[field] || field);
 
+            let newAssigneeName = newValue.assigned_user_id;
+            if (changedFields.includes("assigned_user_id") && newValue.assigned_user_id) {
+              try {
+                const { data: p } = await adminClient.from("profiles").select("full_name").eq("id", newValue.assigned_user_id).single();
+                if (p?.full_name) newAssigneeName = p.full_name;
+              } catch (e) { }
+            }
+
             const preview = (value: any, max = 140) => {
               if (value === null || value === undefined) return "";
               const str = String(value).trim();
@@ -594,8 +602,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
               summaryParts.push(titlePreview ? `Title -> ${titlePreview}` : "Title updated");
             }
             if (changedFields.includes("description")) {
-              const descriptionPreview = preview(newValue.description, 140);
-              summaryParts.push(descriptionPreview ? `Description updated: ${descriptionPreview}` : "Description cleared");
+              summaryParts.push(newValue.description ? `Description updated` : "Description cleared");
+            }
+            if (changedFields.includes("status")) {
+              summaryParts.push(`Status -> ${newValue.status}`);
+            }
+            if (changedFields.includes("priority")) {
+              summaryParts.push(`Priority -> ${newValue.priority}`);
+            }
+            if (changedFields.includes("due_date")) {
+              summaryParts.push(newValue.due_date ? `Due date -> ${newValue.due_date}` : "Due date removed");
+            }
+            if (changedFields.includes("assigned_user_id")) {
+              summaryParts.push(newValue.assigned_user_id ? `Assigned to ${newAssigneeName}` : "Unassigned");
             }
 
             const actionText = summaryParts.length
