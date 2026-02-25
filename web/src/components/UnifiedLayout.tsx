@@ -221,14 +221,15 @@ export default function UnifiedLayout({ children }: { children: React.ReactNode 
       { href: "/", label: t("nav", "tasks", "Aufgaben") },
       { href: "/plans", label: t("nav", "plans", "Pläne") },
     ];
-    if (isAdmin) {
-      links.push(
+    const adminLinks = isAdmin
+      ? [
         { href: "/users", label: t("nav", "users", "Benutzer") },
         { href: "/companies", label: t("nav", "companies", "Unternehmen") },
-        { href: "/reports", label: t("nav", "reports", "Raporty") }
-      );
-    }
-    return links;
+        { href: "/reports", label: t("nav", "reports", "Raporty") },
+        { href: "/completed", label: t("nav", "completed", "Zakończone prace") },
+      ]
+      : [];
+    return [...links, ...adminLinks];
   }, [t, isAdmin]);
 
   if (hideChrome) {

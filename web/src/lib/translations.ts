@@ -24,6 +24,7 @@ export const translations = {
       users: "Users",
       companies: "Companies",
       reports: "Reports",
+      completed: "Completed Tasks",
     },
     reports: {
       title: "Reports",
@@ -117,6 +118,8 @@ export const translations = {
       serviceReportsBody: "Keep teams aligned with quick filters and reports.",
       serviceMore: "Learn more",
       tasksSubtitle: "Track tasks across projects with filters, priority, and due windows.",
+      completedTasksTitle: "Completed Tasks",
+      completedTasksSubtitle: "List of all completed work and issues",
       notifications: "Notifications",
       notifyOnCreate: "New task",
       notifyOnStatus: "Status change",
@@ -390,6 +393,7 @@ export const translations = {
       users: "Użytkownicy",
       companies: "Firmy",
       reports: "Raporty",
+      completed: "Zakończone prace",
     },
     reports: {
       title: "Raporty",
@@ -756,6 +760,7 @@ export const translations = {
       users: "Benutzer",
       companies: "Unternehmen",
       reports: "Berichte",
+      completed: "Fertige Arbeiten",
     },
     reports: {
       title: "Berichte",
@@ -849,6 +854,8 @@ export const translations = {
       serviceReportsBody: "Schnelle Filter und Reports fuer Teams.",
       serviceMore: "Mehr",
       tasksSubtitle: "Aufgaben nach Filtern, Prioritaet und Terminen verwalten.",
+      completedTasksTitle: "Fertige Arbeiten",
+      completedTasksSubtitle: "Liste aller abgeschlossenen Arbeiten und Probleme",
       notifications: "Benachrichtigungen",
       notifyOnCreate: "Neue Aufgabe",
       notifyOnStatus: "Statusaenderung",

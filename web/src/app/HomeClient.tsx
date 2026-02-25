@@ -133,7 +133,7 @@ export default function Home() {
   const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
   const [q, setQ] = useState("");
   const [qDebounced, setQDebounced] = useState("");
-  const [limit, setLimit] = useState(10);
+  const [limit, setLimit] = useState(20);
   const [offset, setOffset] = useState(0);
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -231,7 +231,7 @@ export default function Home() {
     return map;
   }, [profiles]);
 
-  const kanbanColumns = ["OPEN", "IN_PROGRESS", "DONE_WAITING_APPROVAL", "APPROVED", "REJECTED"] as const;
+  const kanbanColumns = ["OPEN", "IN_PROGRESS", "DONE_WAITING_APPROVAL", "REJECTED"] as const;
   const statusBadgeClassByCode: Record<string, string> = {
     OPEN: "task-card__badge--open",
     IN_PROGRESS: "task-card__badge--in-progress",
@@ -351,7 +351,7 @@ export default function Home() {
       if (!pid) return;
       setProjectId(pid);
 
-      const statusQ = statusFilter ? `&status=${statusFilter}` : "";
+      const statusQ = statusFilter ? `&status=${statusFilter}` : "&excludeStatus=APPROVED";
       const priorityQ = priorityFilter ? `&priority=${priorityFilter}` : "";
       const assignedQ = assignedFilter ? `&assigned_user_id=${encodeURIComponent(assignedFilter)}` : "";
       const dueFromQ = dueFrom ? `&due_from=${encodeURIComponent(dueFrom)}` : "";
@@ -628,7 +628,7 @@ export default function Home() {
             </label>
 
             <div className="home-status-filter">
-              {[null, "OPEN", "DONE_WAITING_APPROVAL", "APPROVED"].map((s) => (
+              {[null, "OPEN", "IN_PROGRESS", "DONE_WAITING_APPROVAL", "REJECTED"].map((s) => (
                 <button
                   key={s ?? "ALL"}
                   onClick={() => {
