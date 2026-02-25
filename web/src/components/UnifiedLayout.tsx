@@ -226,6 +226,7 @@ export default function UnifiedLayout({ children }: { children: React.ReactNode 
         { href: "/users", label: t("nav", "users", "Benutzer") },
         { href: "/companies", label: t("nav", "companies", "Unternehmen") },
         { href: "/reports", label: t("nav", "reports", "Raporty") },
+        { href: "/to-approve", label: t("nav", "toApprove", "Do zatwierdzenia") },
         { href: "/completed", label: t("nav", "completed", "Zakończone prace") },
       ]
       : [];

@@ -174,6 +174,13 @@ export default function TaskDrawer({
     return uploadedAfter || pendingAfter;
   }, [photos, pendingPhotos]);
 
+  const hasBeforePhoto = useMemo(() => {
+    const uploadedBefore = photos.some((p) => (p.photo_type || "BEFORE") === "BEFORE");
+    const pendingBefore = pendingPhotos.some((p) => p.photoType === "BEFORE");
+    return uploadedBefore || pendingBefore;
+  }, [photos, pendingPhotos]);
+
+
   const headerTitle = useMemo(() => {
     if (isCreate) return t("taskDrawer", "newTask");
     if (!taskId) return t("home", "title");
@@ -918,7 +925,13 @@ export default function TaskDrawer({
                 {status === "OPEN" && (
                   <>
                     <button
-                      onClick={() => setStatus("IN_PROGRESS")}
+                      onClick={() => {
+                        setStatus("IN_PROGRESS");
+                        if (taskId) {
+                          apiPatch("/api/tasks", { id: taskId, status: "IN_PROGRESS" }).catch(e => console.error(e));
+                          window.dispatchEvent(new CustomEvent("task-saved"));
+                        }
+                      }}
                       style={{
                         padding: "8px 14px",
                         borderRadius: 10,
@@ -1091,48 +1104,104 @@ export default function TaskDrawer({
                 <span style={{ fontWeight: 800 }}>{t("taskDrawer", "photoPhase", "Rodzaj zdjęcia")}</span>
                 <select value={nextPhotoType} onChange={(e) => setNextPhotoType(e.target.value as PhotoType)} style={inputStyle}>
                   <option value="BEFORE">{t("taskDrawer", "photoPhaseBefore", "Przed pracą")}</option>
-                  <option value="AFTER">{t("taskDrawer", "photoPhaseAfter", "Po pracy")}</option>
+                  {status !== "OPEN" && (
+                    <option value="AFTER">{t("taskDrawer", "photoPhaseAfter", "Po pracy")}</option>
+                  )}
                 </select>
               </label>
 
-              <label style={{ ...labelStyle, cursor: uploading || !canManagePhotos ? "not-allowed" : "pointer" }}>
-                <span style={{ fontWeight: 800 }}>{t("taskDrawer", "addPhoto")}</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  disabled={uploading || !canManagePhotos}
-                  onChange={(e) => {
-                    if (!canManagePhotos) return;
-                    const f = e.target.files?.[0];
-                    if (!f) return;
-                    e.currentTarget.value = "";
+              {(() => {
+                let uiBlocked = false;
+                let blockMsg = "";
+                if (nextPhotoType === "BEFORE" && hasBeforePhoto) {
+                  uiBlocked = true;
+                  blockMsg = t("taskDrawer", "beforePhotoExists", "Before photo already exists.");
+                } else if (nextPhotoType === "AFTER" && hasAfterPhoto) {
+                  uiBlocked = true;
+                  blockMsg = t("taskDrawer", "afterPhotoExists", "After photo already exists.");
+                } else if (nextPhotoType === "AFTER" && !hasBeforePhoto) {
+                  uiBlocked = true;
+                  blockMsg = t("taskDrawer", "beforePhotoMissing", "Brak zdjęcia przed wykonaniem pracy");
+                }
+                const isInputDisabled = uploading || !canManagePhotos || uiBlocked;
 
-                    if (isCreate) {
-                      addPending(f);
-                      return;
-                    }
+                return (
+                  <div style={{ display: "grid", gap: 4, alignContent: "start", height: "100%" }}>
+                    <label
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: "10px 14px",
+                        marginTop: 22,
+                        borderRadius: 8,
+                        background: isInputDisabled ? "#e5e7eb" : "linear-gradient(135deg, #0ea5e9, #3b82f6)",
+                        color: isInputDisabled ? "#9ca3af" : "#ffffff",
+                        cursor: isInputDisabled ? "not-allowed" : "pointer",
+                        fontWeight: 800,
+                        fontSize: 14,
+                        minHeight: 46,
+                        textAlign: "center",
+                        boxShadow: isInputDisabled ? "none" : "0 4px 6px rgba(59, 130, 246, 0.25)",
+                      }}
+                    >
+                      <span>{t("taskDrawer", "addPhotoBtn", "Dodaj zdjęcie")}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        style={{ display: "none" }}
+                        disabled={isInputDisabled}
+                        onChange={(e) => {
+                          if (!canManagePhotos) return;
+                          const f = e.target.files?.[0];
+                          if (!f) return;
+                          e.currentTarget.value = "";
 
-                    // EDIT: od razu upload
-                    if (!taskId) return;
-                    setUploading(true);
-                    (async () => {
-                      try {
-                        const ph = await uploadOne(taskId, f, caption.trim() === "" ? null : caption.trim(), nextPhotoType);
-                        setCaption("");
-                        setPhotos((prev) => [ph, ...prev]);
-                        apiGet<TaskHistoryRow[]>(`/api/task-history?taskId=${encodeURIComponent(taskId)}`)
-                          .then(historyData => setHistory(historyData || []))
-                          .catch(() => { });
-                        window.dispatchEvent(new CustomEvent("task-photo-added", { detail: { taskId } }));
-                      } catch (e2: any) {
-                        setErr(e2?.message || String(e2));
-                      } finally {
-                        setUploading(false);
-                      }
-                    })();
-                  }}
-                />
-              </label>
+                          if (isCreate) {
+                            addPending(f);
+                            return;
+                          }
+
+                          // EDIT: od razu upload
+                          if (!taskId) return;
+                          setUploading(true);
+                          (async () => {
+                            try {
+                              const actualPhotoType = status === "OPEN" ? "BEFORE" : nextPhotoType;
+                              const ph = await uploadOne(taskId, f, caption.trim() === "" ? null : caption.trim(), actualPhotoType);
+                              setCaption("");
+                              setPhotos((prev) => [ph, ...prev]);
+
+                              if (actualPhotoType === "AFTER" && status !== "DONE_WAITING_APPROVAL") {
+                                setStatus("DONE_WAITING_APPROVAL");
+                                apiPatch("/api/tasks", { id: taskId, status: "DONE_WAITING_APPROVAL" }).catch(e => console.error(e));
+                                window.dispatchEvent(new CustomEvent("task-saved"));
+                                setTimeout(() => {
+                                  window.dispatchEvent(
+                                    new CustomEvent("task-submitted-for-approval", {
+                                      detail: { title: title || (task && task.title) || "" },
+                                    })
+                                  );
+                                }, 0);
+                              }
+
+                              apiGet<TaskHistoryRow[]>(`/api/task-history?taskId=${encodeURIComponent(taskId)}`)
+                                .then(historyData => setHistory(historyData || []))
+                                .catch(() => { });
+                              window.dispatchEvent(new CustomEvent("task-photo-added", { detail: { taskId } }));
+                            } catch (e2: any) {
+                              setErr(e2?.message || String(e2));
+                            } finally {
+                              setUploading(false);
+                            }
+                          })();
+                        }}
+                      />
+                    </label>
+                    {blockMsg && <span style={{ fontSize: 11, color: "#ef4444", fontWeight: 700, marginTop: -2 }}>{blockMsg}</span>}
+                  </div>
+                );
+              })()}
             </div>
 
             {/* CREATE: pending */}

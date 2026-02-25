@@ -25,6 +25,7 @@ export const translations = {
       companies: "Companies",
       reports: "Reports",
       completed: "Completed Tasks",
+      toApprove: "To Approve",
     },
     reports: {
       title: "Reports",
@@ -252,6 +253,9 @@ export const translations = {
       afterPhotoMissing: "No after-work photo has been added.",
       beforePhotoMissing: "No photo, add one",
       beforePhotoRequired: "Photo required, please add one",
+      beforePhotoExists: "Before photo already exists. Click '▶️ Start working' to add the 'After' photo.",
+      afterPhotoExists: "After photo already exists.",
+      addPhotoBtn: "Add Photo",
     },
     planMap: {
       openTaskButton: "Open task",
@@ -394,6 +398,7 @@ export const translations = {
       companies: "Firmy",
       reports: "Raporty",
       completed: "Zakończone prace",
+      toApprove: "Do zatwierdzenia",
     },
     reports: {
       title: "Raporty",
@@ -619,6 +624,9 @@ export const translations = {
       afterPhotoMissing: "Brak zdjęcia po wykonaniu prac.",
       beforePhotoMissing: "Brak zdjęcia, dodaj",
       beforePhotoRequired: "Brak zdjęcia, dodaj",
+      beforePhotoExists: "Zdjęcie 'Przed' zostało już dodane. Kliknij '▶️ Rozpocznij pracę', aby dodać zdjęcie 'Po'.",
+      afterPhotoExists: "Zdjęcie 'Po' zostało już dodane.",
+      addPhotoBtn: "Dodaj zdjęcie",
     },
     planMap: {
       openTaskButton: "Otwórz task",
@@ -761,6 +769,7 @@ export const translations = {
       companies: "Unternehmen",
       reports: "Berichte",
       completed: "Fertige Arbeiten",
+      toApprove: "Zur Genehmigung",
     },
     reports: {
       title: "Berichte",
@@ -982,6 +991,9 @@ export const translations = {
       afterPhotoMissing: "Foto nach den Arbeiten fehlt.",
       beforePhotoMissing: "Kein Foto, hinzufügen",
       beforePhotoRequired: "Foto erforderlich, bitte hinzufügen",
+      beforePhotoExists: "Vorher-Foto ist bereits vorhanden. Klicken Sie auf '▶️ Arbeit starten', um das Nachher-Foto hinzuzufügen.",
+      afterPhotoExists: "Nachher-Foto ist bereits vorhanden.",
+      addPhotoBtn: "Foto hinzufügen",
     },
     planMap: {
       openTaskButton: "Aufgabe öffnen",
