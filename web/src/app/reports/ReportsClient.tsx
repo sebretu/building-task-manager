@@ -348,9 +348,10 @@ export default function ReportsClient() {
             const assignedUsers = Array.from(userIdSet).map(id => ({ id, name: userIdToName[id] || id }));
 
             // Filter by selected plans, statuses, and (client-side) users
+            // If selectedPlanIds is empty (plans not loaded yet on slow device), include all tasks
             const filtered = allTasks.filter(t =>
-                selectedPlanIds.has(t.plan_id) &&
-                selectedStatuses.has(t.status) &&
+                (selectedPlanIds.size === 0 || selectedPlanIds.has(t.plan_id)) &&
+                (selectedStatuses.size === 0 || selectedStatuses.has(t.status)) &&
                 (selectedUserIds.size === 0 || selectedUserIds.has(t.assigned_user_id))
             );
 
@@ -395,11 +396,11 @@ export default function ReportsClient() {
                     let afterPhoto = null;
                     if (photoMode === "BEFORE" || photoMode === "BOTH") {
                         const before = photoMap[task.id]?.BEFORE;
-                        if (before && before.url) beforePhoto = await urlToBase64(before.url, null);
+                        if (before && before.url) beforePhoto = await urlToBase64(before.url, token);
                     }
                     if (photoMode === "AFTER" || photoMode === "BOTH") {
                         const after = photoMap[task.id]?.AFTER;
-                        if (after && after.url) afterPhoto = await urlToBase64(after.url, null);
+                        if (after && after.url) afterPhoto = await urlToBase64(after.url, token);
                     }
                     return {
                         ...task,

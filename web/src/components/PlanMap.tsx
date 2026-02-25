@@ -35,6 +35,7 @@ type ProfileRow = {
 
 type TaskPhotoRow = {
   id: string;
+  task_id: string;
   url: string;
   photo_type?: "BEFORE" | "AFTER" | null;
 };
@@ -190,7 +191,7 @@ export default function PlanMap({
       const photos = await apiGet<TaskPhotoRow[]>(`/api/task-photos/batch?${params}`);
       const thumbMap: Record<string, string | null> = {};
       for (const row of photos) {
-        const key = `${row.id}:${row.photo_type || "BEFORE"}`;
+        const key = `${row.task_id}:${row.photo_type || "BEFORE"}`;
         thumbMap[key] = row.url || null;
       }
       setThumbByTask((prev) => ({ ...prev, ...thumbMap }));
