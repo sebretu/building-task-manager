@@ -1,5 +1,5 @@
 // Service Worker for Task Manager PWA
-const CACHE_NAME = "task-manager-v1";
+const CACHE_NAME = "task-manager-v2";
 const RUNTIME_CACHE = "task-manager-runtime";
 const API_CACHE = "task-manager-api";
 const IMAGE_CACHE = "task-manager-images";
@@ -64,7 +64,12 @@ self.addEventListener("fetch", (event) => {
   }
 
   // API requests - Network first, fallback to cache
+  // Skip binary downloads like /api/reports/ — let browser handle them directly
   if (url.pathname.startsWith("/api/")) {
+    if (url.pathname.startsWith("/api/reports")) {
+      // Pass through directly — binary PDF downloads must not be intercepted
+      return;
+    }
     event.respondWith(
       fetch(request)
         .then((response) => {

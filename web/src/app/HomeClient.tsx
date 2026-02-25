@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiGet, apiPost, getToken } from "@/lib/apiClient";
@@ -101,6 +101,7 @@ type NotificationSettings = {
 
 type TaskThumb = {
   url: string | null;
+  thumb_url?: string | null;
   type: "BEFORE" | "AFTER" | null;
 };
 
@@ -191,6 +192,10 @@ export default function Home() {
     setNewTaskPlanId("");
     setShowNewTaskModal(true);
   };
+
+  // Always-current ref so the event listener never has a stale closure
+  const openNewTaskModalRef = useRef(openNewTaskModal);
+  openNewTaskModalRef.current = openNewTaskModal;
 
   const closeNewTaskModal = () => {
     setShowNewTaskModal(false);
@@ -341,7 +346,8 @@ export default function Home() {
       const ps = await apiGet<Project[]>("/api/projects");
       setProjects(ps);
 
-      const pid = projectId || ps[0]?.id;
+      const saved = typeof window !== 'undefined' ? localStorage.getItem('selectedProjectId') : null;
+      const pid = projectId || (saved && ps.find(p => p.id === saved)?.id) || ps[0]?.id;
       if (!pid) return;
       setProjectId(pid);
 
@@ -511,7 +517,7 @@ export default function Home() {
 
     // Listen for nav bar button to open create task modal
     function onOpenNewTask() {
-      openNewTaskModal();
+      openNewTaskModalRef.current();
     }
     window.addEventListener("open-new-task", onOpenNewTask as EventListener);
 
@@ -600,6 +606,7 @@ export default function Home() {
                 value={projectId}
                 onChange={(e) => {
                   setProjectId(e.target.value);
+                  if (typeof window !== 'undefined') localStorage.setItem('selectedProjectId', e.target.value);
                   setOffset(0);
                 }}
               >
@@ -817,22 +824,17 @@ export default function Home() {
                                 }`.trim()}
                             >
                               {thumbBadge}
-                            <>
-                              <img
-                                src={thumbSrc}
-                                alt={thumbAlt}
-                                loading="lazy"
-                                style={{ width: "100%", height: "auto", objectFit: "cover" }}
-                              />
-                              {thumbBadge && (
-                                <span
-                                  className={`task-card__media-badge ${thumbType === "AFTER" ? "task-card__media-badge--after" : "task-card__media-badge--before"
-                                    }`.trim()}
-                                >
-                                  {thumbBadge}
-                                </span>
-                              )}
-                            </>
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <div className="task-card__media-placeholder">
+                          <span aria-hidden="true">📷</span>
+                          <small>{t("home", "noPhoto", "No photo yet")}</small>
+                        </div>
+                      )}
+                    </div>
+                    <div className="task-card__body">
                       <h3>{translatedTitle || task.title}</h3>
                       <p className={descriptionClasses}>{descriptionContent}</p>
                       <p className="task-card__note">

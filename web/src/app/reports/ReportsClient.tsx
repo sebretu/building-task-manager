@@ -1,10 +1,8 @@
-    const [selectedUserId, setSelectedUserId] = useState<string>("");
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { apiGet, apiPost } from "@/lib/apiClient";
-import qs from "qs";
 import qs from "qs";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { getTaskNumericLabel } from "@/lib/taskNumber";
@@ -24,7 +22,6 @@ type Plan = {
     floor_id?: string;
     image_width?: number;
     image_height?: number;
-    // We will add base64 data here
     imageBase64?: string;
 };
 
@@ -62,44 +59,8 @@ const urlToBase64 = async (url: string, token?: string | null): Promise<string |
         console.log(`[Reports] Fetching image: ${url}`);
         const headers: RequestInit = {};
 
-        // Use Bearer token if provided, otherwise rely on public access (for external photos)
-                    if (!res.ok) {
-                        let err = {};
-                        try { err = await res.json(); } catch {}
-                        console.error("[Reports] Save failed:", err);
-                        alert("Failed to save report to archive: " + (err.error || res.status));
-                    } else {
-                        console.log("[Reports] Report saved successfully");
-                        fetchSavedReports();
-                        // iOS/Safari: tylko link do pobrania, bez automatycznego otwierania
-                        if (isIOS || isSafari) {
-                            setStatusMessage(`Raport zapisany. <br /><a href=\"/api/reports/${encodeURIComponent(filename)}\" target=\"_blank\" rel=\"noopener\" style=\"color:blue;text-decoration:underline;font-size:18px\">Kliknij tutaj, aby pobrać PDF</a>`);
-                        } else {
-                            const url = URL.createObjectURL(blob);
-                            const link = document.createElement('a');
-                            link.href = url;
-                            link.download = filename;
-                            document.body.appendChild(link);
-                            link.click();
-                            document.body.removeChild(link);
-                            URL.revokeObjectURL(url);
-                        }
-                    }
-                                }
-                                if (photoMode === "AFTER" || photoMode === "BOTH") {
-                                    const after = photoMap[task.id]?.AFTER;
-                                    if (after && after.url) afterPhoto = await urlToBase64(after.url, null);
-                                }
-                                return {
-                                    ...task,
-                                    beforePhoto,
-                                    afterPhoto,
-                                    userName: userMap[task.assigned_user_id] || "—",
-                                };
-                            } catch (e) {
-                                return { ...task, beforePhoto: null, afterPhoto: null, userName: userMap[task.assigned_user_id] || "—" };
-                            }
-                        }));
+        if (token) {
+            headers.headers = { Authorization: `Bearer ${token}` };
         }
 
         const response = await fetch(url, headers);
@@ -112,7 +73,6 @@ const urlToBase64 = async (url: string, token?: string | null): Promise<string |
         const contentType = response.headers.get("content-type");
         if (!contentType || !contentType.startsWith("image/")) {
             console.error(`[Reports] Invalid content-type for ${url}: ${contentType}`);
-            // Diagnostic: Log what we got instead
             const text = await response.text();
             console.error(`[Reports] Response content preview: ${text.substring(0, 100)}`);
             return null;
@@ -135,28 +95,23 @@ const urlToBase64 = async (url: string, token?: string | null): Promise<string |
         if (!rawBase64) return null;
 
         // 2. Load into Image & Re-encode via Canvas to JPEG
-        // This ensures a clean, standard image format and bypasses Zlib/PNG issues in @react-pdf
         return new Promise((resolve) => {
             const img = new window.Image();
             img.onload = () => {
                 try {
-                    const canvas = document.createElement('canvas');
+                    const canvas = document.createElement("canvas");
                     canvas.width = img.width;
                     canvas.height = img.height;
-                    const ctx = canvas.getContext('2d');
+                    const ctx = canvas.getContext("2d");
                     if (!ctx) {
                         console.error("[Reports] Canvas context failed");
                         resolve(null);
                         return;
                     }
-                    // Fill white background (transparency becomes black in JPEG otherwise)
                     ctx.fillStyle = "#FFFFFF";
                     ctx.fillRect(0, 0, canvas.width, canvas.height);
-
                     ctx.drawImage(img, 0, 0);
-
-                    // Export as JPEG
-                    const cleanBase64 = canvas.toDataURL("image/jpeg", 0.85); // 0.85 quality
+                    const cleanBase64 = canvas.toDataURL("image/jpeg", 0.85);
                     console.log(`[Reports] Re-encoded ${url} to JPEG (${img.width}x${img.height})`);
                     resolve(cleanBase64);
                 } catch (err) {
@@ -200,6 +155,9 @@ export default function ReportsClient() {
     const [customFileName, setCustomFileName] = useState("");
     const [savedReports, setSavedReports] = useState<{ filename: string; createdAt: string; size: number }[]>([]);
 
+    const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
+    const [assignedUsers, setAssignedUsers] = useState<{ id: string; name: string }[]>([]);
+
     const fetchSavedReports = async () => {
         try {
             const data = await apiGet<{ filename: string; createdAt: string; size: number }[]>("/api/reports/list");
@@ -214,6 +172,12 @@ export default function ReportsClient() {
     // Initial Load
     useEffect(() => {
         fetchSavedReports();
+        apiGet<Project[]>("/api/projects").then((data) => {
+            if (Array.isArray(data) && data.length > 0) {
+                setProjects(data);
+                setSelectedProjectId(data[0].id);
+            }
+        }).catch(err => console.error("Failed to load projects", err));
     }, []);
 
     const handleDownloadReport = async (filename: string) => {
@@ -259,14 +223,36 @@ export default function ReportsClient() {
 
     // Usuwamy ładowanie users z API
 
-    // Load Plans, Buildings, Floors when Project changes
+    // Load Plans, Buildings, Floors, and Assigned Users when Project changes
     useEffect(() => {
         if (!selectedProjectId) {
             setPlans([]);
             setBuildings([]);
             setFloors([]);
+            setAssignedUsers([]);
+            setSelectedUserIds(new Set());
             return;
         }
+
+        // Fetch assigned users — get task user IDs first, then names from profiles
+        Promise.all([
+            apiGet<any[]>(`/api/tasks?projectId=${selectedProjectId}&limit=1000`),
+            apiGet<any[]>(`/api/profiles?limit=1000`),
+        ]).then(([tasks, profiles]) => {
+            if (!Array.isArray(tasks)) return;
+            const profileMap: Record<string, string> = {};
+            if (Array.isArray(profiles)) {
+                profiles.forEach((p: any) => { profileMap[p.id] = p.full_name || p.email || p.id; });
+            }
+            const userMap: Record<string, string> = {};
+            tasks.forEach((t: any) => {
+                if (t.assigned_user_id) {
+                    userMap[t.assigned_user_id] = profileMap[t.assigned_user_id] || t.assigneeName || t.assigned_user_name || t.assigned_user_id;
+                }
+            });
+            setAssignedUsers(Object.entries(userMap).map(([id, name]) => ({ id, name })));
+        }).catch(() => setAssignedUsers([]));
+
 
         // Fetch Plans
         apiGet<Plan[]>(`/api/plans?projectId=${selectedProjectId}&current=true`).then((data) => {
@@ -296,6 +282,16 @@ export default function ReportsClient() {
         setSelectedPlanIds(next);
     };
 
+    const handleUserToggle = (userId: string) => {
+        const next = new Set(selectedUserIds);
+        if (next.has(userId)) {
+            next.delete(userId);
+        } else {
+            next.add(userId);
+        }
+        setSelectedUserIds(next);
+    };
+
     const handleStatusToggle = (status: TaskStatus) => {
         const next = new Set(selectedStatuses);
         if (next.has(status)) {
@@ -317,8 +313,7 @@ export default function ReportsClient() {
             if (dateFrom) query.append("due_from", dateFrom);
             if (dateTo) query.append("due_to", dateTo);
 
-            // Dodaj filtr assigned_user_id jeśli wybrany
-            if (selectedUserId) query.append("assigned_user_id", selectedUserId);
+            // Note: user filtering is done client-side below (API only supports single assigned_user_id)
 
 
             let allTasks: any[] = [];
@@ -352,10 +347,11 @@ export default function ReportsClient() {
             });
             const assignedUsers = Array.from(userIdSet).map(id => ({ id, name: userIdToName[id] || id }));
 
-            // Filter by selected plans and statuses
+            // Filter by selected plans, statuses, and (client-side) users
             const filtered = allTasks.filter(t =>
                 selectedPlanIds.has(t.plan_id) &&
-                selectedStatuses.has(t.status)
+                selectedStatuses.has(t.status) &&
+                (selectedUserIds.size === 0 || selectedUserIds.has(t.assigned_user_id))
             );
 
             setStatusMessage(t("reports", "fetchingPhotos", "Pobieranie zdjęć..."));
@@ -363,8 +359,20 @@ export default function ReportsClient() {
             // Get Token
             const token = await import("@/lib/apiClient").then(m => m.getToken());
 
-            // Enrich with photo data AND User Names
-            const userMap = users.reduce((acc, u) => ({ ...acc, [u.id]: u.full_name || u.name || u.email || "User" }), {} as Record<string, string>);
+            // Enrich with photo data AND User Names — merge task-embedded names + profiles
+            let profileMap: Record<string, string> = {};
+            try {
+                const profiles = await apiGet<any[]>(`/api/profiles?limit=1000`);
+                if (Array.isArray(profiles)) {
+                    profiles.forEach((p: any) => { profileMap[p.id] = p.full_name || p.email || p.id; });
+                }
+            } catch { /* fallback to task-embedded names */ }
+            const userMap = assignedUsers.reduce((acc, u) => ({
+                ...acc,
+                [u.id]: profileMap[u.id] || u.name || u.id
+            }), {} as Record<string, string>);
+            // Also add any user ids from profileMap not yet in userMap
+            Object.entries(profileMap).forEach(([id, name]) => { if (!userMap[id]) userMap[id] = name; });
 
             // Batch fetch all photos for filtered tasks
             const phases = [];
@@ -378,8 +386,8 @@ export default function ReportsClient() {
             const allPhotos = await apiGet<any[]>(`/api/task-photos/batch?${params}`);
             const photoMap: Record<string, Record<string, any>> = {};
             for (const p of allPhotos) {
-                if (!photoMap[p.id]) photoMap[p.id] = {};
-                photoMap[p.id][p.photo_type || "BEFORE"] = p;
+                if (!photoMap[p.task_id]) photoMap[p.task_id] = {};
+                photoMap[p.task_id][p.photo_type || "BEFORE"] = p;
             }
             const enrichedTasks = await Promise.all(filtered.map(async (task) => {
                 try {
@@ -668,8 +676,8 @@ export default function ReportsClient() {
                         console.log("[Reports][DEBUG] POST /api/reports response", { status: res.status, ok: res.ok });
                     }
                     if (!res.ok) {
-                        let err = {};
-                        try { err = await res.json(); } catch {}
+                        let err: any = {};
+                        try { err = await res.json(); } catch { }
                         console.error("[Reports] Save failed:", err);
                         alert("Failed to save report to archive: " + (err.error || res.status));
                     } else {
@@ -731,7 +739,7 @@ export default function ReportsClient() {
                     <div className="upload-card">
                         {/* Status Message (HTML for iOS download link) */}
                         {statusMessage && statusMessage.includes('<a ') && (
-                            <div className="p-3 bg-blue-50 rounded text-blue-800 mb-4" style={{fontSize: '16px'}} dangerouslySetInnerHTML={{ __html: statusMessage }} />
+                            <div className="p-3 bg-blue-50 rounded text-blue-800 mb-4" style={{ fontSize: '16px' }} dangerouslySetInnerHTML={{ __html: statusMessage }} />
                         )}
 
                         {/* Project Selector */}
@@ -752,25 +760,32 @@ export default function ReportsClient() {
                             </div>
                         </div>
 
-                        {/* User Selector (zawsze widoczny) */}
+                        {/* User Selector — checkboxes */}
                         <div className="upload-section">
                             <div className="upload-section-header">
-                                <span className="upload-section-title">{t("reports", "assignedUser", "Przypisany użytkownik")}</span>
+                                <span className="upload-section-title">{t("reports", "assignedUser", "Assigned user")}</span>
                             </div>
                             <div className="upload-field">
-                                <select
-                                    className="upload-select"
-                                    value={selectedUserId}
-                                    onChange={(e) => setSelectedUserId(e.target.value)}
-                                >
-                                    <option value="">{t("reports", "allUsers", "Wszyscy użytkownicy")}</option>
+                                <div className="border rounded p-2 max-h-48 overflow-y-auto bg-gray-50 flex flex-col gap-1">
+                                    {assignedUsers.length === 0 && (
+                                        <span className="text-gray-400 text-sm">{t("reports", "noAssignedUsers", "No assigned users")}</span>
+                                    )}
                                     {assignedUsers.map(u => (
-                                        <option key={u.id} value={u.id}>{u.name}</option>
+                                        <label key={u.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-100 p-1 rounded w-full block">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedUserIds.has(u.id)}
+                                                onChange={() => handleUserToggle(u.id)}
+                                                className="w-4 h-4"
+                                            />
+                                            <span className="text-sm">{u.name}</span>
+                                        </label>
                                     ))}
-                                </select>
-                                {assignedUsers.length === 0 && (
-                                    <div className="text-xs text-gray-500 mt-1">Brak przypisanych użytkowników w zadaniach</div>
-                                )}
+                                </div>
+                                <div className="flex flex-col gap-2 mt-2">
+                                    <div className="text-xs text-blue-600 cursor-pointer hover:underline" onClick={() => setSelectedUserIds(new Set(assignedUsers.map(u => u.id)))}>{t("reports", "selectAll", "Zaznacz wszystkie")}</div>
+                                    <div className="text-xs text-blue-600 cursor-pointer hover:underline" onClick={() => setSelectedUserIds(new Set())}>{t("reports", "deselectAll", "Odznacz wszystkie")}</div>
+                                </div>
                             </div>
                         </div>
                         <div className="upload-section">

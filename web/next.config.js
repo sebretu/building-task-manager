@@ -5,6 +5,9 @@ const nextConfig = {
     "http://192.168.178.4:3000",
   ],
 
+  // Exclude private_tiles from Turbopack's file tracing (58k+ PNG files causing slow builds)
+  outputFileTracingIgnores: ["**/private_tiles/**"],
+
   // Enable static export for mobile builds
   ...(process.env.NEXT_PUBLIC_PLATFORM === 'mobile' && {
     output: 'export',

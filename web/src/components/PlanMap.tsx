@@ -261,8 +261,6 @@ export default function PlanMap({
       setDrawerTaskId(id);
 
       loadTasks().catch(() => { });
-      // New task -> default phase BEFORE
-      loadThumb(id, "BEFORE").catch(() => { });
     };
 
     window.addEventListener("task-photo-added", onPhotoAdded);
