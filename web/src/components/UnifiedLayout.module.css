@@ -78,8 +78,7 @@
 }
 
 .navStrip {
-  position: sticky;
-  top: 12px;
+  position: relative;
   z-index: 60;
   width: calc(100% - 48px);
   max-width: 1240px;
