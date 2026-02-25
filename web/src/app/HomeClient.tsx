@@ -799,6 +799,14 @@ export default function Home() {
                 const taskNumberLabel = getTaskNumericLabel(task.id);
                 const statusLabel = t("taskStatus", task.status, task.status);
                 const statusClassName = statusBadgeClassByCode[task.status] || "task-card__badge--default";
+                const footerStatusClassByCode: Record<string, string> = {
+                  OPEN: "task-card__footer-status--open",
+                  IN_PROGRESS: "task-card__footer-status--in-progress",
+                  DONE_WAITING_APPROVAL: "task-card__footer-status--waiting",
+                  APPROVED: "task-card__footer-status--approved",
+                  REJECTED: "task-card__footer-status--rejected",
+                };
+                const footerStatusClass = footerStatusClassByCode[task.status] || "";
                 const priorityLabel = t("taskPriority", task.priority, task.priority);
                 const dueLabel = task.due_date ? new Date(task.due_date).toLocaleDateString() : "—";
                 const assignee = task.assigned_user_id ? profileById[task.assigned_user_id] : undefined;
@@ -906,6 +914,9 @@ export default function Home() {
                     >
                       <span>
                         {priorityLabel} · {dueLabel}
+                      </span>
+                      <span className={`task-card__footer-status ${footerStatusClass}`.trim()}>
+                        {statusLabel}
                       </span>
                     </div>
                   </div>

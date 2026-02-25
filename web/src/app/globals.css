@@ -808,6 +808,44 @@ a.task-card:focus {
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
 }
 
+.task-card__footer-status {
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #fff;
+  background: rgba(17, 19, 24, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+}
+
+.task-card__footer-status--open {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.95), rgba(29, 78, 216, 0.95));
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.task-card__footer-status--in-progress {
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.95), rgba(124, 58, 237, 0.95));
+  border-color: rgba(168, 85, 247, 0.3);
+}
+
+.task-card__footer-status--waiting {
+  background: linear-gradient(135deg, rgba(251, 146, 60, 0.95), rgba(194, 65, 12, 0.95));
+  border-color: rgba(251, 146, 60, 0.3);
+}
+
+.task-card__footer-status--approved {
+  background: linear-gradient(135deg, rgba(74, 222, 128, 0.95), rgba(21, 128, 61, 0.95));
+  border-color: rgba(74, 222, 128, 0.3);
+}
+
+.task-card__footer-status--rejected {
+  background: linear-gradient(135deg, rgba(248, 113, 113, 0.95), rgba(185, 28, 28, 0.95));
+  border-color: rgba(248, 113, 113, 0.3);
+}
+
 .task-card__media-badge--after {
   background: linear-gradient(135deg, rgba(43, 217, 127, 0.95), rgba(15, 134, 84, 0.95));
 }
