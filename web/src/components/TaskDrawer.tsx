@@ -137,6 +137,7 @@ export default function TaskDrawer({
 
   const [caption, setCaption] = useState(""); // caption dla kolejnego dodawanego pliku
   const [nextPhotoType, setNextPhotoType] = useState<PhotoType>("BEFORE");
+  const [isWorking, setIsWorking] = useState(false);
   const [newComment, setNewComment] = useState(""); // nowy komentarz
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -922,15 +923,16 @@ export default function TaskDrawer({
             <div style={{ display: "grid", gap: 8 }}>
               <div style={{ fontSize: 12, fontWeight: 800, color: "rgba(17,24,39,0.6)" }}>{t("taskDrawer", "workflowActions")}</div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                {status === "OPEN" && (
+                {status === "OPEN" && !isWorking && !hasAfterPhoto && (
                   <>
                     <button
                       onClick={() => {
-                        setStatus("IN_PROGRESS");
-                        if (taskId) {
-                          apiPatch("/api/tasks", { id: taskId, status: "IN_PROGRESS" }).catch(e => console.error(e));
-                          window.dispatchEvent(new CustomEvent("task-saved"));
+                        if (!hasBeforePhoto) {
+                          window.alert(t("taskDrawer", "startWorkHint", "Aby rozpocząć pracę, musisz dodać zdjęcie PRZED pracą. Użyj przycisku 'Dodaj zdjęcie'."));
+                          return;
                         }
+                        setIsWorking(true);
+                        setNextPhotoType("AFTER");
                       }}
                       style={{
                         padding: "8px 14px",
@@ -1104,7 +1106,7 @@ export default function TaskDrawer({
                 <span style={{ fontWeight: 800 }}>{t("taskDrawer", "photoPhase", "Rodzaj zdjęcia")}</span>
                 <select value={nextPhotoType} onChange={(e) => setNextPhotoType(e.target.value as PhotoType)} style={inputStyle}>
                   <option value="BEFORE">{t("taskDrawer", "photoPhaseBefore", "Przed pracą")}</option>
-                  {status !== "OPEN" && (
+                  {(status !== "OPEN" || isWorking || hasAfterPhoto) && (
                     <option value="AFTER">{t("taskDrawer", "photoPhaseAfter", "Po pracy")}</option>
                   )}
                 </select>
@@ -1167,7 +1169,7 @@ export default function TaskDrawer({
                           setUploading(true);
                           (async () => {
                             try {
-                              const actualPhotoType = status === "OPEN" ? "BEFORE" : nextPhotoType;
+                              const actualPhotoType = (status === "OPEN" && !isWorking) ? "BEFORE" : nextPhotoType;
                               const ph = await uploadOne(taskId, f, caption.trim() === "" ? null : caption.trim(), actualPhotoType);
                               setCaption("");
                               setPhotos((prev) => [ph, ...prev]);

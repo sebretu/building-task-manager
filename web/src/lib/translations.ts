@@ -256,6 +256,7 @@ export const translations = {
       beforePhotoExists: "Before photo already exists. Click '▶️ Start working' to add the 'After' photo.",
       afterPhotoExists: "After photo already exists.",
       addPhotoBtn: "Add Photo",
+      startWorkHint: "To start work, you must add a 'BEFORE' photo first using the 'Add Photo' button.",
     },
     planMap: {
       openTaskButton: "Open task",
@@ -627,6 +628,7 @@ export const translations = {
       beforePhotoExists: "Zdjęcie 'Przed' zostało już dodane. Kliknij '▶️ Rozpocznij pracę', aby dodać zdjęcie 'Po'.",
       afterPhotoExists: "Zdjęcie 'Po' zostało już dodane.",
       addPhotoBtn: "Dodaj zdjęcie",
+      startWorkHint: "Aby rozpocząć pracę, dodaj najpierw zdjęcie 'Przed' używając przycisku 'Dodaj zdjęcie'.",
     },
     planMap: {
       openTaskButton: "Otwórz task",
@@ -994,6 +996,7 @@ export const translations = {
       beforePhotoExists: "Vorher-Foto ist bereits vorhanden. Klicken Sie auf '▶️ Arbeit starten', um das Nachher-Foto hinzuzufügen.",
       afterPhotoExists: "Nachher-Foto ist bereits vorhanden.",
       addPhotoBtn: "Foto hinzufügen",
+      startWorkHint: "Um die Arbeit zu beginnen, fügen Sie zuerst ein 'Vorher'-Foto über die Schaltfläche 'Foto hinzufügen' hinzu.",
     },
     planMap: {
       openTaskButton: "Aufgabe öffnen",
