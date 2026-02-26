@@ -49,6 +49,9 @@ export default function MaterialsClient() {
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
 
+    // My orders history
+    const [myOrders, setMyOrders] = useState<any[]>([]);
+
     useEffect(() => {
         loadInitialData();
     }, []);
@@ -81,10 +84,24 @@ export default function MaterialsClient() {
                     setProjectId(saved);
                 }
             }
+
+            // Load user's own orders
+            await loadMyOrders(token);
         } catch (err: any) {
             setError("Failed to load projects: " + err.message);
         } finally {
             setIsLoading(false);
+        }
+    }
+
+    async function loadMyOrders(tok?: string | null) {
+        try {
+            const token = tok ?? await getToken();
+            if (!token) return;
+            const ords: any[] = await apiGet("/api/orders", token);
+            setMyOrders(ords || []);
+        } catch {
+            // silently ignore
         }
     }
 
@@ -229,6 +246,8 @@ export default function MaterialsClient() {
             setSuccess("Zapotrzebowanie zostało wysłane pomyślnie.");
             setCart([]);
             localStorage.setItem("materials_project_id", projectId);
+            // Refresh orders history
+            loadMyOrders();
 
             setTimeout(() => setSuccess(null), 5000);
         } catch (err: any) {
@@ -559,6 +578,75 @@ export default function MaterialsClient() {
                                         {isSubmitting ? t("common", "loading", "Wysyłanie...") : submitBtn}
                                     </button>
                                 </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* My Orders History */}
+                <div className="upload-card" style={{ marginTop: 24 }}>
+                    <div className="upload-section">
+                        <h3 style={{ margin: "0 0 16px 0", fontSize: 18, color: "var(--home-foreground)" }}>
+                            {t("materials", "myOrdersTitle", "Moje wysłane zapotrzebowania")}
+                        </h3>
+
+                        {myOrders.length === 0 ? (
+                            <div style={{ padding: 32, textAlign: "center", color: "var(--home-muted)", background: "var(--home-bg-secondary)", borderRadius: "var(--radius)", border: "1px dashed var(--border)" }}>
+                                {t("materials", "noOrders", "Nie wysłałeś jeszcze żadnych zamówień.")}
+                            </div>
+                        ) : (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                                {myOrders.map(order => {
+                                    const statusColors: Record<string, { bg: string; color: string; label: string }> = {
+                                        PENDING: { bg: "#fef08a", color: "#854d0e", label: t("materials", "statusPending", "Oczekuje") },
+                                        APPROVED: { bg: "#bbf7d0", color: "#166534", label: t("materials", "statusApproved", "Zatwierdzone") },
+                                        REJECTED: { bg: "#fecaca", color: "#991b1b", label: t("materials", "statusRejected", "Odrzucone") },
+                                        DELIVERED: { bg: "#e0e7ff", color: "#3730a3", label: t("materials", "statusDelivered", "Dostarczone") },
+                                    };
+                                    const sc = statusColors[order.status] ?? { bg: "#e5e7eb", color: "#374151", label: order.status };
+
+                                    return (
+                                        <div key={order.id} style={{ border: "1px solid var(--border)", borderRadius: "var(--radius)", overflow: "hidden" }}>
+                                            {/* Order header */}
+                                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", background: "var(--home-bg-secondary)", borderBottom: "1px solid var(--border)" }}>
+                                                <div>
+                                                    <div style={{ fontWeight: 600, fontSize: 14, color: "var(--home-foreground)" }}>
+                                                        {new Date(order.created_at).toLocaleDateString("pl-PL", { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                                                    </div>
+                                                    {order.project && (
+                                                        <div style={{ fontSize: 12, color: "var(--home-muted)", marginTop: 2 }}>{order.project.name}</div>
+                                                    )}
+                                                </div>
+                                                <span style={{ padding: "4px 12px", borderRadius: 12, fontSize: 12, fontWeight: 700, background: sc.bg, color: sc.color }}>
+                                                    {sc.label}
+                                                </span>
+                                            </div>
+
+                                            {/* Items list — read-only */}
+                                            <div style={{ padding: "12px 16px" }}>
+                                                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, color: "var(--home-foreground)" }}>
+                                                    <tbody>
+                                                        {(order.items || []).map((item: any) => (
+                                                            <tr key={item.id} style={{ borderBottom: "1px solid var(--border)" }}>
+                                                                <td style={{ padding: "8px 0", fontWeight: 500 }}>
+                                                                    {item.material ? item.material.name : item.custom_name}
+                                                                    {!item.material && (
+                                                                        <span style={{ marginLeft: 8, fontSize: 11, background: "var(--border)", padding: "2px 6px", borderRadius: 4, color: "var(--home-muted)" }}>
+                                                                            {t("materials", "customBadge", "Ręcznie")}
+                                                                        </span>
+                                                                    )}
+                                                                </td>
+                                                                <td style={{ padding: "8px 0", textAlign: "right", color: "var(--home-muted)", whiteSpace: "nowrap" }}>
+                                                                    <strong style={{ color: "var(--home-foreground)" }}>{item.quantity}</strong> {item.material ? item.material.unit : item.custom_unit}
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         )}
                     </div>
