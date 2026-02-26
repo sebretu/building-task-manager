@@ -389,7 +389,8 @@ export default function PlansPage() {
             </div>
           );
         })()}
-      </section>
-    </main>
+      </div>
+    </section>
+    </main >
   );
 }
