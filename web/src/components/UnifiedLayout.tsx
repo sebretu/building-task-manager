@@ -218,16 +218,18 @@ export default function UnifiedLayout({ children }: { children: React.ReactNode 
 
   const navLinks = useMemo(() => {
     const links = [
-      { href: "/", label: t("nav", "tasks", "Aufgaben") },
-      { href: "/plans", label: t("nav", "plans", "Pläne") },
+      { href: "/", label: t("nav", "tasks", "Zadania") },
+      { href: "/plans", label: t("nav", "plans", "Plany") },
+      { href: "/materials", label: t("nav", "materials", "Zapotrzebowania") },
     ];
     const adminLinks = isAdmin
       ? [
-        { href: "/users", label: t("nav", "users", "Benutzer") },
-        { href: "/companies", label: t("nav", "companies", "Unternehmen") },
+        { href: "/users", label: t("nav", "users", "Użytkownicy") },
+        { href: "/companies", label: t("nav", "companies", "Firmy") },
         { href: "/reports", label: t("nav", "reports", "Raporty") },
         { href: "/to-approve", label: t("nav", "toApprove", "Do zatwierdzenia") },
         { href: "/completed", label: t("nav", "completed", "Zakończone prace") },
+        { href: "/admin/materials", label: "Materiały (Admin)" },
       ]
       : [];
     return [...links, ...adminLinks];

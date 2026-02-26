@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { apiGet, apiPost, getToken } from "@/lib/apiClient";
+import { apiGet, apiPost, apiCall, apiDelete, getToken } from "@/lib/apiClient";
 import { supabase } from "@/lib/supabase";
 import type { Language } from "@/lib/translations";
 import { PWAInstallBanner } from "@/components/PWAInstallBanner";
@@ -127,6 +127,8 @@ export default function ToApproveClient() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectId, setProjectId] = useState("");
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<"tasks" | "orders">("tasks");
   const [thumbByTask, setThumbByTask] = useState<Record<string, TaskThumb>>({});
 
   const [metaByPlan, setMetaByPlan] = useState<Record<string, PlanMeta | null>>({});
@@ -365,6 +367,11 @@ export default function ToApproveClient() {
         `/api/tasks?projectId=${encodeURIComponent(pid)}&limit=${limit}&offset=${offset}${statusQ}${priorityQ}${assignedQ}${dueFromQ}${dueToQ}${sortQ}${qQ}`
       );
       setTasks(ts);
+
+      if (token) {
+        const ords = await apiGet<any[]>(`/api/orders?projectId=${encodeURIComponent(pid)}`, token);
+        setOrders(ords || []);
+      }
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : String(e);
       setErr(message);
@@ -568,6 +575,21 @@ export default function ToApproveClient() {
             <p>{t("home", "toApproveSubtitle", "Zadania zgłoszone i oczekujące na weryfikację")}</p>
           </div>
 
+          <div style={{ display: "flex", gap: "12px", marginBottom: "24px" }}>
+            <button
+              onClick={() => setActiveTab("tasks")}
+              style={{ padding: "8px 16px", borderRadius: "12px", border: "1px solid var(--border)", background: activeTab === "tasks" ? "var(--primary)" : "transparent", color: activeTab === "tasks" ? "#fff" : "var(--foreground)", fontWeight: 600, cursor: "pointer" }}
+            >
+              {t("nav", "tasks", "Zadania")} ({tasks.length})
+            </button>
+            <button
+              onClick={() => setActiveTab("orders")}
+              style={{ padding: "8px 16px", borderRadius: "12px", border: "1px solid var(--border)", background: activeTab === "orders" ? "var(--primary)" : "transparent", color: activeTab === "orders" ? "#fff" : "var(--foreground)", fontWeight: 600, cursor: "pointer" }}
+            >
+              {t("materials", "adminOrdersTab", "Zapotrzebowania na materiały")} ({orders.filter(o => o.status === "PENDING").length})
+            </button>
+          </div>
+
           <div className="home-filters">
             <label>
               {t("home", "selectProject")}:
@@ -728,7 +750,97 @@ export default function ToApproveClient() {
             </div>
           )}
 
-          {viewMode === "list" ? (
+          {activeTab === "orders" ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              {orders.length === 0 ? (
+                <div className="home-empty">{t("materials", "noOrders", "Brak zamówień w tym projekcie.")}</div>
+              ) : (
+                orders.map(order => (
+                  <div key={order.id} style={{ border: "1px solid var(--border)", borderRadius: "var(--radius)", padding: "20px", background: "var(--bg-secondary)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", borderBottom: "1px solid var(--border)", paddingBottom: "12px" }}>
+                      <div>
+                        <h3 style={{ margin: 0, fontSize: "16px", color: "#1e293b" }}>{t("materials", "orderFrom", "Zamówienie od")} {order.user?.full_name || t("materials", "unknownUser", "Nieznany")}</h3>
+                        <span style={{ fontSize: "12px", color: "#64748b" }}>{new Date(order.created_at).toLocaleString()}</span>
+                      </div>
+                      <div>
+                        <span style={{
+                          padding: "4px 12px", borderRadius: "12px", fontSize: "12px", fontWeight: 700,
+                          background: order.status === "PENDING" ? "#fef08a" : order.status === "APPROVED" ? "#bbf7d0" : order.status === "REJECTED" ? "#fecaca" : "#e5e7eb",
+                          color: order.status === "PENDING" ? "#854d0e" : order.status === "APPROVED" ? "#166534" : order.status === "REJECTED" ? "#991b1b" : "#374151"
+                        }}>
+                          {order.status}
+                        </span>
+                      </div>
+                    </div>
+
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "14px", marginBottom: "20px" }}>
+                      <thead>
+                        <tr style={{ color: "#374151", borderBottom: "1px solid var(--border)", textAlign: "left" }}>
+                          <th style={{ padding: "8px 0", fontWeight: 500 }}>{t("materials", "materialCol", "Materiał")}</th>
+                          <th style={{ padding: "8px 0", fontWeight: 500, textAlign: "right" }}>{t("materials", "quantityCol", "Ilość")}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {order.items?.map((item: any) => (
+                          <tr key={item.id} style={{ borderBottom: "1px dashed var(--border)" }}>
+                            <td style={{ padding: "12px 0", fontWeight: 500 }}>
+                              {item.material ? item.material.name : item.custom_name}
+                              {!item.material && <span style={{ marginLeft: "8px", fontSize: "10px", background: "#f1f5f9", padding: "2px 6px", borderRadius: "4px", color: "#64748b" }}>{t("materials", "customBadge", "Spoza bazy")}</span>}
+                            </td>
+                            <td style={{ padding: "12px 0", textAlign: "right" }}>
+                              {item.quantity} <span style={{ color: "#374151" }}>{item.material ? item.material.unit : item.custom_unit}</span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+
+                    {/* Delete always visible */}
+                    <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", marginTop: "8px" }}>
+                      <button
+                        onClick={async () => {
+                          if (!confirm("Na pewno usunąć to zamówienie?")) return;
+                          try {
+                            await apiCall(`/api/orders?id=${order.id}`, { method: "DELETE", token: token });
+                            loadAll();
+                          } catch (e: any) { alert("Błąd: " + e.message); }
+                        }}
+                        style={{ padding: "8px 16px", borderRadius: "8px", background: "transparent", border: "1px solid #dc2626", color: "#dc2626", cursor: "pointer", fontWeight: 600 }}
+                      >
+                        🗑 {t("common", "delete", "Usuń")}
+                      </button>
+
+                      {order.status === "PENDING" && (<>
+                        <button
+                          onClick={async () => {
+                            if (!confirm(t("materials", "rejectConfirm", "Odrzucić to zamówienie?"))) return;
+                            try {
+                              await apiCall("/api/orders", { method: "PATCH", body: { orderId: order.id, status: "REJECTED" }, token: token });
+                              loadAll();
+                            } catch (e: any) { alert("Błąd: " + e.message); }
+                          }}
+                          style={{ padding: "8px 16px", borderRadius: "8px", background: "transparent", border: "1px solid #dc2626", color: "#dc2626", cursor: "pointer", fontWeight: 600 }}
+                        >
+                          {t("materials", "rejectBtn", "Odrzuć")}
+                        </button>
+                        <button
+                          onClick={async () => {
+                            try {
+                              await apiCall("/api/orders", { method: "PATCH", body: { orderId: order.id, status: "APPROVED" }, token: token });
+                              loadAll();
+                            } catch (e: any) { alert("Błąd: " + e.message); }
+                          }}
+                          style={{ padding: "8px 16px", borderRadius: "8px", background: "#16a34a", border: "none", color: "#fff", cursor: "pointer", fontWeight: 600 }}
+                        >
+                          {t("materials", "approveBtn", "Zatwierdź")}
+                        </button>
+                      </>)}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          ) : viewMode === "list" ? (
             <div className="tasks-grid">
               {tasks.map((task) => {
                 const thumb = thumbByTask[task.id];
@@ -877,6 +989,52 @@ export default function ToApproveClient() {
                         {statusLabel}
                       </span>
                     </div>
+
+                    {/* Approve / Reject / Delete actions */}
+                    {task.status === "DONE_WAITING_APPROVAL" && (
+                      <div style={{ display: "flex", gap: "8px", padding: "10px 16px", borderTop: "1px solid var(--border)", background: "var(--bg-secondary)", borderRadius: "0 0 var(--radius) var(--radius)", gridColumn: "1 / -1" }}>
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            if (!confirm(t("home", "confirmDelete", "Na pewno usunąć to zadanie?"))) return;
+                            try {
+                              await apiCall(`/api/task?id=${task.id}`, { method: "DELETE", token });
+                              setTasks(prev => prev.filter(tt => tt.id !== task.id));
+                            } catch (err: any) { alert("Błąd usuwania: " + err.message); }
+                          }}
+                          style={{ padding: "6px 12px", borderRadius: "8px", border: "1px solid #dc2626", background: "transparent", color: "#dc2626", cursor: "pointer", fontSize: "13px", fontWeight: 600 }}
+                        >
+                          🗑 {t("common", "delete", "Usuń")}
+                        </button>
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            const reason = prompt(t("home", "rejectReason", "Podaj powód odrzucenia:"));
+                            if (reason === null) return;
+                            if (!reason.trim()) { alert("Powód jest wymagany."); return; }
+                            try {
+                              await apiCall("/api/tasks", { method: "PATCH", body: { id: task.id, status: "REJECTED", rejection_reason: reason }, token });
+                              loadAll();
+                            } catch (err: any) { alert("Błąd: " + err.message); }
+                          }}
+                          style={{ flex: 1, padding: "6px 12px", borderRadius: "8px", border: "1px solid var(--danger, #dc2626)", background: "transparent", color: "var(--danger, #dc2626)", cursor: "pointer", fontSize: "13px", fontWeight: 600 }}
+                        >
+                          ✗ {t("home", "rejectBtn", "Odrzuć")}
+                        </button>
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            try {
+                              await apiCall("/api/tasks", { method: "PATCH", body: { id: task.id, status: "APPROVED" }, token });
+                              loadAll();
+                            } catch (err: any) { alert("Błąd: " + err.message); }
+                          }}
+                          style={{ flex: 1, padding: "6px 12px", borderRadius: "8px", border: "none", background: "#16a34a", color: "#fff", cursor: "pointer", fontSize: "13px", fontWeight: 600 }}
+                        >
+                          ✓ {t("home", "approveBtn", "Zatwierdź")}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })}

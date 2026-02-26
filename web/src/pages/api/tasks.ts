@@ -683,6 +683,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     }
   }
 
-  res.setHeader("Allow", "GET, POST, PATCH");
-  res.status(405).json({ ok: false, error: { code: "METHOD_NOT_ALLOWED", message: "Use GET, POST or PATCH" } });
+  // DELETE /api/tasks?id=...
+  if (req.method === "DELETE") {
+    if (!isAdmin) {
+      res.status(403).json({ ok: false, error: { code: "FORBIDDEN", message: "Only admins can delete tasks" } });
+      return;
+    }
+
+    const id = typeof req.query.id === "string" ? req.query.id.trim() : "";
+    if (!id || !isUuid(id)) {
+      res.status(400).json({ ok: false, error: { code: "BAD_REQUEST", message: "Missing or invalid id (uuid)" } });
+      return;
+    }
+
+    const adminForDelete = getAdminClientSafely();
+    const deleteClient = adminForDelete || supabase;
+
+    const { error } = await deleteClient.from("tasks").delete().eq("id", id);
+    if (error) {
+      res.status(400).json({ ok: false, error: { code: "SUPABASE", message: error.message } });
+      return;
+    }
+
+    res.status(200).json({ ok: true, data: { deleted: id } });
+    return;
+  }
+
+  res.setHeader("Allow", "GET, POST, PATCH, DELETE");
+  res.status(405).json({ ok: false, error: { code: "METHOD_NOT_ALLOWED", message: "Use GET, POST, PATCH or DELETE" } });
 }

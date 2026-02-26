@@ -21,8 +21,17 @@ export function getBearerToken(req: NextApiRequest | Request): string | null {
       ? req.headers.get("authorization") || ""
       : (req.headers.authorization || "");
 
-  if (!auth.toLowerCase().startsWith("bearer ")) return null;
-  return auth.slice(7).trim() || null;
+  if (auth.toLowerCase().startsWith("bearer ")) {
+    return auth.slice(7).trim() || null;
+  }
+
+  // Fallback: Cloudflare strips Authorization header, so we also check X-App-Token
+  const xToken =
+    req instanceof Request
+      ? req.headers.get("x-app-token") || ""
+      : (req.headers["x-app-token"] as string || "");
+
+  return xToken.trim() || null;
 }
 
 /**
