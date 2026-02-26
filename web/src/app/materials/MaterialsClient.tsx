@@ -102,22 +102,13 @@ export default function MaterialsClient() {
     }
 
     function handleAddCatalogItem(mat: Material) {
-        const qtyStr = window.prompt(`Podaj ilość (${mat.unit}) dla: ${mat.name}`, "1");
-        if (!qtyStr) return;
-
-        const qty = parseFloat(qtyStr.replace(',', '.'));
-        if (isNaN(qty) || qty <= 0) {
-            alert(t("common", "error", "Błąd") + ": Nieprawidłowa ilość");
-            return;
-        }
-
         setCart(prev => {
-            // Check if already in cart
+            // If already in cart, increment quantity by 1
             const existing = prev.find(item => item.materialId === mat.id);
             if (existing) {
                 return prev.map(item =>
                     item.materialId === mat.id
-                        ? { ...item, quantity: item.quantity + qty }
+                        ? { ...item, quantity: item.quantity + 1 }
                         : item
                 );
             }
@@ -126,24 +117,53 @@ export default function MaterialsClient() {
                 materialId: mat.id,
                 name: mat.name,
                 unit: mat.unit,
-                quantity: qty
+                quantity: 1
             }];
         });
         setSearchQuery("");
+        setMaterials([]);
     }
 
-    function handleAddCustomItem() {
+    async function handleAddCustomItem() {
         if (!customName.trim() || !customUnit.trim() || !customQty || customQty <= 0) {
-            alert(t("common", "error", "Błąd"));
+            alert(t("common", "error", "Błąd") + ": Wypełnij wszystkie pola");
             return;
         }
 
-        setCart(prev => [...prev, {
-            id: Math.random().toString(36).substr(2, 9),
-            name: customName.trim(),
-            unit: customUnit.trim(),
-            quantity: Number(customQty)
-        }]);
+        try {
+            const token = await getToken();
+            // Auto-save to materials DB so it's searchable in future
+            const savedMat = await apiPost<Material>("/api/materials", {
+                name: customName.trim(),
+                unit: customUnit.trim()
+            }, token!);
+
+            setCart(prev => {
+                const existing = prev.find(item => item.materialId === savedMat.id);
+                if (existing) {
+                    return prev.map(item =>
+                        item.materialId === savedMat.id
+                            ? { ...item, quantity: item.quantity + Number(customQty) }
+                            : item
+                    );
+                }
+                return [...prev, {
+                    id: Math.random().toString(36).substr(2, 9),
+                    materialId: savedMat.id,
+                    name: savedMat.name,
+                    unit: savedMat.unit,
+                    quantity: Number(customQty)
+                }];
+            });
+        } catch {
+            // Fallback: add as pure custom (no materialId) if save fails
+            setCart(prev => [...prev, {
+                id: Math.random().toString(36).substr(2, 9),
+                name: customName.trim(),
+                unit: customUnit.trim(),
+                quantity: Number(customQty)
+            }]);
+        }
 
         setCustomName("");
         setCustomQty("");
@@ -164,6 +184,13 @@ export default function MaterialsClient() {
             return;
         }
 
+        // Validate that all custom items have a non-empty name
+        const emptyItems = cart.filter(item => !item.materialId && !item.name.trim());
+        if (emptyItems.length > 0) {
+            setError("Uzupełnij nazwy wszystkich pozycji w koszyku przed wysłaniem.");
+            return;
+        }
+
         setIsSubmitting(true);
         setError(null);
         setSuccess(null);
@@ -171,9 +198,25 @@ export default function MaterialsClient() {
         try {
             const token = await getToken();
 
+            // For any remaining custom items (no materialId), try to auto-save them first
+            const resolvedCart = await Promise.all(cart.map(async item => {
+                if (!item.materialId && item.name.trim()) {
+                    try {
+                        const savedMat = await apiPost<Material>("/api/materials", {
+                            name: item.name.trim(),
+                            unit: item.unit.trim() || "szt."
+                        }, token!);
+                        return { ...item, materialId: savedMat.id, name: savedMat.name, unit: savedMat.unit };
+                    } catch {
+                        return item; // keep as custom if save fails
+                    }
+                }
+                return item;
+            }));
+
             const payload = {
                 projectId,
-                items: cart.map(item => ({
+                items: resolvedCart.map(item => ({
                     materialId: item.materialId,
                     customName: item.materialId ? undefined : item.name,
                     customUnit: item.materialId ? undefined : item.unit,
@@ -184,10 +227,9 @@ export default function MaterialsClient() {
             await apiPost("/api/orders", payload, token!);
 
             setSuccess("Zapotrzebowanie zostało wysłane pomyślnie.");
-            setCart([]); // clear cart
-            localStorage.setItem("materials_project_id", projectId); // remember project
+            setCart([]);
+            localStorage.setItem("materials_project_id", projectId);
 
-            // clear success message after 5 seconds
             setTimeout(() => setSuccess(null), 5000);
         } catch (err: any) {
             setError("Błąd wysyłania: " + err.message);
@@ -366,23 +408,96 @@ export default function MaterialsClient() {
                                     <thead>
                                         <tr style={{ borderBottom: "1px solid var(--border)", color: "var(--home-muted)" }}>
                                             <th style={{ textAlign: "left", padding: "12px 0", fontWeight: 500 }}>{t("materials", "materialCol", "Materiał")}</th>
-                                            <th style={{ textAlign: "right", padding: "12px 16px", fontWeight: 500 }}>{t("materials", "quantityCol", "Ilość")}</th>
+                                            <th style={{ textAlign: "right", padding: "12px 16px", fontWeight: 500, whiteSpace: "nowrap" }}>{t("materials", "quantityCol", "Menge / Ilość")}</th>
                                             <th style={{ width: 40 }}></th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {cart.map(item => (
                                             <tr key={item.id} style={{ borderBottom: "1px solid var(--border)" }}>
-                                                <td style={{ padding: "16px 0", fontWeight: 500 }}>
-                                                    {item.name}
-                                                    {!item.materialId && (
-                                                        <span style={{ marginLeft: 8, fontSize: 11, background: "var(--border)", padding: "2px 6px", borderRadius: 4, color: "var(--home-muted)" }}>{t("materials", "customBadge", "Ręcznie")}</span>
+                                                <td style={{ padding: "10px 0", fontWeight: 500 }}>
+                                                    {/* Editable name only for custom (non-catalog) items */}
+                                                    {item.materialId ? (
+                                                        <span>
+                                                            {item.name}
+                                                        </span>
+                                                    ) : (
+                                                        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                                                            <input
+                                                                type="text"
+                                                                value={item.name}
+                                                                onChange={e => setCart(prev => prev.map(ci =>
+                                                                    ci.id === item.id ? { ...ci, name: e.target.value } : ci
+                                                                ))}
+                                                                style={{
+                                                                    border: "1px solid var(--border)",
+                                                                    borderRadius: "var(--radius)",
+                                                                    padding: "4px 8px",
+                                                                    fontSize: 13,
+                                                                    background: "var(--home-bg-secondary)",
+                                                                    color: "var(--home-foreground)",
+                                                                    width: "100%",
+                                                                    maxWidth: 280
+                                                                }}
+                                                                placeholder={t("adminMaterials", "materialNamePlaceholder", "Nazwa materiału")}
+                                                            />
+                                                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                                                <input
+                                                                    type="text"
+                                                                    value={item.unit}
+                                                                    onChange={e => setCart(prev => prev.map(ci =>
+                                                                        ci.id === item.id ? { ...ci, unit: e.target.value } : ci
+                                                                    ))}
+                                                                    style={{
+                                                                        border: "1px solid var(--border)",
+                                                                        borderRadius: "var(--radius)",
+                                                                        padding: "4px 8px",
+                                                                        fontSize: 12,
+                                                                        background: "var(--home-bg-secondary)",
+                                                                        color: "var(--home-muted)",
+                                                                        width: 72
+                                                                    }}
+                                                                    placeholder={t("adminMaterials", "unitPlaceholder", "Jedn.")}
+                                                                />
+                                                                <span style={{ fontSize: 11, background: "var(--border)", padding: "2px 6px", borderRadius: 4, color: "var(--home-muted)" }}>
+                                                                    {t("materials", "customBadge", "Ręcznie")}
+                                                                </span>
+                                                            </div>
+                                                        </div>
                                                     )}
                                                 </td>
-                                                <td style={{ padding: "16px 16px", textAlign: "right" }}>
-                                                    {item.quantity} <span style={{ color: "var(--home-muted)" }}>{item.unit}</span>
+                                                <td style={{ padding: "10px 16px", textAlign: "right" }}>
+                                                    {/* Editable quantity for ALL items */}
+                                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6 }}>
+                                                        <input
+                                                            type="number"
+                                                            min="0.01"
+                                                            step="0.01"
+                                                            value={item.quantity}
+                                                            onChange={e => {
+                                                                const val = parseFloat(e.target.value.replace(",", "."));
+                                                                if (!isNaN(val) && val > 0) {
+                                                                    setCart(prev => prev.map(ci =>
+                                                                        ci.id === item.id ? { ...ci, quantity: val } : ci
+                                                                    ));
+                                                                }
+                                                            }}
+                                                            style={{
+                                                                width: 72,
+                                                                border: "1px solid var(--border)",
+                                                                borderRadius: "var(--radius)",
+                                                                padding: "4px 8px",
+                                                                fontSize: 14,
+                                                                textAlign: "right",
+                                                                background: "var(--home-bg-secondary)",
+                                                                color: "var(--home-foreground)",
+                                                                fontWeight: 600
+                                                            }}
+                                                        />
+                                                        <span style={{ color: "var(--home-muted)", fontSize: 13, minWidth: 28 }}>{item.unit}</span>
+                                                    </div>
                                                 </td>
-                                                <td style={{ padding: "16px 0", textAlign: "right" }}>
+                                                <td style={{ padding: "10px 0", textAlign: "right" }}>
                                                     <button
                                                         onClick={() => handleRemoveItem(item.id)}
                                                         style={{ background: "transparent", border: "none", color: "var(--danger)", cursor: "pointer", padding: 4 }}
@@ -395,6 +510,35 @@ export default function MaterialsClient() {
                                         ))}
                                     </tbody>
                                 </table>
+
+                                {/* Add extra custom item directly in cart */}
+                                <div style={{ marginTop: 16 }}>
+                                    <button
+                                        onClick={() => {
+                                            setCart(prev => [...prev, {
+                                                id: Math.random().toString(36).substr(2, 9),
+                                                name: "",
+                                                unit: "szt.",
+                                                quantity: 1
+                                            }]);
+                                        }}
+                                        style={{
+                                            background: "transparent",
+                                            border: "1px dashed var(--border)",
+                                            color: "var(--home-muted)",
+                                            cursor: "pointer",
+                                            fontSize: 13,
+                                            padding: "8px 16px",
+                                            borderRadius: "var(--radius)",
+                                            width: "100%",
+                                            textAlign: "center",
+                                            transition: "background 0.2s"
+                                        }}
+                                        className="hover-bg-secondary"
+                                    >
+                                        + {t("materials", "addCustomBtn", "Dodaj pozycję do listy")}
+                                    </button>
+                                </div>
 
                                 <div style={{ marginTop: 24, display: "flex", justifyContent: "flex-end" }}>
                                     <button

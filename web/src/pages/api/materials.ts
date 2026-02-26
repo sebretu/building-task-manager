@@ -33,7 +33,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             let query = supabase.from("materials").select("*").order("name", { ascending: true });
 
             if (typeof search === "string" && search.trim() !== "") {
-                query = query.ilike("name", `%${search.trim()}%`);
+                const s = search.trim();
+                query = query.or(`name.ilike.%${s}%,category.ilike.%${s}%`);
             }
 
             const { data: materials, error } = await query.limit(50);
@@ -43,13 +44,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
 
         if (req.method === "POST") {
-            if (!isAdmin) {
-                return res.status(403).json({ ok: false, error: { message: "Forbidden: Admins only" } });
-            }
-
+            // Any authenticated user can add a material (e.g. auto-save custom items)
+            // Admins can set a category; regular users get null category (can be updated later)
             const { name, unit, category } = req.body;
             if (!name || !unit) {
                 return res.status(400).json({ ok: false, error: { message: "Name and unit are required" } });
+            }
+
+            // Check if material with same name already exists (case-insensitive) to avoid duplicates
+            const { data: existing } = await supabase
+                .from("materials")
+                .select("id, name, unit")
+                .ilike("name", name.trim())
+                .maybeSingle();
+
+            if (existing) {
+                // Return existing material instead of duplicate
+                return res.status(200).json({ ok: true, data: existing });
             }
 
             const { data: material, error } = await supabase

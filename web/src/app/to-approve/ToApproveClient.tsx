@@ -128,6 +128,8 @@ export default function ToApproveClient() {
   const [projectId, setProjectId] = useState("");
   const [tasks, setTasks] = useState<Task[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
+  const [editingItems, setEditingItems] = useState<Record<string, any[]>>({});
+  const [savingOrderId, setSavingOrderId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"tasks" | "orders">("tasks");
   const [thumbByTask, setThumbByTask] = useState<Record<string, TaskThumb>>({});
 
@@ -370,7 +372,14 @@ export default function ToApproveClient() {
 
       if (token) {
         const ords = await apiGet<any[]>(`/api/orders?projectId=${encodeURIComponent(pid)}`, token);
-        setOrders(ords || []);
+        const ordList = ords || [];
+        setOrders(ordList);
+        // Populate editing state with a deep copy of items
+        const editMap: Record<string, any[]> = {};
+        ordList.forEach((o: any) => {
+          editMap[o.id] = (o.items || []).map((it: any) => ({ ...it }));
+        });
+        setEditingItems(editMap);
       }
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : String(e);
@@ -777,23 +786,125 @@ export default function ToApproveClient() {
                       <thead>
                         <tr style={{ color: "#374151", borderBottom: "1px solid var(--border)", textAlign: "left" }}>
                           <th style={{ padding: "8px 0", fontWeight: 500 }}>{t("materials", "materialCol", "Materiał")}</th>
-                          <th style={{ padding: "8px 0", fontWeight: 500, textAlign: "right" }}>{t("materials", "quantityCol", "Ilość")}</th>
+                          <th style={{ padding: "8px 8px", fontWeight: 500, textAlign: "right", whiteSpace: "nowrap" }}>{t("materials", "quantityCol", "Menge / Ilość")}</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {order.items?.map((item: any) => (
+                        {(editingItems[order.id] || order.items || []).map((item: any, idx: number) => (
                           <tr key={item.id} style={{ borderBottom: "1px dashed var(--border)" }}>
-                            <td style={{ padding: "12px 0", fontWeight: 500 }}>
-                              {item.material ? item.material.name : item.custom_name}
-                              {!item.material && <span style={{ marginLeft: "8px", fontSize: "10px", background: "#f1f5f9", padding: "2px 6px", borderRadius: "4px", color: "#64748b" }}>{t("materials", "customBadge", "Spoza bazy")}</span>}
+                            <td style={{ padding: "10px 0", fontWeight: 500 }}>
+                              {item.material ? (
+                                // Catalog material — name not editable, but show it clearly
+                                <span>{item.material.name}</span>
+                              ) : (
+                                // Custom item — name & unit are editable
+                                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                                  <input
+                                    type="text"
+                                    value={item.custom_name || ""}
+                                    onChange={e => setEditingItems(prev => {
+                                      const copy = [...(prev[order.id] || [])];
+                                      copy[idx] = { ...copy[idx], custom_name: e.target.value };
+                                      return { ...prev, [order.id]: copy };
+                                    })}
+                                    style={{
+                                      border: "1px solid var(--border)", borderRadius: "var(--radius)",
+                                      padding: "4px 8px", fontSize: 13,
+                                      background: "var(--home-bg, #f8fafc)", color: "#1e293b",
+                                      width: "100%", maxWidth: 260
+                                    }}
+                                    placeholder={t("adminMaterials", "materialNamePlaceholder", "Nazwa materiału")}
+                                  />
+                                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                    <input
+                                      type="text"
+                                      value={item.custom_unit || ""}
+                                      onChange={e => setEditingItems(prev => {
+                                        const copy = [...(prev[order.id] || [])];
+                                        copy[idx] = { ...copy[idx], custom_unit: e.target.value };
+                                        return { ...prev, [order.id]: copy };
+                                      })}
+                                      style={{
+                                        border: "1px solid var(--border)", borderRadius: "var(--radius)",
+                                        padding: "4px 8px", fontSize: 12,
+                                        background: "var(--home-bg, #f8fafc)", color: "#64748b",
+                                        width: 70
+                                      }}
+                                      placeholder="jedn."
+                                    />
+                                    <span style={{ fontSize: 11, background: "#f1f5f9", padding: "2px 6px", borderRadius: 4, color: "#64748b" }}>
+                                      {t("materials", "customBadge", "Spoza bazy")}
+                                    </span>
+                                  </div>
+                                </div>
+                              )}
                             </td>
-                            <td style={{ padding: "12px 0", textAlign: "right" }}>
-                              {item.quantity} <span style={{ color: "#374151" }}>{item.material ? item.material.unit : item.custom_unit}</span>
+                            <td style={{ padding: "10px 8px", textAlign: "right" }}>
+                              <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6 }}>
+                                <input
+                                  type="number"
+                                  min="0.01"
+                                  step="0.01"
+                                  value={item.quantity}
+                                  onChange={e => {
+                                    const val = parseFloat(e.target.value.replace(",", "."));
+                                    if (!isNaN(val) && val > 0) {
+                                      setEditingItems(prev => {
+                                        const copy = [...(prev[order.id] || [])];
+                                        copy[idx] = { ...copy[idx], quantity: val };
+                                        return { ...prev, [order.id]: copy };
+                                      });
+                                    }
+                                  }}
+                                  style={{
+                                    width: 72, border: "1px solid var(--border)",
+                                    borderRadius: "var(--radius)", padding: "4px 8px",
+                                    fontSize: 14, textAlign: "right",
+                                    background: "var(--home-bg, #f8fafc)", color: "#1e293b", fontWeight: 600
+                                  }}
+                                />
+                                <span style={{ color: "#64748b", fontSize: 13, minWidth: 28 }}>
+                                  {item.material ? item.material.unit : (item.custom_unit || "")}
+                                </span>
+                              </div>
                             </td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
+
+                    {/* Save changes button */}
+                    {editingItems[order.id] && (
+                      <div style={{ marginBottom: 12, display: "flex", justifyContent: "flex-end" }}>
+                        <button
+                          disabled={savingOrderId === order.id}
+                          onClick={async () => {
+                            setSavingOrderId(order.id);
+                            try {
+                              const items = editingItems[order.id] || [];
+                              for (const item of items) {
+                                const patch: Record<string, any> = { itemId: item.id, quantity: item.quantity };
+                                if (!item.material) {
+                                  patch.customName = item.custom_name;
+                                  patch.customUnit = item.custom_unit;
+                                }
+                                await apiCall("/api/order-items", { method: "PATCH", body: patch, token });
+                              }
+                              await loadAll();
+                            } catch (e: any) { alert("Błąd zapisu: " + e.message); }
+                            finally { setSavingOrderId(null); }
+                          }}
+                          style={{
+                            padding: "7px 18px", borderRadius: "8px",
+                            background: savingOrderId === order.id ? "#94a3b8" : "#2563eb",
+                            border: "none", color: "#fff", cursor: savingOrderId === order.id ? "not-allowed" : "pointer",
+                            fontWeight: 600, fontSize: 13
+                          }}
+                        >
+                          {savingOrderId === order.id ? "Zapisywanie..." : "💾 Zapisz zmiany"}
+                        </button>
+                      </div>
+                    )}
 
                     {/* Delete always visible */}
                     <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", marginTop: "8px" }}>
