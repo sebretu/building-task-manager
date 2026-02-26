@@ -232,7 +232,7 @@ export default function UnifiedLayout({ children }: { children: React.ReactNode 
         { href: "/reports", label: t("nav", "reports", "Raporty") },
         { href: "/to-approve", label: t("nav", "toApprove", "Do zatwierdzenia") },
         { href: "/completed", label: t("nav", "completed", "Zakończone prace") },
-        { href: "/admin/materials", label: "Materiały (Admin)" },
+        { href: "/admin/materials", label: t("nav", "adminMaterials", "Materiały (Admin)") },
       ]
       : [];
     return [...links, ...adminLinks];

@@ -280,378 +280,380 @@ export default function MaterialsClient() {
                 <title>{title} | InspectHero</title>
             </Head>
 
-            <div style={{ maxWidth: 800, margin: "0 auto", paddingBottom: 64 }}>
-                <div className="home-section-header">
-                    <div>
-                        <div className="home-hero-kicker">Materiały</div>
-                        <h2>{title}</h2>
-                        <p>{subtitle}</p>
-                    </div>
-                </div>
-
-                {error && <div className="home-card-error" style={{ marginBottom: 24 }}>{error}</div>}
-                {success && (
-                    <div style={{ padding: 16, background: "var(--success)", color: "#fff", borderRadius: "var(--radius)", marginBottom: 24 }}>
-                        {success}
-                    </div>
-                )}
-
-                <div className="upload-card">
-                    {/* Project Selection */}
-                    <div className="upload-section">
-                        <div className="upload-field" style={{ marginBottom: 24 }}>
-                            <label className="upload-label">{projectLabel}</label>
-                            <div className="upload-input-group">
-                                <select
-                                    className="upload-select"
-                                    value={projectId}
-                                    onChange={(e) => {
-                                        setProjectId(e.target.value);
-                                        localStorage.setItem("materials_project_id", e.target.value);
-                                    }}
-                                    disabled={projects.length === 0}
-                                >
-                                    <option value="" disabled>-- {t("materials", "projectLabel", "Wybierz projekt")} --</option>
-                                    {projects.map(p => (
-                                        <option key={p.id} value={p.id}>{p.name}</option>
-                                    ))}
-                                </select>
-                            </div>
+            <main className="home-main">
+                <section className="home-task-panel">
+                    <div className="home-section-header">
+                        <div>
+                            <div className="home-hero-kicker">{t("nav", "materials", "Zapotrzebowania")}</div>
+                            <h2>{title}</h2>
+                            <p>{subtitle}</p>
                         </div>
+                    </div>
 
-                        {/* Material Search */}
-                        <div className="upload-field" style={{ position: "relative" }}>
-                            <label className="upload-label">{searchLabel}</label>
-                            <div className="upload-input-group">
-                                <input
-                                    type="text"
-                                    className="upload-input"
-                                    placeholder={searchPlaceholder}
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                />
+                    {error && <div className="home-card-error" style={{ marginBottom: 24 }}>{error}</div>}
+                    {success && (
+                        <div style={{ padding: 16, background: "var(--success)", color: "#fff", borderRadius: "var(--radius)", marginBottom: 24 }}>
+                            {success}
+                        </div>
+                    )}
+
+                    <div className="upload-card">
+                        {/* Project Selection */}
+                        <div className="upload-section">
+                            <div className="upload-field" style={{ marginBottom: 24 }}>
+                                <label className="upload-label">{projectLabel}</label>
+                                <div className="upload-input-group">
+                                    <select
+                                        className="upload-select"
+                                        value={projectId}
+                                        onChange={(e) => {
+                                            setProjectId(e.target.value);
+                                            localStorage.setItem("materials_project_id", e.target.value);
+                                        }}
+                                        disabled={projects.length === 0}
+                                    >
+                                        <option value="" disabled>-- {t("materials", "projectLabel", "Wybierz projekt")} --</option>
+                                        {projects.map(p => (
+                                            <option key={p.id} value={p.id}>{p.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
                             </div>
 
-                            {/* Dropdown Results */}
-                            {searchQuery.length >= 2 && (
-                                <div style={{
-                                    position: "relative", zIndex: 10,
-                                    background: "var(--home-bg)", border: "1px solid var(--border)", borderRadius: "var(--radius)",
-                                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)", marginTop: 8, maxHeight: 300, overflowY: "auto"
-                                }}>
-                                    {isSearching ? (
-                                        <div style={{ padding: 12, color: "var(--home-muted)" }}>{t("common", "loading", "Szukanie...")}</div>
-                                    ) : materials.length > 0 ? (
-                                        materials.map(mat => (
-                                            <div
-                                                key={mat.id}
-                                                onClick={() => handleAddCatalogItem(mat)}
-                                                style={{ padding: "12px 16px", cursor: "pointer", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between" }}
-                                                className="hover-bg-secondary"
-                                            >
-                                                <span style={{ fontWeight: 500, color: "var(--home-foreground)" }}>{mat.name}</span>
-                                                <span style={{ color: "var(--home-muted)", fontSize: 13 }}>{mat.unit}</span>
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <div style={{ padding: 12, color: "var(--home-muted)" }}>{t("adminMaterials", "emptyList", "Brak wyników w bazie.")}</div>
-                                    )}
+                            {/* Material Search */}
+                            <div className="upload-field" style={{ position: "relative" }}>
+                                <label className="upload-label">{searchLabel}</label>
+                                <div className="upload-input-group">
+                                    <input
+                                        type="text"
+                                        className="upload-input"
+                                        placeholder={searchPlaceholder}
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                    />
+                                </div>
+
+                                {/* Dropdown Results */}
+                                {searchQuery.length >= 2 && (
+                                    <div style={{
+                                        position: "relative", zIndex: 10,
+                                        background: "var(--home-bg)", border: "1px solid var(--border)", borderRadius: "var(--radius)",
+                                        boxShadow: "0 4px 12px rgba(0,0,0,0.1)", marginTop: 8, maxHeight: 300, overflowY: "auto"
+                                    }}>
+                                        {isSearching ? (
+                                            <div style={{ padding: 12, color: "var(--home-muted)" }}>{t("common", "loading", "Szukanie...")}</div>
+                                        ) : materials.length > 0 ? (
+                                            materials.map(mat => (
+                                                <div
+                                                    key={mat.id}
+                                                    onClick={() => handleAddCatalogItem(mat)}
+                                                    style={{ padding: "12px 16px", cursor: "pointer", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between" }}
+                                                    className="hover-bg-secondary"
+                                                >
+                                                    <span style={{ fontWeight: 500, color: "var(--home-foreground)" }}>{mat.name}</span>
+                                                    <span style={{ color: "var(--home-muted)", fontSize: 13 }}>{mat.unit}</span>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div style={{ padding: 12, color: "var(--home-muted)" }}>{t("adminMaterials", "emptyList", "Brak wyników w bazie.")}</div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+
+                            {!showCustomForm && (
+                                <button
+                                    onClick={() => setShowCustomForm(true)}
+                                    style={{
+                                        background: "var(--home-bg-secondary)",
+                                        border: "1px dashed var(--border)",
+                                        color: "var(--home-foreground)",
+                                        cursor: "pointer",
+                                        fontWeight: 500,
+                                        fontSize: 14,
+                                        marginTop: 16,
+                                        padding: "12px",
+                                        width: "100%",
+                                        borderRadius: "var(--radius)",
+                                        display: "flex",
+                                        justifyContent: "center",
+                                        alignItems: "center",
+                                        gap: 8,
+                                        transition: "background 0.2s"
+                                    }}
+                                    className="hover-bg-secondary"
+                                >
+                                    <span style={{ fontSize: 18, fontWeight: 300, color: "var(--primary)" }}>+</span> {addCustomBtn}
+                                </button>
+                            )}
+
+                            {showCustomForm && (
+                                <div style={{ marginTop: 16, padding: 16, borderRadius: "var(--radius)", background: "var(--home-bg-secondary)", border: "1px dashed var(--border)" }}>
+                                    <h4 style={{ margin: "0 0 12px 0", color: "var(--home-foreground)", fontSize: 14 }}>{t("adminMaterials", "addMaterialTitle", "Dodaj pozycję ręcznie")}</h4>
+                                    <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: 12, alignItems: "end" }}>
+                                        <div>
+                                            <label style={{ display: "block", fontSize: 12, color: "var(--home-muted)", marginBottom: 4 }}>{t("adminMaterials", "materialNameLabel", "Nazwa materiału")}</label>
+                                            <input type="text" className="upload-input" value={customName} onChange={e => setCustomName(e.target.value)} placeholder={t("adminMaterials", "materialNamePlaceholder", "Np. Przełącznik typ X")} />
+                                        </div>
+                                        <div>
+                                            <label style={{ display: "block", fontSize: 12, color: "var(--home-muted)", marginBottom: 4 }}>{t("adminMaterials", "unitLabel", "Jednostka")}</label>
+                                            <input type="text" className="upload-input" value={customUnit} onChange={e => setCustomUnit(e.target.value)} placeholder={t("adminMaterials", "unitPlaceholder", "szt., mb")} />
+                                        </div>
+                                        <div>
+                                            <label style={{ display: "block", fontSize: 12, color: "var(--home-muted)", marginBottom: 4 }}>{t("materials", "quantityCol", "Ilość")}</label>
+                                            <input type="number" min="0.01" step="0.01" className="upload-input" value={customQty} onChange={e => setCustomQty(e.target.value ? Number(e.target.value) : "")} placeholder="0" />
+                                        </div>
+                                    </div>
+                                    <div style={{ display: "flex", gap: 12, marginTop: 16, justifyContent: "flex-end" }}>
+                                        <button onClick={() => setShowCustomForm(false)} style={{ background: "transparent", border: "1px solid var(--border)", color: "var(--home-foreground)", padding: "6px 16px", borderRadius: "var(--radius)", cursor: "pointer" }}>{t("common", "cancel", "Anuluj")}</button>
+                                        <button onClick={handleAddCustomItem} style={{ background: "var(--primary)", border: "none", color: "#fff", padding: "6px 16px", borderRadius: "var(--radius)", cursor: "pointer", fontWeight: 600 }}>{t("adminMaterials", "addBtn", "Dodaj do koszyka")}</button>
+                                    </div>
                                 </div>
                             )}
                         </div>
-
-                        {!showCustomForm && (
-                            <button
-                                onClick={() => setShowCustomForm(true)}
-                                style={{
-                                    background: "var(--home-bg-secondary)",
-                                    border: "1px dashed var(--border)",
-                                    color: "var(--home-foreground)",
-                                    cursor: "pointer",
-                                    fontWeight: 500,
-                                    fontSize: 14,
-                                    marginTop: 16,
-                                    padding: "12px",
-                                    width: "100%",
-                                    borderRadius: "var(--radius)",
-                                    display: "flex",
-                                    justifyContent: "center",
-                                    alignItems: "center",
-                                    gap: 8,
-                                    transition: "background 0.2s"
-                                }}
-                                className="hover-bg-secondary"
-                            >
-                                <span style={{ fontSize: 18, fontWeight: 300, color: "var(--primary)" }}>+</span> {addCustomBtn}
-                            </button>
-                        )}
-
-                        {showCustomForm && (
-                            <div style={{ marginTop: 16, padding: 16, borderRadius: "var(--radius)", background: "var(--home-bg-secondary)", border: "1px dashed var(--border)" }}>
-                                <h4 style={{ margin: "0 0 12px 0", color: "var(--home-foreground)", fontSize: 14 }}>{t("adminMaterials", "addMaterialTitle", "Dodaj pozycję ręcznie")}</h4>
-                                <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: 12, alignItems: "end" }}>
-                                    <div>
-                                        <label style={{ display: "block", fontSize: 12, color: "var(--home-muted)", marginBottom: 4 }}>{t("adminMaterials", "materialNameLabel", "Nazwa materiału")}</label>
-                                        <input type="text" className="upload-input" value={customName} onChange={e => setCustomName(e.target.value)} placeholder={t("adminMaterials", "materialNamePlaceholder", "Np. Przełącznik typ X")} />
-                                    </div>
-                                    <div>
-                                        <label style={{ display: "block", fontSize: 12, color: "var(--home-muted)", marginBottom: 4 }}>{t("adminMaterials", "unitLabel", "Jednostka")}</label>
-                                        <input type="text" className="upload-input" value={customUnit} onChange={e => setCustomUnit(e.target.value)} placeholder={t("adminMaterials", "unitPlaceholder", "szt., mb")} />
-                                    </div>
-                                    <div>
-                                        <label style={{ display: "block", fontSize: 12, color: "var(--home-muted)", marginBottom: 4 }}>{t("materials", "quantityCol", "Ilość")}</label>
-                                        <input type="number" min="0.01" step="0.01" className="upload-input" value={customQty} onChange={e => setCustomQty(e.target.value ? Number(e.target.value) : "")} placeholder="0" />
-                                    </div>
-                                </div>
-                                <div style={{ display: "flex", gap: 12, marginTop: 16, justifyContent: "flex-end" }}>
-                                    <button onClick={() => setShowCustomForm(false)} style={{ background: "transparent", border: "1px solid var(--border)", color: "var(--home-foreground)", padding: "6px 16px", borderRadius: "var(--radius)", cursor: "pointer" }}>{t("common", "cancel", "Anuluj")}</button>
-                                    <button onClick={handleAddCustomItem} style={{ background: "var(--primary)", border: "none", color: "#fff", padding: "6px 16px", borderRadius: "var(--radius)", cursor: "pointer", fontWeight: 600 }}>{t("adminMaterials", "addBtn", "Dodaj do koszyka")}</button>
-                                </div>
-                            </div>
-                        )}
                     </div>
-                </div>
 
-                {/* Cart */}
-                <div className="upload-card" style={{ marginTop: 24 }}>
-                    <div className="upload-section">
-                        <h3 style={{ margin: "0 0 16px 0", fontSize: 18, color: "var(--home-foreground)" }}>{cartTitle}</h3>
+                    {/* Cart */}
+                    <div className="upload-card" style={{ marginTop: 24 }}>
+                        <div className="upload-section">
+                            <h3 style={{ margin: "0 0 16px 0", fontSize: 18, color: "var(--home-foreground)" }}>{cartTitle}</h3>
 
-                        {cart.length === 0 ? (
-                            <div style={{ padding: 32, textAlign: "center", color: "var(--home-muted)", background: "var(--home-bg-secondary)", borderRadius: "var(--radius)", border: "1px dashed var(--border)" }}>
-                                {emptyCart}
-                            </div>
-                        ) : (
-                            <div>
-                                <table style={{ width: "100%", borderCollapse: "collapse", color: "var(--home-foreground)", fontSize: 14 }}>
-                                    <thead>
-                                        <tr style={{ borderBottom: "1px solid var(--border)", color: "var(--home-muted)" }}>
-                                            <th style={{ textAlign: "left", padding: "12px 0", fontWeight: 500 }}>{t("materials", "materialCol", "Materiał")}</th>
-                                            <th style={{ textAlign: "right", padding: "12px 16px", fontWeight: 500, whiteSpace: "nowrap" }}>{t("materials", "quantityCol", "Menge / Ilość")}</th>
-                                            <th style={{ width: 40 }}></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {cart.map(item => (
-                                            <tr key={item.id} style={{ borderBottom: "1px solid var(--border)" }}>
-                                                <td style={{ padding: "10px 0", fontWeight: 500 }}>
-                                                    {/* Editable name only for custom (non-catalog) items */}
-                                                    {item.materialId ? (
-                                                        <span>
-                                                            {item.name}
-                                                        </span>
-                                                    ) : (
-                                                        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                                                            <input
-                                                                type="text"
-                                                                value={item.name}
-                                                                onChange={e => setCart(prev => prev.map(ci =>
-                                                                    ci.id === item.id ? { ...ci, name: e.target.value } : ci
-                                                                ))}
-                                                                style={{
-                                                                    border: "1px solid var(--border)",
-                                                                    borderRadius: "var(--radius)",
-                                                                    padding: "4px 8px",
-                                                                    fontSize: 13,
-                                                                    background: "var(--home-bg-secondary)",
-                                                                    color: "var(--home-foreground)",
-                                                                    width: "100%",
-                                                                    maxWidth: 280
-                                                                }}
-                                                                placeholder={t("adminMaterials", "materialNamePlaceholder", "Nazwa materiału")}
-                                                            />
-                                                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            {cart.length === 0 ? (
+                                <div style={{ padding: 32, textAlign: "center", color: "var(--home-muted)", background: "var(--home-bg-secondary)", borderRadius: "var(--radius)", border: "1px dashed var(--border)" }}>
+                                    {emptyCart}
+                                </div>
+                            ) : (
+                                <div>
+                                    <table style={{ width: "100%", borderCollapse: "collapse", color: "var(--home-foreground)", fontSize: 14 }}>
+                                        <thead>
+                                            <tr style={{ borderBottom: "1px solid var(--border)", color: "var(--home-muted)" }}>
+                                                <th style={{ textAlign: "left", padding: "12px 0", fontWeight: 500 }}>{t("materials", "materialCol", "Materiał")}</th>
+                                                <th style={{ textAlign: "right", padding: "12px 16px", fontWeight: 500, whiteSpace: "nowrap" }}>{t("materials", "quantityCol", "Menge / Ilość")}</th>
+                                                <th style={{ width: 40 }}></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {cart.map(item => (
+                                                <tr key={item.id} style={{ borderBottom: "1px solid var(--border)" }}>
+                                                    <td style={{ padding: "10px 0", fontWeight: 500 }}>
+                                                        {/* Editable name only for custom (non-catalog) items */}
+                                                        {item.materialId ? (
+                                                            <span>
+                                                                {item.name}
+                                                            </span>
+                                                        ) : (
+                                                            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                                                                 <input
                                                                     type="text"
-                                                                    value={item.unit}
+                                                                    value={item.name}
                                                                     onChange={e => setCart(prev => prev.map(ci =>
-                                                                        ci.id === item.id ? { ...ci, unit: e.target.value } : ci
+                                                                        ci.id === item.id ? { ...ci, name: e.target.value } : ci
                                                                     ))}
                                                                     style={{
                                                                         border: "1px solid var(--border)",
                                                                         borderRadius: "var(--radius)",
                                                                         padding: "4px 8px",
-                                                                        fontSize: 12,
+                                                                        fontSize: 13,
                                                                         background: "var(--home-bg-secondary)",
-                                                                        color: "var(--home-muted)",
-                                                                        width: 72
+                                                                        color: "var(--home-foreground)",
+                                                                        width: "100%",
+                                                                        maxWidth: 280
                                                                     }}
-                                                                    placeholder={t("adminMaterials", "unitPlaceholder", "Jedn.")}
+                                                                    placeholder={t("adminMaterials", "materialNamePlaceholder", "Nazwa materiału")}
                                                                 />
-                                                                <span style={{ fontSize: 11, background: "var(--border)", padding: "2px 6px", borderRadius: 4, color: "var(--home-muted)" }}>
-                                                                    {t("materials", "customBadge", "Ręcznie")}
-                                                                </span>
+                                                                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                                                    <input
+                                                                        type="text"
+                                                                        value={item.unit}
+                                                                        onChange={e => setCart(prev => prev.map(ci =>
+                                                                            ci.id === item.id ? { ...ci, unit: e.target.value } : ci
+                                                                        ))}
+                                                                        style={{
+                                                                            border: "1px solid var(--border)",
+                                                                            borderRadius: "var(--radius)",
+                                                                            padding: "4px 8px",
+                                                                            fontSize: 12,
+                                                                            background: "var(--home-bg-secondary)",
+                                                                            color: "var(--home-muted)",
+                                                                            width: 72
+                                                                        }}
+                                                                        placeholder={t("adminMaterials", "unitPlaceholder", "Jedn.")}
+                                                                    />
+                                                                    <span style={{ fontSize: 11, background: "var(--border)", padding: "2px 6px", borderRadius: 4, color: "var(--home-muted)" }}>
+                                                                        {t("materials", "customBadge", "Ręcznie")}
+                                                                    </span>
+                                                                </div>
                                                             </div>
+                                                        )}
+                                                    </td>
+                                                    <td style={{ padding: "10px 16px", textAlign: "right" }}>
+                                                        {/* Editable quantity for ALL items */}
+                                                        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6 }}>
+                                                            <input
+                                                                type="number"
+                                                                min="0.01"
+                                                                step="0.01"
+                                                                value={item.quantity}
+                                                                onChange={e => {
+                                                                    const val = parseFloat(e.target.value.replace(",", "."));
+                                                                    if (!isNaN(val) && val > 0) {
+                                                                        setCart(prev => prev.map(ci =>
+                                                                            ci.id === item.id ? { ...ci, quantity: val } : ci
+                                                                        ));
+                                                                    }
+                                                                }}
+                                                                style={{
+                                                                    width: 72,
+                                                                    border: "1px solid var(--border)",
+                                                                    borderRadius: "var(--radius)",
+                                                                    padding: "4px 8px",
+                                                                    fontSize: 14,
+                                                                    textAlign: "right",
+                                                                    background: "var(--home-bg-secondary)",
+                                                                    color: "var(--home-foreground)",
+                                                                    fontWeight: 600
+                                                                }}
+                                                            />
+                                                            <span style={{ color: "var(--home-muted)", fontSize: 13, minWidth: 28 }}>{item.unit}</span>
                                                         </div>
-                                                    )}
-                                                </td>
-                                                <td style={{ padding: "10px 16px", textAlign: "right" }}>
-                                                    {/* Editable quantity for ALL items */}
-                                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6 }}>
-                                                        <input
-                                                            type="number"
-                                                            min="0.01"
-                                                            step="0.01"
-                                                            value={item.quantity}
-                                                            onChange={e => {
-                                                                const val = parseFloat(e.target.value.replace(",", "."));
-                                                                if (!isNaN(val) && val > 0) {
-                                                                    setCart(prev => prev.map(ci =>
-                                                                        ci.id === item.id ? { ...ci, quantity: val } : ci
-                                                                    ));
-                                                                }
-                                                            }}
-                                                            style={{
-                                                                width: 72,
-                                                                border: "1px solid var(--border)",
-                                                                borderRadius: "var(--radius)",
-                                                                padding: "4px 8px",
-                                                                fontSize: 14,
-                                                                textAlign: "right",
-                                                                background: "var(--home-bg-secondary)",
-                                                                color: "var(--home-foreground)",
-                                                                fontWeight: 600
-                                                            }}
-                                                        />
-                                                        <span style={{ color: "var(--home-muted)", fontSize: 13, minWidth: 28 }}>{item.unit}</span>
-                                                    </div>
-                                                </td>
-                                                <td style={{ padding: "10px 0", textAlign: "right" }}>
-                                                    <button
-                                                        onClick={() => handleRemoveItem(item.id)}
-                                                        style={{ background: "transparent", border: "none", color: "var(--danger)", cursor: "pointer", padding: 4 }}
-                                                        title={t("common", "delete", "Usuń")}
-                                                    >
-                                                        ✖️
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                                    </td>
+                                                    <td style={{ padding: "10px 0", textAlign: "right" }}>
+                                                        <button
+                                                            onClick={() => handleRemoveItem(item.id)}
+                                                            style={{ background: "transparent", border: "none", color: "var(--danger)", cursor: "pointer", padding: 4 }}
+                                                            title={t("common", "delete", "Usuń")}
+                                                        >
+                                                            ✖️
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
 
-                                {/* Add extra custom item directly in cart */}
-                                <div style={{ marginTop: 16 }}>
-                                    <button
-                                        onClick={() => {
-                                            setCart(prev => [...prev, {
-                                                id: Math.random().toString(36).substr(2, 9),
-                                                name: "",
-                                                unit: "szt.",
-                                                quantity: 1
-                                            }]);
-                                        }}
-                                        style={{
-                                            background: "transparent",
-                                            border: "1px dashed var(--border)",
-                                            color: "var(--home-muted)",
-                                            cursor: "pointer",
-                                            fontSize: 13,
-                                            padding: "8px 16px",
-                                            borderRadius: "var(--radius)",
-                                            width: "100%",
-                                            textAlign: "center",
-                                            transition: "background 0.2s"
-                                        }}
-                                        className="hover-bg-secondary"
-                                    >
-                                        + {t("materials", "addCustomBtn", "Dodaj pozycję do listy")}
-                                    </button>
-                                </div>
+                                    {/* Add extra custom item directly in cart */}
+                                    <div style={{ marginTop: 16 }}>
+                                        <button
+                                            onClick={() => {
+                                                setCart(prev => [...prev, {
+                                                    id: Math.random().toString(36).substr(2, 9),
+                                                    name: "",
+                                                    unit: "szt.",
+                                                    quantity: 1
+                                                }]);
+                                            }}
+                                            style={{
+                                                background: "transparent",
+                                                border: "1px dashed var(--border)",
+                                                color: "var(--home-muted)",
+                                                cursor: "pointer",
+                                                fontSize: 13,
+                                                padding: "8px 16px",
+                                                borderRadius: "var(--radius)",
+                                                width: "100%",
+                                                textAlign: "center",
+                                                transition: "background 0.2s"
+                                            }}
+                                            className="hover-bg-secondary"
+                                        >
+                                            + {t("materials", "addCustomBtn", "Dodaj pozycję do listy")}
+                                        </button>
+                                    </div>
 
-                                <div style={{ marginTop: 24, display: "flex", justifyContent: "flex-end" }}>
-                                    <button
-                                        onClick={handleSubmitOrder}
-                                        disabled={isSubmitting || !projectId}
-                                        style={{
-                                            background: "var(--primary)",
-                                            color: "#fff",
-                                            border: "none",
-                                            padding: "12px 24px",
-                                            borderRadius: "var(--radius)",
-                                            fontSize: 16,
-                                            fontWeight: 600,
-                                            cursor: isSubmitting || !projectId ? "not-allowed" : "pointer",
-                                            opacity: isSubmitting || !projectId ? 0.7 : 1
-                                        }}
-                                    >
-                                        {isSubmitting ? t("common", "loading", "Wysyłanie...") : submitBtn}
-                                    </button>
+                                    <div style={{ marginTop: 24, display: "flex", justifyContent: "flex-end" }}>
+                                        <button
+                                            onClick={handleSubmitOrder}
+                                            disabled={isSubmitting || !projectId}
+                                            style={{
+                                                background: "var(--primary)",
+                                                color: "#fff",
+                                                border: "none",
+                                                padding: "12px 24px",
+                                                borderRadius: "var(--radius)",
+                                                fontSize: 16,
+                                                fontWeight: 600,
+                                                cursor: isSubmitting || !projectId ? "not-allowed" : "pointer",
+                                                opacity: isSubmitting || !projectId ? 0.7 : 1
+                                            }}
+                                        >
+                                            {isSubmitting ? t("common", "loading", "Wysyłanie...") : submitBtn}
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
-                        )}
+                            )}
+                        </div>
                     </div>
-                </div>
 
-                {/* My Orders History */}
-                <div className="upload-card" style={{ marginTop: 24 }}>
-                    <div className="upload-section">
-                        <h3 style={{ margin: "0 0 16px 0", fontSize: 18, color: "var(--home-foreground)" }}>
-                            {t("materials", "myOrdersTitle", "Moje wysłane zapotrzebowania")}
-                        </h3>
+                    {/* My Orders History */}
+                    <div className="upload-card" style={{ marginTop: 24 }}>
+                        <div className="upload-section">
+                            <h3 style={{ margin: "0 0 16px 0", fontSize: 18, color: "var(--home-foreground)" }}>
+                                {t("materials", "myRequestsTab", "Moje wysłane zapotrzebowania")}
+                            </h3>
 
-                        {myOrders.length === 0 ? (
-                            <div style={{ padding: 32, textAlign: "center", color: "var(--home-muted)", background: "var(--home-bg-secondary)", borderRadius: "var(--radius)", border: "1px dashed var(--border)" }}>
-                                {t("materials", "noOrders", "Nie wysłałeś jeszcze żadnych zamówień.")}
-                            </div>
-                        ) : (
-                            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                                {myOrders.map(order => {
-                                    const statusColors: Record<string, { bg: string; color: string; label: string }> = {
-                                        PENDING: { bg: "#fef08a", color: "#854d0e", label: t("materials", "statusPending", "Oczekuje") },
-                                        APPROVED: { bg: "#bbf7d0", color: "#166534", label: t("materials", "statusApproved", "Zatwierdzone") },
-                                        REJECTED: { bg: "#fecaca", color: "#991b1b", label: t("materials", "statusRejected", "Odrzucone") },
-                                        DELIVERED: { bg: "#e0e7ff", color: "#3730a3", label: t("materials", "statusDelivered", "Dostarczone") },
-                                    };
-                                    const sc = statusColors[order.status] ?? { bg: "#e5e7eb", color: "#374151", label: order.status };
+                            {myOrders.length === 0 ? (
+                                <div style={{ padding: 32, textAlign: "center", color: "var(--home-muted)", background: "var(--home-bg-secondary)", borderRadius: "var(--radius)", border: "1px dashed var(--border)" }}>
+                                    {t("materials", "noOrders", "Nie wysłałeś jeszcze żadnych zamówień.")}
+                                </div>
+                            ) : (
+                                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                                    {myOrders.map(order => {
+                                        const statusColors: Record<string, { bg: string; color: string; label: string }> = {
+                                            PENDING: { bg: "#fef08a", color: "#854d0e", label: t("materials", "statusPending", "Oczekuje") },
+                                            APPROVED: { bg: "#bbf7d0", color: "#166534", label: t("materials", "statusApproved", "Zatwierdzone") },
+                                            REJECTED: { bg: "#fecaca", color: "#991b1b", label: t("materials", "statusRejected", "Odrzucone") },
+                                            DELIVERED: { bg: "#e0e7ff", color: "#3730a3", label: t("materials", "statusDelivered", "Dostarczone") },
+                                        };
+                                        const sc = statusColors[order.status] ?? { bg: "#e5e7eb", color: "#374151", label: order.status };
 
-                                    return (
-                                        <div key={order.id} style={{ border: "1px solid var(--border)", borderRadius: "var(--radius)", overflow: "hidden" }}>
-                                            {/* Order header */}
-                                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", background: "var(--home-bg-secondary)", borderBottom: "1px solid var(--border)" }}>
-                                                <div>
-                                                    <div style={{ fontWeight: 600, fontSize: 14, color: "var(--home-foreground)" }}>
-                                                        {new Date(order.created_at).toLocaleDateString("pl-PL", { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                                        return (
+                                            <div key={order.id} style={{ border: "1px solid var(--border)", borderRadius: "var(--radius)", overflow: "hidden" }}>
+                                                {/* Order header */}
+                                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", background: "var(--home-bg-secondary)", borderBottom: "1px solid var(--border)" }}>
+                                                    <div>
+                                                        <div style={{ fontWeight: 600, fontSize: 14, color: "var(--home-foreground)" }}>
+                                                            {new Date(order.created_at).toLocaleDateString("pl-PL", { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                                                        </div>
+                                                        {order.project && (
+                                                            <div style={{ fontSize: 12, color: "var(--home-muted)", marginTop: 2 }}>{order.project.name}</div>
+                                                        )}
                                                     </div>
-                                                    {order.project && (
-                                                        <div style={{ fontSize: 12, color: "var(--home-muted)", marginTop: 2 }}>{order.project.name}</div>
-                                                    )}
+                                                    <span style={{ padding: "4px 12px", borderRadius: 12, fontSize: 12, fontWeight: 700, background: sc.bg, color: sc.color }}>
+                                                        {sc.label}
+                                                    </span>
                                                 </div>
-                                                <span style={{ padding: "4px 12px", borderRadius: 12, fontSize: 12, fontWeight: 700, background: sc.bg, color: sc.color }}>
-                                                    {sc.label}
-                                                </span>
-                                            </div>
 
-                                            {/* Items list — read-only */}
-                                            <div style={{ padding: "12px 16px" }}>
-                                                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, color: "var(--home-foreground)" }}>
-                                                    <tbody>
-                                                        {(order.items || []).map((item: any) => (
-                                                            <tr key={item.id} style={{ borderBottom: "1px solid var(--border)" }}>
-                                                                <td style={{ padding: "8px 0", fontWeight: 500 }}>
-                                                                    {item.material ? item.material.name : item.custom_name}
-                                                                    {!item.material && (
-                                                                        <span style={{ marginLeft: 8, fontSize: 11, background: "var(--border)", padding: "2px 6px", borderRadius: 4, color: "var(--home-muted)" }}>
-                                                                            {t("materials", "customBadge", "Ręcznie")}
-                                                                        </span>
-                                                                    )}
-                                                                </td>
-                                                                <td style={{ padding: "8px 0", textAlign: "right", color: "var(--home-muted)", whiteSpace: "nowrap" }}>
-                                                                    <strong style={{ color: "var(--home-foreground)" }}>{item.quantity}</strong> {item.material ? item.material.unit : item.custom_unit}
-                                                                </td>
-                                                            </tr>
-                                                        ))}
-                                                    </tbody>
-                                                </table>
+                                                {/* Items list — read-only */}
+                                                <div style={{ padding: "12px 16px" }}>
+                                                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, color: "var(--home-foreground)" }}>
+                                                        <tbody>
+                                                            {(order.items || []).map((item: any) => (
+                                                                <tr key={item.id} style={{ borderBottom: "1px solid var(--border)" }}>
+                                                                    <td style={{ padding: "8px 0", fontWeight: 500 }}>
+                                                                        {item.material ? item.material.name : item.custom_name}
+                                                                        {!item.material && (
+                                                                            <span style={{ marginLeft: 8, fontSize: 11, background: "var(--border)", padding: "2px 6px", borderRadius: 4, color: "var(--home-muted)" }}>
+                                                                                {t("materials", "customBadge", "Ręcznie")}
+                                                                            </span>
+                                                                        )}
+                                                                    </td>
+                                                                    <td style={{ padding: "8px 0", textAlign: "right", color: "var(--home-muted)", whiteSpace: "nowrap" }}>
+                                                                        <strong style={{ color: "var(--home-foreground)" }}>{item.quantity}</strong> {item.material ? item.material.unit : item.custom_unit}
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
                                             </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        )}
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
                     </div>
-                </div>
-            </div>
+                </section>
+            </main>
         </>
     );
 }

@@ -587,7 +587,7 @@ export default function Home() {
         <section className="home-task-panel">
           <div className="home-section-header">
             <h2>{t("home", "completedTasksTitle", "Zakończone Prace")}</h2>
-            <p>{t("home", "completedTasksSubtitle", "Lista wszystkich zrealizowanych prac i zgłoszeń")}</p>
+            <p>{t("home", "completedTasksSubtitle", "Lista wykonanych prac i usterek")}</p>
           </div>
           <div style={{ display: "flex", gap: "12px", marginBottom: "24px" }}>
             <button
