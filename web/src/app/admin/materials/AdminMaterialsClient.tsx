@@ -10,7 +10,12 @@ interface Material {
     id: string;
     name: string;
     unit: string;
-    category?: string;
+    category?: string | null;
+}
+
+interface MaterialCategory {
+    id: string;
+    name: string;
 }
 
 export default function AdminMaterialsClient() {
@@ -18,8 +23,10 @@ export default function AdminMaterialsClient() {
     const { t } = useLanguage();
 
     const [materials, setMaterials] = useState<Material[]>([]);
+    const [categories, setCategories] = useState<MaterialCategory[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isSubmittingCategory, setIsSubmittingCategory] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
 
@@ -27,6 +34,7 @@ export default function AdminMaterialsClient() {
     const [name, setName] = useState("");
     const [unit, setUnit] = useState("szt.");
     const [category, setCategory] = useState("");
+    const [newCategoryName, setNewCategoryName] = useState("");
 
     useEffect(() => {
         loadMaterials();
@@ -43,8 +51,12 @@ export default function AdminMaterialsClient() {
             // check role might be good here but backend enforces it anyway
             const data: Material[] = await apiGet("/api/materials", token);
             setMaterials(data);
+
+            // Fetch categories
+            const cats: MaterialCategory[] = await apiGet("/api/material-categories", token);
+            setCategories(cats);
         } catch (err: any) {
-            setError("Błąd ładowania materiałów: " + err.message);
+            setError("Błąd ładowania: " + err.message);
         } finally {
             setIsLoading(false);
         }
@@ -101,6 +113,50 @@ export default function AdminMaterialsClient() {
         }
     }
 
+    async function handleAddCategory(e: React.FormEvent) {
+        e.preventDefault();
+        if (!newCategoryName.trim()) return;
+
+        setIsSubmittingCategory(true);
+        setError(null);
+        setSuccess(null);
+
+        try {
+            const token = await getToken();
+            const newCat = await apiPost("/api/material-categories", { name: newCategoryName.trim() }, token!);
+
+            setCategories(prev => {
+                const updated = [...prev, newCat as MaterialCategory];
+                return updated.sort((a, b) => a.name.localeCompare(b.name));
+            });
+            setSuccess("Dodano kategorię pomyślnie.");
+            setNewCategoryName("");
+            setTimeout(() => setSuccess(null), 3000);
+        } catch (err: any) {
+            setError("Błąd dodawania kategorii: " + err.message);
+        } finally {
+            setIsSubmittingCategory(false);
+        }
+    }
+
+    async function handleDeleteCategory(id: string) {
+        if (!confirm("Czy na pewno chcesz usunąć tę kategorię? Nie wpłynie to na przypisane już materiały, po prostu stracą kategorię jeśli nie zostaną zaktualizowane.")) return;
+
+        setError(null);
+        setSuccess(null);
+
+        try {
+            const token = await getToken();
+            await apiDelete(`/api/material-categories?id=${id}`, token!);
+            setCategories(prev => prev.filter(c => c.id !== id));
+            setCategory("");
+            setSuccess(t("common", "success", "Sukces"));
+            setTimeout(() => setSuccess(null), 3000);
+        } catch (err: any) {
+            setError(t("common", "error", "Błąd usuwania") + ": " + err.message);
+        }
+    }
+
     if (isLoading) {
         return <div style={{ padding: 48, textAlign: "center" }}>{t("common", "loading", "Ładowanie...")}</div>;
     }
@@ -148,6 +204,45 @@ export default function AdminMaterialsClient() {
                 )}
 
                 <div className="upload-card" style={{ marginBottom: 32 }}>
+                    <h3 style={{ margin: "0 0 16px 0", fontSize: 18 }}>Zarządzaj Kategoriami</h3>
+                    <form onSubmit={handleAddCategory} style={{ display: "flex", gap: 16, marginBottom: 16 }}>
+                        <div style={{ flex: 1 }}>
+                            <input
+                                type="text"
+                                className="upload-input"
+                                value={newCategoryName}
+                                onChange={e => setNewCategoryName(e.target.value)}
+                                placeholder="Nowa kategoria (np. Hydraulika)"
+                                required
+                            />
+                        </div>
+                        <button
+                            type="submit"
+                            disabled={isSubmittingCategory}
+                            style={{
+                                background: "var(--secondary)", color: "#fff", border: "none",
+                                padding: "10px 20px", borderRadius: "var(--radius)",
+                                fontWeight: 600, cursor: isSubmittingCategory ? "not-allowed" : "pointer",
+                                opacity: isSubmittingCategory ? 0.7 : 1
+                            }}
+                        >
+                            {isSubmittingCategory ? "Dodaję..." : "Dodaj "}
+                        </button>
+                    </form>
+
+                    {categories.length > 0 && (
+                        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "16px" }}>
+                            {categories.map(c => (
+                                <div key={c.id} style={{ display: "flex", alignItems: "center", gap: "8px", background: "var(--home-bg-secondary)", padding: "4px 12px", borderRadius: "100px", fontSize: "14px", border: "1px solid var(--border)" }}>
+                                    {c.name}
+                                    <button onClick={() => handleDeleteCategory(c.id)} style={{ background: "transparent", border: "none", color: "var(--danger)", cursor: "pointer", padding: "0 4px", fontWeight: "bold" }}>×</button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                <div className="upload-card" style={{ marginBottom: 32 }}>
                     <h3 style={{ margin: "0 0 16px 0", fontSize: 18 }}>{txt.addMaterialTitle}</h3>
                     <form onSubmit={handleAddMaterial}>
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
@@ -175,13 +270,16 @@ export default function AdminMaterialsClient() {
                             </div>
                             <div style={{ gridColumn: "1 / -1" }}>
                                 <label className="upload-label">{txt.categoryLabel}</label>
-                                <input
-                                    type="text"
+                                <select
                                     className="upload-input"
                                     value={category}
                                     onChange={e => setCategory(e.target.value)}
-                                    placeholder={txt.categoryPlaceholder}
-                                />
+                                >
+                                    <option value="">-- Brak kategorii --</option>
+                                    {categories.map(c => (
+                                        <option key={c.id} value={c.name}>{c.name}</option>
+                                    ))}
+                                </select>
                             </div>
                         </div>
                         <div style={{ display: "flex", justifyContent: "flex-end" }}>
@@ -208,34 +306,51 @@ export default function AdminMaterialsClient() {
                             {txt.emptyList}
                         </div>
                     ) : (
-                        <table style={{ width: "100%", borderCollapse: "collapse", color: "var(--home-foreground)", fontSize: 14 }}>
-                            <thead>
-                                <tr style={{ borderBottom: "1px solid var(--border)", color: "var(--home-muted)" }}>
-                                    <th style={{ textAlign: "left", padding: "12px 0", fontWeight: 500 }}>{txt.colName}</th>
-                                    <th style={{ textAlign: "left", padding: "12px 16px", fontWeight: 500 }}>{txt.colCategory}</th>
-                                    <th style={{ textAlign: "right", padding: "12px 16px", fontWeight: 500 }}>{txt.colUnit}</th>
-                                    <th style={{ width: 40 }}></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {materials.map(m => (
-                                    <tr key={m.id} style={{ borderBottom: "1px solid var(--border)" }} className="hover-bg-secondary">
-                                        <td style={{ padding: "12px 0", fontWeight: 500 }}>{m.name}</td>
-                                        <td style={{ padding: "12px 16px", color: "var(--home-muted)" }}>{m.category || "-"}</td>
-                                        <td style={{ padding: "12px 16px", textAlign: "right", color: "var(--home-muted)" }}>{m.unit}</td>
-                                        <td style={{ padding: "12px 0", textAlign: "right" }}>
-                                            <button
-                                                onClick={() => handleDeleteMaterial(m.id)}
-                                                style={{ background: "transparent", border: "none", color: "var(--danger)", cursor: "pointer", padding: 4 }}
-                                                title={txt.deleteTitle}
-                                            >
-                                                {txt.deleteTitle}
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                        <div>
+                            {(() => {
+                                // Group materials by category
+                                const grouped: Record<string, Material[]> = {};
+                                materials.forEach(m => {
+                                    const cat = m.category || "Inne"; // "Inne" if no category
+                                    if (!grouped[cat]) grouped[cat] = [];
+                                    grouped[cat].push(m);
+                                });
+
+                                // Sort categories explicitly, bringing "Inne" to bottom mostly
+                                const sortedCategories = Object.keys(grouped).sort((a, b) => {
+                                    if (a === "Inne") return 1;
+                                    if (b === "Inne") return -1;
+                                    return a.localeCompare(b);
+                                });
+
+                                return sortedCategories.map(cat => (
+                                    <div key={cat} style={{ marginBottom: 24 }}>
+                                        <h4 style={{ margin: "0 0 8px 0", fontSize: 16, color: "var(--home-foreground)", borderBottom: "1px solid var(--border)", paddingBottom: 4 }}>
+                                            {cat} <span style={{ fontSize: 12, color: "var(--home-muted)", fontWeight: "normal" }}>({grouped[cat].length})</span>
+                                        </h4>
+                                        <table style={{ width: "100%", borderCollapse: "collapse", color: "var(--home-foreground)", fontSize: 14 }}>
+                                            <tbody>
+                                                {grouped[cat].map(m => (
+                                                    <tr key={m.id} style={{ borderBottom: "1px solid var(--border)" }} className="hover-bg-secondary">
+                                                        <td style={{ padding: "8px 0", fontWeight: 500 }}>{m.name}</td>
+                                                        <td style={{ padding: "8px 16px", textAlign: "right", color: "var(--home-muted)" }}>{m.unit}</td>
+                                                        <td style={{ padding: "8px 0", textAlign: "right", width: 40 }}>
+                                                            <button
+                                                                onClick={() => handleDeleteMaterial(m.id)}
+                                                                style={{ background: "transparent", border: "none", color: "var(--danger)", cursor: "pointer", padding: 4 }}
+                                                                title={txt.deleteTitle}
+                                                            >
+                                                                {txt.deleteTitle}
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                ));
+                            })()}
+                        </div>
                     )}
                 </div>
             </div>
