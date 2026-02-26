@@ -1008,6 +1008,11 @@ a.task-card:focus {
   box-shadow: 0 18px 32px rgba(13, 24, 51, 0.35);
 }
 
+.task-marker--question {
+  --marker-border: rgba(147, 51, 234, 0.95);
+  --marker-color: #7c3aed;
+}
+
 .task-marker--map {
   width: 54px;
   height: 54px;

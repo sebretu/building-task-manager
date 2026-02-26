@@ -46,7 +46,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       });
     }
 
-    if (!isAdmin && data?.assigned_user_id !== requester.id) {
+    // Questions (is_question=true) are open for any authenticated user to read/edit.
+    // Regular tasks require the user to be the assignee, the creator, or an admin.
+    if (!isAdmin && !data?.is_question && data?.assigned_user_id !== requester.id && data?.created_by !== requester.id) {
       return res.status(403).json({
         ok: false,
         error: { code: "FORBIDDEN", message: "You do not have access to this task" },

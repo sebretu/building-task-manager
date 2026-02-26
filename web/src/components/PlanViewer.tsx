@@ -42,6 +42,7 @@ export default function PlanViewer({
   allowCreate,
   currentUserId,
   currentUserRole,
+  isQuestion,
 }: {
   planId: string;
   fullHeight?: boolean;
@@ -50,6 +51,7 @@ export default function PlanViewer({
   allowCreate?: boolean;
   currentUserId?: string | null;
   currentUserRole?: string | null;
+  isQuestion?: boolean;
 }) {
   const [meta, setMeta] = useState<Meta | null>(null);
   const [metaStatus, setMetaStatus] = useState<
@@ -357,6 +359,7 @@ export default function PlanViewer({
       currentUserId={effectiveUserId}
       currentUserRole={effectiveUserRole}
       projectLoadError={planProjectErr}
+      isQuestion={isQuestion}
     />
   );
 }

@@ -65,7 +65,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     if (isAdmin) return;
     const { data, error } = await supabase
       .from("tasks")
-      .select("assigned_user_id")
+      .select("assigned_user_id, created_by, is_question")
       .eq("id", taskId)
       .single();
 
@@ -78,7 +78,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       };
     }
 
-    if (data?.assigned_user_id !== requester.id) {
+    // Questions are open to all authenticated users — skip assignee check.
+    if (data?.is_question) return;
+
+    if (data?.assigned_user_id !== requester.id && data?.created_by !== requester.id) {
       throw { status: 403, code: "FORBIDDEN", message: "You do not have access to this task" };
     }
   }

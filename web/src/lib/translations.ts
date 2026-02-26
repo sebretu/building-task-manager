@@ -28,6 +28,7 @@ export const translations = {
       reports: "Reports",
       completed: "Completed Tasks",
       toApprove: "To Approve",
+      questions: "Questions",
     },
     reports: {
       title: "Reports",
@@ -184,8 +185,10 @@ export const translations = {
       userGreeting: "User",
       prev: "Prev",
       next: "Next",
-      limit: "Limit",
       createNewTask: "Create new task",
+      askQuestion: "Ask Question",
+      newQuestion: "New Question",
+      questionsTab: "Questions",
       openMap: "Map",
     },
     planUpload: {
@@ -445,6 +448,7 @@ export const translations = {
       reports: "Raporty",
       completed: "Zakończone prace",
       toApprove: "Do zatwierdzenia",
+      questions: "Pytania",
     },
     reports: {
       title: "Raporty",
@@ -601,8 +605,10 @@ export const translations = {
       userGreeting: "Użytkownik",
       prev: "Poprzednia",
       next: "Następna",
-      limit: "Limit",
       createNewTask: "Utwórz nowe zadanie",
+      askQuestion: "Zadaj pytanie",
+      newQuestion: "Nowe zapytanie",
+      questionsTab: "Pytania",
       openMap: "Mapa",
     },
     planUpload: {
@@ -861,6 +867,7 @@ export const translations = {
       reports: "Berichte",
       completed: "Fertige Arbeiten",
       toApprove: "Zur Genehmigung",
+      questions: "Fragen",
     },
     reports: {
       title: "Berichte",
@@ -1019,6 +1026,9 @@ export const translations = {
       next: "Weiter",
       limit: "Limit",
       createNewTask: "Neue Aufgabe erstellen",
+      askQuestion: "Frage stellen",
+      newQuestion: "Neue Frage",
+      questionsTab: "Fragen",
       openMap: "Karte",
     },
     planUpload: {
@@ -1276,6 +1286,7 @@ export const translations = {
       companies: "Spoločnosti",
       materials: "Požiadavky",
       adminMaterials: "Materiály (Admin)",
+      questions: "Otázky",
     },
     materials: {
       title: "Požiadavka",
@@ -1392,6 +1403,9 @@ export const translations = {
       next: "Ďalšia",
       limit: "Limit",
       createNewTask: "Vytvoriť novú úlohu",
+      askQuestion: "Položiť otázku",
+      newQuestion: "Nová otázka",
+      questionsTab: "Otázky",
       openMap: "Mapa",
     },
     planUpload: {

@@ -120,24 +120,46 @@ async function translateWithMyMemory(text: string, target: Language, source?: st
     params.set("de", process.env.MYMEMORY_EMAIL);
   }
 
-  const res = await fetch(`${apiUrl}?${params.toString()}`);
-  if (!res.ok) {
-    const detail = await res.text().catch(() => "");
-    throw new Error(`MyMemory request failed (${res.status}): ${detail || res.statusText}`);
-  }
+  try {
+    const res = await fetch(`${apiUrl}?${params.toString()}`);
+    if (!res.ok) {
+      if (res.status === 429) {
+        console.warn(`[translator] MyMemory quota exceeded (429), skipping translation for: "${text}"`);
+        return text;
+      }
+      const detail = await res.text().catch(() => "");
+      throw new Error(`MyMemory request failed (${res.status}): ${detail || res.statusText}`);
+    }
 
-  const data = await res.json().catch(() => null);
-  const translated = data?.responseData?.translatedText;
-  if (typeof translated === "string" && translated.trim()) {
-    return translated;
-  }
+    const data = await res.json().catch(() => null);
 
-  const fallback = data?.matches?.find((match: any) => typeof match?.translation === "string" && match.match >= 0.75)?.translation;
-  if (typeof fallback === "string" && fallback.trim()) {
-    return fallback;
-  }
+    // MyMemory returns 200 even for quotas, but usually sets a specific message in responseData
+    if (data?.responseStatus === 429) {
+      console.warn(`[translator] MyMemory quota exceeded (429 in body), skipping translation for: "${text}"`);
+      return text;
+    }
 
-  throw new Error("Empty translation result");
+    const translated = data?.responseData?.translatedText;
+    // Check if the translated text is literally the quota warning
+    if (typeof translated === "string" && translated.includes("MYMEMORY WARNING")) {
+      console.warn(`[translator] MyMemory quota warning detected in text, skipping translation for: "${text}"`);
+      return text;
+    }
+
+    if (typeof translated === "string" && translated.trim()) {
+      return translated;
+    }
+
+    const fallback = data?.matches?.find((match: any) => typeof match?.translation === "string" && match.match >= 0.75)?.translation;
+    if (typeof fallback === "string" && fallback.trim()) {
+      return fallback;
+    }
+
+    throw new Error("Empty translation result");
+  } catch (error: any) {
+    console.warn(`[translator] MyMemory fallback to original text due to error: ${error?.message || String(error)}`);
+    return text;
+  }
 }
 
 async function translateOne(text: string, target: Language, source?: string | null): Promise<string> {

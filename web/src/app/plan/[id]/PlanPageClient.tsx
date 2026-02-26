@@ -66,6 +66,7 @@ export default function PlanPageClient({ id }: { id: string }) {
                 planId={id}
                 focusTaskId={focusTaskId}
                 focusPoint={focusPoint}
+                isQuestion={searchParams?.get("isQuestion") === "true"}
             />
         </main>
     );

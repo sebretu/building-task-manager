@@ -149,6 +149,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     const dueFrom = typeof req.query.due_from === "string" ? req.query.due_from.trim() : "";
     const dueTo = typeof req.query.due_to === "string" ? req.query.due_to.trim() : "";
     const sort = typeof req.query.sort === "string" ? req.query.sort.trim() : "";
+    const isQuestionStr = typeof req.query.is_question === "string" ? req.query.is_question.trim() : "";
 
     let query = supabase
       .from("tasks")
@@ -161,6 +162,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     if (status) query = query.eq("status", status as any);
     if (excludeStatus) query = query.neq("status", excludeStatus as any);
     if (priority) query = query.eq("priority", priority as any);
+    if (isQuestionStr === "true") query = query.eq("is_question", true);
+    else if (isQuestionStr === "false") query = query.eq("is_question", false);
 
     if (isAdmin) {
       // Admins can see everything, or filter by specific user if requested
@@ -217,6 +220,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
 
     const priority = String(body?.priority || "MEDIUM").trim();
     const status = String(body?.status || "OPEN").trim();
+    const is_question = Boolean(body?.is_question);
     const assigned_raw = typeof body?.assigned_user_id === "string" ? body.assigned_user_id.trim() : "";
     if (assigned_raw && !isUuid(assigned_raw)) {
       res.status(400).json({ ok: false, error: { code: "BAD_REQUEST", message: "assigned_user_id must be uuid" } });
@@ -259,8 +263,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       return;
     }
 
-    const assigned_user_id = isAdmin ? assigned_raw || null : requester.id;
-    if (!isAdmin && !assigned_user_id) {
+    const assigned_user_id = isAdmin || is_question ? assigned_raw || null : requester.id;
+    if (!isAdmin && !assigned_user_id && !is_question) {
       res.status(403).json({
         ok: false,
         error: { code: "FORBIDDEN", message: "Only authenticated users can create tasks" },
@@ -280,6 +284,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       created_by,
       assigned_user_id,
       due_date,
+      is_question,
     };
 
     const { data, error } = await supabase.from("tasks").insert(payload).select("*").single();
@@ -328,6 +333,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
             priority: data.priority,
             due_date: data.due_date,
             assigned_user_id: data.assigned_user_id,
+            is_question: data.is_question,
           },
         });
       } catch (historyErr) {
@@ -403,6 +409,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       const assignedCompany = typeof body.assigned_company_id === "string" ? body.assigned_company_id.trim() : "";
       patch.assigned_company_id = assignedCompany ? assignedCompany : null;
     }
+    if (body.is_question !== undefined) {
+      patch.is_question = Boolean(body.is_question);
+    }
 
     const patchKeys = Object.keys(patch);
     if (!isAdmin) {
@@ -426,7 +435,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     try {
       const { data: prevTask, error: prevTaskError } = await supabase
         .from("tasks")
-        .select("status, assigned_user_id, title, project_id, priority, due_date, assigned_company_id, description")
+        .select("status, assigned_user_id, created_by, is_question, title, project_id, priority, due_date, assigned_company_id, description")
         .eq("id", id)
         .single();
 
@@ -441,9 +450,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         });
       }
 
-      console.log('[tasks api] Permission check:', { isAdmin, taskAssignedTo: prevTask.assigned_user_id, requesterId: requester.id });
-      if (!isAdmin && prevTask.assigned_user_id !== requester.id) {
-        console.log('[tasks api] BLOCKED: Non-admin trying to edit task not assigned to them');
+      // Questions (is_question=true) can be edited by any authenticated user — they are not restricted to the assignee.
+      // Regular tasks can be edited by the assigned user, the creator, or an admin.
+      const isQuestion = Boolean(prevTask.is_question);
+      console.log('[tasks api] Permission check:', { isAdmin, isQuestion, taskAssignedTo: prevTask.assigned_user_id, taskCreatedBy: prevTask.created_by, requesterId: requester.id });
+      if (!isAdmin && !isQuestion && prevTask.assigned_user_id !== requester.id && prevTask.created_by !== requester.id) {
+        console.log('[tasks api] BLOCKED: Non-admin trying to edit task not assigned to them and not created by them');
         return res.status(403).json({
           ok: false,
           error: { code: "FORBIDDEN", message: "You do not have access to this task" },

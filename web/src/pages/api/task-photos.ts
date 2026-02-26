@@ -72,10 +72,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
 
   const isAdmin = isAdminRole(requester.role);
 
-  async function getTaskAssignment(taskId: string): Promise<string | null> {
+  async function getTaskAssignment(taskId: string): Promise<{ assigned_user_id: string | null; is_question: boolean; created_by: string | null } | null> {
     const { data, error } = await supabase
       .from("tasks")
-      .select("assigned_user_id")
+      .select("assigned_user_id, is_question, created_by")
       .eq("id", taskId)
       .single();
 
@@ -88,13 +88,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       };
     }
 
-    return data?.assigned_user_id ?? null;
+    return data ?? null;
   }
 
   async function assertCanManagePhotos(taskId: string) {
     if (isAdmin) return;
-    const assignedUserId = await getTaskAssignment(taskId);
-    if (!assignedUserId || assignedUserId === requester.id) return;
+    const taskParams = await getTaskAssignment(taskId);
+    if (!taskParams) return;
+
+    // Questions allow the creator to manage photos too, or even theoretically anyone who can see it. But let's restrict to assigned user OR created_by for Questions.
+    // If it's a question, created_by can also manage photos
+    if (taskParams.is_question && taskParams.created_by === requester.id) return;
+
+    if (!taskParams.assigned_user_id || taskParams.assigned_user_id === requester.id) return;
     throw { status: 403, code: "FORBIDDEN", message: "Only the assignee or an admin may modify task photos" };
   }
 

@@ -222,6 +222,9 @@ export default function UnifiedLayout({ children }: { children: React.ReactNode 
       { href: "/plans", label: t("nav", "plans", "Plany") },
       { href: "/materials", label: t("nav", "materials", "Zapotrzebowania") },
     ];
+    if (!isAdmin) {
+      links.push({ href: "/questions", label: t("nav", "questions", "Pytania") });
+    }
     const adminLinks = isAdmin
       ? [
         { href: "/users", label: t("nav", "users", "Użytkownicy") },
@@ -280,6 +283,13 @@ export default function UnifiedLayout({ children }: { children: React.ReactNode 
               style={{ cursor: "pointer", border: "1px solid rgba(15,23,42,0.15)" }}
             >
               + {t("home", "createNewTask", "Neue Aufgabe")}
+            </button>
+            <button
+              className={styles.navUpload}
+              onClick={() => window.dispatchEvent(new CustomEvent("open-new-question"))}
+              style={{ cursor: "pointer", border: "1px solid rgba(15,23,42,0.15)", marginLeft: 8 }}
+            >
+              ? {t("home", "askQuestion", "Ask Question")}
             </button>
             {isAdmin && (
               <Link href="/plans/upload" className={styles.navUpload}>

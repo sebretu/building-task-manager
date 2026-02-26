@@ -127,10 +127,11 @@ export default function ToApproveClient() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectId, setProjectId] = useState("");
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [questions, setQuestions] = useState<Task[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
   const [editingItems, setEditingItems] = useState<Record<string, any[]>>({});
   const [savingOrderId, setSavingOrderId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"tasks" | "orders">("tasks");
+  const [activeTab, setActiveTab] = useState<"tasks" | "orders" | "questions">("tasks");
   const [thumbByTask, setThumbByTask] = useState<Record<string, TaskThumb>>({});
 
   const [metaByPlan, setMetaByPlan] = useState<Record<string, PlanMeta | null>>({});
@@ -160,8 +161,10 @@ export default function ToApproveClient() {
     x_norm: number;
     y_norm: number;
     created_by?: string;
+    is_question?: boolean;
   } | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [isQuestionMode, setIsQuestionMode] = useState(false);
 
   useEffect(() => {
     if (!showNewTaskModal) return;
@@ -194,12 +197,23 @@ export default function ToApproveClient() {
   const openNewTaskModal = () => {
     setNewTaskProjectId(projectId || (projects[0]?.id ?? ""));
     setNewTaskPlanId("");
+    setIsQuestionMode(false);
+    setShowNewTaskModal(true);
+  };
+
+  const openNewQuestionModal = () => {
+    setNewTaskProjectId(projectId || (projects[0]?.id ?? ""));
+    setNewTaskPlanId("");
+    setIsQuestionMode(true);
     setShowNewTaskModal(true);
   };
 
   // Always-current ref so the event listener never has a stale closure
   const openNewTaskModalRef = useRef(openNewTaskModal);
   openNewTaskModalRef.current = openNewTaskModal;
+
+  const openNewQuestionModalRef = useRef(openNewQuestionModal);
+  openNewQuestionModalRef.current = openNewQuestionModal;
 
   const closeNewTaskModal = () => {
     setShowNewTaskModal(false);
@@ -214,6 +228,7 @@ export default function ToApproveClient() {
       x_norm: 0.5, // Default center
       y_norm: 0.5, // Default center
       created_by: user?.id,
+      is_question: isQuestionMode,
     });
     setDrawerOpen(true);
     closeNewTaskModal();
@@ -235,7 +250,7 @@ export default function ToApproveClient() {
     return map;
   }, [profiles]);
 
-  const kanbanColumns = ["APPROVED"] as const;
+  const kanbanColumns = activeTab === "questions" ? ["OPEN", "APPROVED"] : ["DONE_WAITING_APPROVAL", "APPROVED", "REJECTED"];
   const statusBadgeClassByCode: Record<string, string> = {
     APPROVED: "task-card__badge--approved",
   };
@@ -366,9 +381,14 @@ export default function ToApproveClient() {
       const qQ = qDebounced ? `&q=${encodeURIComponent(qDebounced)}` : "";
 
       const ts = await apiGet<Task[]>(
-        `/api/tasks?projectId=${encodeURIComponent(pid)}&limit=${limit}&offset=${offset}${statusQ}${priorityQ}${assignedQ}${dueFromQ}${dueToQ}${sortQ}${qQ}`
+        `/api/tasks?projectId=${encodeURIComponent(pid)}&limit=${limit}&offset=${offset}${statusQ}${priorityQ}${assignedQ}${dueFromQ}${dueToQ}${sortQ}${qQ}&is_question=false`
       );
       setTasks(ts);
+
+      const qs = await apiGet<Task[]>(
+        `/api/tasks?projectId=${encodeURIComponent(pid)}&limit=${limit}&offset=${offset}${assignedQ}${dueFromQ}${dueToQ}${sortQ}${qQ}&is_question=true`
+      );
+      setQuestions(qs);
 
       if (token) {
         const ords = await apiGet<any[]>(`/api/orders?projectId=${encodeURIComponent(pid)}`, token);
@@ -426,7 +446,7 @@ export default function ToApproveClient() {
     }
 
     const items: { key: string; text: string }[] = [];
-    tasks.forEach((task) => {
+    [...tasks, ...questions].forEach((task) => {
       const title = task.title?.trim();
       if (title) items.push({ key: `task.title:${task.id}`, text: title });
       const description = task.description?.trim();
@@ -498,14 +518,14 @@ export default function ToApproveClient() {
   }, [q]);
 
   useEffect(() => {
-    tasks.forEach((task) => {
+    [...tasks, ...questions].forEach((task) => {
       if (!Object.prototype.hasOwnProperty.call(thumbByTask, task.id)) {
         loadThumb(task.id).catch(() => { });
       }
     });
 
     const planIds = new Set(
-      tasks
+      [...tasks, ...questions]
         .map((task) => task.plan_id)
         .filter((id): id is string => typeof id === "string" && id.length > 0)
     );
@@ -539,10 +559,17 @@ export default function ToApproveClient() {
     }
     window.addEventListener("open-new-task", onOpenNewTask as EventListener);
 
+    // Listen for nav bar button to open question modal
+    function onOpenNewQuestion() {
+      openNewQuestionModalRef.current();
+    }
+    window.addEventListener("open-new-question", onOpenNewQuestion as EventListener);
+
     return () => {
       window.removeEventListener("task-photo-added", handlePhotoAdded as EventListener);
       window.removeEventListener("task-created", onTaskCreated as EventListener);
       window.removeEventListener("open-new-task", onOpenNewTask as EventListener);
+      window.removeEventListener("open-new-question", onOpenNewQuestion as EventListener);
     };
   }, [loadThumb]);
 
@@ -586,13 +613,19 @@ export default function ToApproveClient() {
 
           <div style={{ display: "flex", gap: "12px", marginBottom: "24px" }}>
             <button
-              onClick={() => setActiveTab("tasks")}
+              onClick={() => { setActiveTab("tasks"); setOffset(0); }}
               style={{ padding: "8px 16px", borderRadius: "12px", border: "1px solid var(--border)", background: activeTab === "tasks" ? "var(--primary)" : "transparent", color: activeTab === "tasks" ? "#fff" : "var(--foreground)", fontWeight: 600, cursor: "pointer" }}
             >
               {t("nav", "tasks", "Zadania")} ({tasks.length})
             </button>
             <button
-              onClick={() => setActiveTab("orders")}
+              onClick={() => { setActiveTab("questions"); setOffset(0); }}
+              style={{ padding: "8px 16px", borderRadius: "12px", border: "1px solid var(--border)", background: activeTab === "questions" ? "var(--primary)" : "transparent", color: activeTab === "questions" ? "#fff" : "var(--foreground)", fontWeight: 600, cursor: "pointer" }}
+            >
+              {t("home", "questionsTab", "Questions")} ({questions.length})
+            </button>
+            <button
+              onClick={() => { setActiveTab("orders"); setOffset(0); }}
               style={{ padding: "8px 16px", borderRadius: "12px", border: "1px solid var(--border)", background: activeTab === "orders" ? "var(--primary)" : "transparent", color: activeTab === "orders" ? "#fff" : "var(--foreground)", fontWeight: 600, cursor: "pointer" }}
             >
               {t("materials", "adminOrdersTab", "Zapotrzebowania na materiały")} ({orders.filter(o => o.status === "PENDING").length})
@@ -953,7 +986,7 @@ export default function ToApproveClient() {
             </div>
           ) : viewMode === "list" ? (
             <div className="tasks-grid">
-              {tasks.map((task) => {
+              {(activeTab === "questions" ? questions : tasks).map((task) => {
                 const thumb = thumbByTask[task.id];
                 // Użyj thumb_url jeśli dostępny, w przeciwnym razie url
                 const thumbUrl = thumb?.thumb_url || thumb?.url || null;
@@ -1102,7 +1135,7 @@ export default function ToApproveClient() {
                     </div>
 
                     {/* Approve / Reject / Delete actions */}
-                    {task.status === "DONE_WAITING_APPROVAL" && (
+                    {(task.status === "DONE_WAITING_APPROVAL" || (activeTab === "questions" && task.status === "OPEN")) && (
                       <div style={{ display: "flex", gap: "8px", padding: "10px 16px", borderTop: "1px solid var(--border)", background: "var(--bg-secondary)", borderRadius: "0 0 var(--radius) var(--radius)", gridColumn: "1 / -1" }}>
                         <button
                           onClick={async (e) => {
@@ -1110,7 +1143,11 @@ export default function ToApproveClient() {
                             if (!confirm(t("home", "confirmDelete", "Na pewno usunąć to zadanie?"))) return;
                             try {
                               await apiCall(`/api/task?id=${task.id}`, { method: "DELETE", token });
-                              setTasks(prev => prev.filter(tt => tt.id !== task.id));
+                              if (activeTab === "questions") {
+                                setQuestions(prev => prev.filter(tt => tt.id !== task.id));
+                              } else {
+                                setTasks(prev => prev.filter(tt => tt.id !== task.id));
+                              }
                             } catch (err: any) { alert("Błąd usuwania: " + err.message); }
                           }}
                           style={{ padding: "6px 12px", borderRadius: "8px", border: "1px solid #dc2626", background: "transparent", color: "#dc2626", cursor: "pointer", fontSize: "13px", fontWeight: 600 }}
@@ -1153,7 +1190,7 @@ export default function ToApproveClient() {
           ) : (
             <div className="home-kanban">
               {kanbanColumns.map((status) => {
-                const items = tasks.filter((t) => t.status === status);
+                const items = (activeTab === "questions" ? questions : tasks).filter((t) => t.status === status);
                 return (
                   <div key={status} className="home-kanban-column">
                     <div className="home-kanban-header">
@@ -1217,7 +1254,7 @@ export default function ToApproveClient() {
             >
               <div>
                 <h3 style={{ fontSize: 20, fontWeight: 800, color: "#000" }}>
-                  {t("taskDrawer", "newTask", "New Task")}
+                  {isQuestionMode ? t("home", "newQuestion", "New Question") : t("taskDrawer", "newTask", "New Task")}
                 </h3>
                 <p style={{ fontSize: 13, color: "#444", marginTop: 4 }}>
                   {t("home", "newTaskModalSubtitle", "Select a project and plan to attach the task to.")}
@@ -1306,7 +1343,7 @@ export default function ToApproveClient() {
                 <button
                   onClick={() => {
                     if (newTaskPlanId) {
-                      router.push(`/plan/${newTaskPlanId}`);
+                      router.push(`/plan/${newTaskPlanId}${isQuestionMode ? '?isQuestion=true' : ''}`);
                     }
                   }}
                   disabled={!newTaskProjectId || !newTaskPlanId}

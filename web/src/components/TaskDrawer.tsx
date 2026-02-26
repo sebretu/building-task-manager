@@ -21,6 +21,7 @@ type TaskRow = {
   plan_id?: string;
   x_norm?: number | null;
   y_norm?: number | null;
+  is_question?: boolean;
 };
 
 type TaskPhoto = {
@@ -109,6 +110,7 @@ export default function TaskDrawer({
     x_norm: number;
     y_norm: number;
     created_by?: string;
+    is_question?: boolean;
   } | null;
   currentUserId?: string | null;
   currentUserRole?: string | null;
@@ -134,6 +136,8 @@ export default function TaskDrawer({
   const [priority, setPriority] = useState<TaskRow["priority"]>("MEDIUM");
   const [dueDate, setDueDate] = useState("");
   const [assignedUserId, setAssignedUserId] = useState("");
+
+  const isQuestionMode = createDraft?.is_question || task?.is_question || false;
 
   const [caption, setCaption] = useState(""); // caption dla kolejnego dodawanego pliku
   const [nextPhotoType, setNextPhotoType] = useState<PhotoType>("BEFORE");
@@ -183,10 +187,11 @@ export default function TaskDrawer({
 
 
   const headerTitle = useMemo(() => {
-    if (isCreate) return t("taskDrawer", "newTask");
+    if (isCreate) return isQuestionMode ? t("home", "newQuestion", "New Question") : t("taskDrawer", "newTask");
     if (!taskId) return t("home", "title");
-    return task?.title ? `${t("home", "title")}: ${task.title}` : `${t("home", "title")}: ${taskId}`;
-  }, [isCreate, taskId, task?.title, t]);
+    const baseTitle = isQuestionMode ? t("home", "newQuestion", "Question") : t("home", "title");
+    return task?.title ? `${baseTitle}: ${task.title}` : `${baseTitle}: ${taskId}`;
+  }, [isCreate, taskId, task?.title, t, isQuestionMode]);
 
   async function loadProfilesOnce() {
     if (profilesLoaded) return;
@@ -247,6 +252,13 @@ export default function TaskDrawer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canShow]);
 
+  const hasAutoAssignedAdminRef = useRef(false);
+  useEffect(() => {
+    if (!canShow) {
+      hasAutoAssignedAdminRef.current = false;
+    }
+  }, [canShow]);
+
   // open => edit mode: load task / create mode: reset
   useEffect(() => {
     if (!canShow) return;
@@ -263,7 +275,7 @@ export default function TaskDrawer({
       setHistory([]);
       setNewComment("");
       setErr(null);
-      setTitle(t("taskDrawer", "newTask"));
+      setTitle(isQuestionMode ? t("home", "newQuestion", "New Question") : t("taskDrawer", "newTask"));
       setTitleDirty(false);
       setDescription("");
       setDescriptionDirty(false);
@@ -273,7 +285,7 @@ export default function TaskDrawer({
       const draftCreator = createDraft?.created_by;
       if (draftCreator && isUuid(draftCreator)) {
         setAssignedUserId(draftCreator);
-      } else if (currentUserId && isUuid(currentUserId)) {
+      } else if (currentUserId && isUuid(currentUserId) && !isQuestionMode) {
         setAssignedUserId(currentUserId);
       } else {
         setAssignedUserId("");
@@ -284,6 +296,17 @@ export default function TaskDrawer({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canShow, taskId, isCreate]);
+
+  // Auto-assign question to first admin if not assigned yet
+  useEffect(() => {
+    if (canShow && isCreate && isQuestionMode && profiles.length > 0 && !hasAutoAssignedAdminRef.current) {
+      const firstAdmin = profiles.find((p) => String((p as any).role || "").toUpperCase() === "ADMIN");
+      if (firstAdmin) {
+        setAssignedUserId(firstAdmin.id);
+        hasAutoAssignedAdminRef.current = true;
+      }
+    }
+  }, [canShow, isCreate, isQuestionMode, profiles]);
 
   // cleanup blob urls
   useEffect(() => {
@@ -501,11 +524,11 @@ export default function TaskDrawer({
     if (!trimmedTitle) return setErr(t("taskDrawer", "errorTitleRequired"));
 
     let trimmedAssigned = assignedUserId.trim();
-    if (!isAdmin && !trimmedAssigned && currentUserId) {
+    if (!isAdmin && !trimmedAssigned && currentUserId && !isQuestionMode) {
       trimmedAssigned = currentUserId;
     }
     if (trimmedAssigned && !isUuid(trimmedAssigned)) return setErr(t("taskDrawer", "errorAssignedUser"));
-    if (isCreate && !isAdmin && !trimmedAssigned) {
+    if (isCreate && !isAdmin && !trimmedAssigned && !isQuestionMode) {
       return setErr(t("taskDrawer", "errorAssignedUser"));
     }
 
@@ -539,6 +562,7 @@ export default function TaskDrawer({
           priority,
           due_date: dueDate.trim() === "" ? null : dueDate.trim(),
           assigned_user_id: trimmedAssigned ? trimmedAssigned : null,
+          is_question: isQuestionMode,
         });
 
         const newId = newData?.id as string | undefined;
@@ -651,6 +675,7 @@ export default function TaskDrawer({
           priority,
           due_date: dueDate.trim() === "" ? null : dueDate.trim(),
           assigned_user_id: assignedUserId.trim() ? assignedUserId.trim() : null,
+          is_question: isQuestionMode,
         };
 
         // @ts-ignore
@@ -871,12 +896,27 @@ export default function TaskDrawer({
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <label style={labelStyle}>
               <span style={{ fontWeight: 800 }}>{t("taskDrawer", "status")}</span>
-              <select value={status} onChange={(e) => setStatus(e.target.value as any)} style={inputStyle} disabled={!isAdmin}>
-                <option value="OPEN">{t("taskStatus", "OPEN")}</option>
-                <option value="IN_PROGRESS">{t("taskStatus", "IN_PROGRESS")}</option>
-                <option value="DONE_WAITING_APPROVAL">{t("taskStatus", "DONE_WAITING_APPROVAL")}</option>
-                <option value="APPROVED">{t("taskStatus", "APPROVED")}</option>
-                <option value="REJECTED">{t("taskStatus", "REJECTED")}</option>
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value as any)}
+                style={inputStyle}
+                disabled={!canUpdateStatus}
+              >
+                {!isQuestionMode ? (
+                  <>
+                    <option value="OPEN">{t("taskStatus", "OPEN")}</option>
+                    <option value="IN_PROGRESS">{t("taskStatus", "IN_PROGRESS")}</option>
+                    <option value="DONE_WAITING_APPROVAL">{t("taskStatus", "DONE_WAITING_APPROVAL")}</option>
+                    <option value="APPROVED">{t("taskStatus", "APPROVED")}</option>
+                    <option value="REJECTED">{t("taskStatus", "REJECTED")}</option>
+                  </>
+                ) : (
+                  <>
+                    {/* Simplified statuses for Questions */}
+                    <option value="OPEN">{t("taskStatus", "OPEN", "Zadane")}</option>
+                    <option value="APPROVED">{t("taskStatus", "APPROVED", "Odpowiedź")}</option>
+                  </>
+                )}
               </select>
             </label>
 
@@ -884,42 +924,46 @@ export default function TaskDrawer({
               <span style={{ fontWeight: 800 }}>{t("taskDrawer", "assignedUser")}</span>
               <select value={assignedUserId} onChange={(e) => setAssignedUserId(e.target.value)} style={inputStyle} disabled={!isAdmin}>
                 <option value="">—</option>
-                {profiles.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.full_name}
-                  </option>
-                ))}
+                {profiles
+                  .filter((p) => !isQuestionMode || String((p as any).role || "").toUpperCase() === "ADMIN")
+                  .map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.full_name}
+                    </option>
+                  ))}
               </select>
             </label>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <label style={labelStyle}>
-              <span style={{ fontWeight: 800 }}>{t("taskDrawer", "priority")}</span>
-              <select value={priority} onChange={(e) => setPriority(e.target.value as any)} style={inputStyle} disabled={!canEditPriority}>
-                <option value="LOW">{t("taskPriority", "LOW")}</option>
-                <option value="MEDIUM">{t("taskPriority", "MEDIUM")}</option>
-                <option value="HIGH">{t("taskPriority", "HIGH")}</option>
-                <option value="CRITICAL">{t("taskPriority", "CRITICAL")}</option>
-              </select>
-            </label>
+          {!isQuestionMode && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <label style={labelStyle}>
+                <span style={{ fontWeight: 800 }}>{t("taskDrawer", "priority")}</span>
+                <select value={priority} onChange={(e) => setPriority(e.target.value as any)} style={inputStyle} disabled={!canEditPriority}>
+                  <option value="LOW">{t("taskPriority", "LOW")}</option>
+                  <option value="MEDIUM">{t("taskPriority", "MEDIUM")}</option>
+                  <option value="HIGH">{t("taskPriority", "HIGH")}</option>
+                  <option value="CRITICAL">{t("taskPriority", "CRITICAL")}</option>
+                </select>
+              </label>
 
-            <label style={labelStyle}>
-              <span style={{ fontWeight: 800 }}>{t("taskDrawer", "dueDate")}</span>
-              <input
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                style={inputStyle}
-                disabled={!canEditDueDate}
-              />
-            </label>
-          </div>
+              <label style={labelStyle}>
+                <span style={{ fontWeight: 800 }}>{t("taskDrawer", "dueDate")}</span>
+                <input
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  style={inputStyle}
+                  disabled={!canEditDueDate}
+                />
+              </label>
+            </div>
+          )}
 
           {/* PLAN MAP PREVIEW */}
           {/* Usunięto podgląd mapy z pinem i link do pełnej mapy na prośbę użytkownika */}
           {/* WORKFLOW BUTTONS */}
-          {!isCreate && canUpdateStatus && (
+          {!isCreate && canUpdateStatus && !isQuestionMode && (
             <div style={{ display: "grid", gap: 8 }}>
               <div style={{ fontSize: 12, fontWeight: 800, color: "rgba(17,24,39,0.6)" }}>{t("taskDrawer", "workflowActions")}</div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -1054,6 +1098,28 @@ export default function TaskDrawer({
             </div>
           )}
 
+          {/* QUESTIONS: Simple Reply/Close workflow */}
+          {!isCreate && isQuestionMode && isAdmin && status === "OPEN" && (
+            <div style={{ display: "grid", gap: 8 }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: "rgba(17,24,39,0.6)" }}>{t("taskDrawer", "workflowActions", "Akcje")}</div>
+              <button
+                onClick={() => setStatus("APPROVED")}
+                style={{
+                  padding: "8px 14px",
+                  borderRadius: 10,
+                  border: "1px solid rgba(147,51,234,0.35)",
+                  background: "rgba(147,51,234,0.08)",
+                  color: "#7c3aed",
+                  cursor: "pointer",
+                  fontWeight: 800,
+                  fontSize: 13,
+                }}
+              >
+                {t("taskDrawer", "markAnswered", "Oznacz jako odpowiedziane")}
+              </button>
+            </div>
+          )}
+
           {/* ACTIONS */}
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
             <button
@@ -1090,294 +1156,300 @@ export default function TaskDrawer({
             </button>
           </div>
 
-          <hr style={{ border: "none", borderTop: "1px solid rgba(17,24,39,0.10)" }} />
+          {true && (
+            <>
+              <hr style={{ border: "none", borderTop: "1px solid rgba(17,24,39,0.10)" }} />
 
-          {/* PHOTOS */}
-          <div style={{ display: "grid", gap: 10 }}>
-            <div style={{ fontWeight: 900 }}>{t("taskDrawer", "photos")}</div>
+              {/* PHOTOS */}
+              <div style={{ display: "grid", gap: 10 }}>
+                <div style={{ fontWeight: 900 }}>{t("taskDrawer", "photos")}</div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10, alignItems: "end" }}>
-              <label style={labelStyle}>
-                <span style={{ fontWeight: 800 }}>{t("taskDrawer", "captionLabel")}</span>
-                <input value={caption} onChange={(e) => setCaption(e.target.value)} style={inputStyle} />
-              </label>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10, alignItems: "end" }}>
+                  <label style={labelStyle}>
+                    <span style={{ fontWeight: 800 }}>{t("taskDrawer", "captionLabel")}</span>
+                    <input value={caption} onChange={(e) => setCaption(e.target.value)} style={inputStyle} />
+                  </label>
 
-              <label style={labelStyle}>
-                <span style={{ fontWeight: 800 }}>{t("taskDrawer", "photoPhase", "Rodzaj zdjęcia")}</span>
-                <select value={nextPhotoType} onChange={(e) => setNextPhotoType(e.target.value as PhotoType)} style={inputStyle}>
-                  <option value="BEFORE">{t("taskDrawer", "photoPhaseBefore", "Przed pracą")}</option>
-                  {(status !== "OPEN" || isWorking || hasAfterPhoto) && (
-                    <option value="AFTER">{t("taskDrawer", "photoPhaseAfter", "Po pracy")}</option>
-                  )}
-                </select>
-              </label>
+                  <label style={labelStyle}>
+                    <span style={{ fontWeight: 800 }}>{t("taskDrawer", "photoPhase", "Rodzaj zdjęcia")}</span>
+                    <select value={nextPhotoType} onChange={(e) => setNextPhotoType(e.target.value as PhotoType)} style={inputStyle}>
+                      <option value="BEFORE">{t("taskDrawer", "photoPhaseBefore", "Przed pracą")}</option>
+                      {(status !== "OPEN" || isWorking || hasAfterPhoto) && (
+                        <option value="AFTER">{t("taskDrawer", "photoPhaseAfter", "Po pracy")}</option>
+                      )}
+                    </select>
+                  </label>
 
-              {(() => {
-                let uiBlocked = false;
-                let blockMsg = "";
-                if (nextPhotoType === "BEFORE" && hasBeforePhoto) {
-                  uiBlocked = true;
-                  blockMsg = t("taskDrawer", "beforePhotoExists", "Before photo already exists.");
-                } else if (nextPhotoType === "AFTER" && hasAfterPhoto) {
-                  uiBlocked = true;
-                  blockMsg = t("taskDrawer", "afterPhotoExists", "After photo already exists.");
-                } else if (nextPhotoType === "AFTER" && !hasBeforePhoto) {
-                  uiBlocked = true;
-                  blockMsg = t("taskDrawer", "beforePhotoMissing", "Brak zdjęcia przed wykonaniem pracy");
-                }
-                const isInputDisabled = uploading || !canManagePhotos || uiBlocked;
+                  {(() => {
+                    let uiBlocked = false;
+                    let blockMsg = "";
+                    if (!isQuestionMode) {
+                      if (nextPhotoType === "BEFORE" && hasBeforePhoto) {
+                        uiBlocked = true;
+                        blockMsg = t("taskDrawer", "beforePhotoExists", "Before photo already exists.");
+                      } else if (nextPhotoType === "AFTER" && hasAfterPhoto) {
+                        uiBlocked = true;
+                        blockMsg = t("taskDrawer", "afterPhotoExists", "After photo already exists.");
+                      } else if (nextPhotoType === "AFTER" && !hasBeforePhoto) {
+                        uiBlocked = true;
+                        blockMsg = t("taskDrawer", "beforePhotoMissing", "Brak zdjęcia przed wykonaniem pracy");
+                      }
+                    }
+                    const isInputDisabled = uploading || !canManagePhotos || uiBlocked;
 
-                return (
-                  <div style={{ display: "grid", gap: 4, alignContent: "start", height: "100%" }}>
-                    <label
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        padding: "10px 14px",
-                        marginTop: 22,
-                        borderRadius: 8,
-                        background: isInputDisabled ? "#e5e7eb" : "linear-gradient(135deg, #0ea5e9, #3b82f6)",
-                        color: isInputDisabled ? "#9ca3af" : "#ffffff",
-                        cursor: isInputDisabled ? "not-allowed" : "pointer",
-                        fontWeight: 800,
-                        fontSize: 14,
-                        minHeight: 46,
-                        textAlign: "center",
-                        boxShadow: isInputDisabled ? "none" : "0 4px 6px rgba(59, 130, 246, 0.25)",
-                      }}
-                    >
-                      <span>{t("taskDrawer", "addPhotoBtn", "Dodaj zdjęcie")}</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        style={{ display: "none" }}
-                        disabled={isInputDisabled}
-                        onChange={(e) => {
-                          if (!canManagePhotos) return;
-                          const f = e.target.files?.[0];
-                          if (!f) return;
-                          e.currentTarget.value = "";
+                    return (
+                      <div style={{ display: "grid", gap: 4, alignContent: "start", height: "100%" }}>
+                        <label
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            padding: "10px 14px",
+                            marginTop: 22,
+                            borderRadius: 8,
+                            background: isInputDisabled ? "#e5e7eb" : "linear-gradient(135deg, #0ea5e9, #3b82f6)",
+                            color: isInputDisabled ? "#9ca3af" : "#ffffff",
+                            cursor: isInputDisabled ? "not-allowed" : "pointer",
+                            fontWeight: 800,
+                            fontSize: 14,
+                            minHeight: 46,
+                            textAlign: "center",
+                            boxShadow: isInputDisabled ? "none" : "0 4px 6px rgba(59, 130, 246, 0.25)",
+                          }}
+                        >
+                          <span>{t("taskDrawer", "addPhotoBtn", "Dodaj zdjęcie")}</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            style={{ display: "none" }}
+                            disabled={isInputDisabled}
+                            onChange={(e) => {
+                              if (!canManagePhotos) return;
+                              const f = e.target.files?.[0];
+                              if (!f) return;
+                              e.currentTarget.value = "";
 
-                          if (isCreate) {
-                            addPending(f);
-                            return;
-                          }
-
-                          // EDIT: od razu upload
-                          if (!taskId) return;
-                          setUploading(true);
-                          (async () => {
-                            try {
-                              const actualPhotoType = (status === "OPEN" && !isWorking) ? "BEFORE" : nextPhotoType;
-                              const ph = await uploadOne(taskId, f, caption.trim() === "" ? null : caption.trim(), actualPhotoType);
-                              setCaption("");
-                              setPhotos((prev) => [ph, ...prev]);
-
-                              if (actualPhotoType === "AFTER" && status !== "DONE_WAITING_APPROVAL") {
-                                setStatus("DONE_WAITING_APPROVAL");
-                                apiPatch("/api/tasks", { id: taskId, status: "DONE_WAITING_APPROVAL" }).catch(e => console.error(e));
-                                window.dispatchEvent(new CustomEvent("task-saved"));
-                                setTimeout(() => {
-                                  window.dispatchEvent(
-                                    new CustomEvent("task-submitted-for-approval", {
-                                      detail: { title: title || (task && task.title) || "" },
-                                    })
-                                  );
-                                }, 0);
+                              if (isCreate) {
+                                addPending(f);
+                                return;
                               }
 
-                              apiGet<TaskHistoryRow[]>(`/api/task-history?taskId=${encodeURIComponent(taskId)}`)
-                                .then(historyData => setHistory(historyData || []))
-                                .catch(() => { });
-                              window.dispatchEvent(new CustomEvent("task-photo-added", { detail: { taskId } }));
-                            } catch (e2: any) {
-                              setErr(e2?.message || String(e2));
-                            } finally {
-                              setUploading(false);
-                            }
-                          })();
-                        }}
-                      />
-                    </label>
-                    {blockMsg && <span style={{ fontSize: 11, color: "#ef4444", fontWeight: 700, marginTop: -2 }}>{blockMsg}</span>}
-                  </div>
-                );
-              })()}
-            </div>
+                              // EDIT: od razu upload
+                              if (!taskId) return;
+                              setUploading(true);
+                              (async () => {
+                                try {
+                                  const actualPhotoType = (status === "OPEN" && !isWorking) ? "BEFORE" : nextPhotoType;
+                                  const ph = await uploadOne(taskId, f, caption.trim() === "" ? null : caption.trim(), actualPhotoType);
+                                  setCaption("");
+                                  setPhotos((prev) => [ph, ...prev]);
 
-            {/* CREATE: pending */}
-            {pendingPhotos.length > 0 && (
-              <div style={{ display: "grid", gap: 8 }}>
-                <div style={{ fontSize: 12, opacity: 0.8, fontWeight: 800 }}>
-                  {t("taskDrawer", "pendingPhotos")}
+                                  if (actualPhotoType === "AFTER" && status !== "DONE_WAITING_APPROVAL") {
+                                    setStatus("DONE_WAITING_APPROVAL");
+                                    apiPatch("/api/tasks", { id: taskId, status: "DONE_WAITING_APPROVAL" }).catch(e => console.error(e));
+                                    window.dispatchEvent(new CustomEvent("task-saved"));
+                                    setTimeout(() => {
+                                      window.dispatchEvent(
+                                        new CustomEvent("task-submitted-for-approval", {
+                                          detail: { title: title || (task && task.title) || "" },
+                                        })
+                                      );
+                                    }, 0);
+                                  }
+
+                                  apiGet<TaskHistoryRow[]>(`/api/task-history?taskId=${encodeURIComponent(taskId)}`)
+                                    .then(historyData => setHistory(historyData || []))
+                                    .catch(() => { });
+                                  window.dispatchEvent(new CustomEvent("task-photo-added", { detail: { taskId } }));
+                                } catch (e2: any) {
+                                  setErr(e2?.message || String(e2));
+                                } finally {
+                                  setUploading(false);
+                                }
+                              })();
+                            }}
+                          />
+                        </label>
+                        {blockMsg && <span style={{ fontSize: 11, color: "#ef4444", fontWeight: 700, marginTop: -2 }}>{blockMsg}</span>}
+                      </div>
+                    );
+                  })()}
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
-                  {pendingPhotos.map((p) => (
-                    <div key={p.id} style={{ position: "relative" }}>
-                      <span
-                        style={{
-                          position: "absolute",
-                          top: 6,
-                          left: 6,
-                          padding: "2px 8px",
-                          borderRadius: 999,
-                          fontSize: 10,
-                          fontWeight: 800,
-                          background: p.photoType === "AFTER" ? "rgba(34,197,94,0.85)" : "rgba(59,130,246,0.85)",
-                          color: "#fff",
-                          zIndex: 2,
-                        }}
-                      >
-                        {p.photoType === "AFTER"
-                          ? t("taskDrawer", "photoPhaseAfter", "Po pracy")
-                          : t("taskDrawer", "photoPhaseBefore", "Przed pracą")}
-                      </span>
-                      <img
-                        src={p.previewUrl}
-                        alt=""
-                        style={{ width: "100%", height: 92, objectFit: "cover", borderRadius: 12, border: "1px solid rgba(17,24,39,0.10)" }}
-                      />
-                      <button
-                        onClick={() => removePending(p.id)}
-                        style={{
-                          position: "absolute",
-                          top: 6,
-                          right: 6,
-                          width: 26,
-                          height: 26,
-                          borderRadius: 999,
-                          border: "1px solid rgba(17,24,39,0.25)",
-                          background: "rgba(255,255,255,0.92)",
-                          cursor: "pointer",
-                          fontWeight: 900,
-                        }}
-                        title={t("common", "delete")}
-                      >
-                        ✕
-                      </button>
-                      {p.caption && (
-                        <div style={{ marginTop: 4, fontSize: 11, opacity: 0.85, wordBreak: "break-word" }}>{p.caption}</div>
-                      )}
+                {/* CREATE: pending */}
+                {pendingPhotos.length > 0 && (
+                  <div style={{ display: "grid", gap: 8 }}>
+                    <div style={{ fontSize: 12, opacity: 0.8, fontWeight: 800 }}>
+                      {t("taskDrawer", "pendingPhotos")}
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
 
-            {/* EDIT/CREATE: existing photos list */}
-            {photos.length > 0 && (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
-                {photos.map((p) => (
-                  <div key={p.id} style={{ position: "relative" }}>
-                    <span
-                      style={{
-                        position: "absolute",
-                        top: 6,
-                        left: 6,
-                        padding: "2px 8px",
-                        borderRadius: 999,
-                        fontSize: 10,
-                        fontWeight: 800,
-                        background: (p.photo_type || "BEFORE") === "AFTER" ? "rgba(34,197,94,0.85)" : "rgba(59,130,246,0.85)",
-                        color: "#fff",
-                        zIndex: 2,
-                      }}
-                    >
-                      {(p.photo_type || "BEFORE") === "AFTER"
-                        ? t("taskDrawer", "photoPhaseAfter", "Po pracy")
-                        : t("taskDrawer", "photoPhaseBefore", "Przed pracą")}
-                    </span>
-                    <a href={p.url} target="_blank" rel="noreferrer" style={{ textDecoration: "none" }}>
-                      <img
-                        src={p.url}
-                        alt={p.caption || ""}
-                        style={{ width: "100%", height: 92, objectFit: "cover", borderRadius: 12, border: "1px solid rgba(17,24,39,0.10)" }}
-                        loading="lazy"
-                      />
-                    </a>
-                    {canManagePhotos && (
-                      <button
-                        onClick={async (e) => {
-                          e.preventDefault();
-                          if (!confirm(t("common", "confirmDelete", "Delete?"))) return;
-                          try {
-                            setUploading(true);
-                            await apiDelete(`/api/task-photos?id=${p.id}`);
-                            setPhotos((prev) => prev.filter((x) => x.id !== p.id));
-                            if (taskId) {
-                              apiGet<TaskHistoryRow[]>(`/api/task-history?taskId=${encodeURIComponent(taskId)}`)
-                                .then(historyData => setHistory(historyData || []))
-                                .catch(() => { });
-                            }
-                            window.dispatchEvent(new CustomEvent("task-photo-deleted", { detail: { photoId: p.id, taskId } }));
-                          } catch (err: any) {
-                            setErr(err.message || String(err));
-                          } finally {
-                            setUploading(false);
-                          }
-                        }}
-                        style={{
-                          position: "absolute",
-                          top: 6,
-                          right: 6,
-                          width: 26,
-                          height: 26,
-                          borderRadius: 999,
-                          border: "1px solid rgba(17,24,39,0.25)",
-                          background: "rgba(255,255,255,0.92)",
-                          cursor: "pointer",
-                          fontWeight: 900,
-                          zIndex: 3
-                        }}
-                        title={t("common", "delete")}
-                      >
-                        ✕
-                      </button>
-                    )}
-                    {p.caption && (
-                      <div style={{ marginTop: 4, fontSize: 11, opacity: 0.85, wordBreak: "break-word" }}>{p.caption}</div>
-                    )}
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+                      {pendingPhotos.map((p) => (
+                        <div key={p.id} style={{ position: "relative" }}>
+                          <span
+                            style={{
+                              position: "absolute",
+                              top: 6,
+                              left: 6,
+                              padding: "2px 8px",
+                              borderRadius: 999,
+                              fontSize: 10,
+                              fontWeight: 800,
+                              background: p.photoType === "AFTER" ? "rgba(34,197,94,0.85)" : "rgba(59,130,246,0.85)",
+                              color: "#fff",
+                              zIndex: 2,
+                            }}
+                          >
+                            {p.photoType === "AFTER"
+                              ? t("taskDrawer", "photoPhaseAfter", "Po pracy")
+                              : t("taskDrawer", "photoPhaseBefore", "Przed pracą")}
+                          </span>
+                          <img
+                            src={p.previewUrl}
+                            alt=""
+                            style={{ width: "100%", height: 92, objectFit: "cover", borderRadius: 12, border: "1px solid rgba(17,24,39,0.10)" }}
+                          />
+                          <button
+                            onClick={() => removePending(p.id)}
+                            style={{
+                              position: "absolute",
+                              top: 6,
+                              right: 6,
+                              width: 26,
+                              height: 26,
+                              borderRadius: 999,
+                              border: "1px solid rgba(17,24,39,0.25)",
+                              background: "rgba(255,255,255,0.92)",
+                              cursor: "pointer",
+                              fontWeight: 900,
+                            }}
+                            title={t("common", "delete")}
+                          >
+                            ✕
+                          </button>
+                          {p.caption && (
+                            <div style={{ marginTop: 4, fontSize: 11, opacity: 0.85, wordBreak: "break-word" }}>{p.caption}</div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                ))}
-              </div>
-            )}
+                )}
 
-            {photos.length === 0 && pendingPhotos.length === 0 && (
-              <div style={{ fontSize: 12, opacity: 0.75 }}>{t("taskDrawer", "photos")}: 0</div>
-            )}
+                {/* EDIT/CREATE: existing photos list */}
+                {photos.length > 0 && (
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+                    {photos.map((p) => (
+                      <div key={p.id} style={{ position: "relative" }}>
+                        <span
+                          style={{
+                            position: "absolute",
+                            top: 6,
+                            left: 6,
+                            padding: "2px 8px",
+                            borderRadius: 999,
+                            fontSize: 10,
+                            fontWeight: 800,
+                            background: (p.photo_type || "BEFORE") === "AFTER" ? "rgba(34,197,94,0.85)" : "rgba(59,130,246,0.85)",
+                            color: "#fff",
+                            zIndex: 2,
+                          }}
+                        >
+                          {(p.photo_type || "BEFORE") === "AFTER"
+                            ? t("taskDrawer", "photoPhaseAfter", "Po pracy")
+                            : t("taskDrawer", "photoPhaseBefore", "Przed pracą")}
+                        </span>
+                        <a href={p.url} target="_blank" rel="noreferrer" style={{ textDecoration: "none" }}>
+                          <img
+                            src={p.url}
+                            alt={p.caption || ""}
+                            style={{ width: "100%", height: 92, objectFit: "cover", borderRadius: 12, border: "1px solid rgba(17,24,39,0.10)" }}
+                            loading="lazy"
+                          />
+                        </a>
+                        {canManagePhotos && (
+                          <button
+                            onClick={async (e) => {
+                              e.preventDefault();
+                              if (!confirm(t("common", "confirmDelete", "Delete?"))) return;
+                              try {
+                                setUploading(true);
+                                await apiDelete(`/api/task-photos?id=${p.id}`);
+                                setPhotos((prev) => prev.filter((x) => x.id !== p.id));
+                                if (taskId) {
+                                  apiGet<TaskHistoryRow[]>(`/api/task-history?taskId=${encodeURIComponent(taskId)}`)
+                                    .then(historyData => setHistory(historyData || []))
+                                    .catch(() => { });
+                                }
+                                window.dispatchEvent(new CustomEvent("task-photo-deleted", { detail: { photoId: p.id, taskId } }));
+                              } catch (err: any) {
+                                setErr(err.message || String(err));
+                              } finally {
+                                setUploading(false);
+                              }
+                            }}
+                            style={{
+                              position: "absolute",
+                              top: 6,
+                              right: 6,
+                              width: 26,
+                              height: 26,
+                              borderRadius: 999,
+                              border: "1px solid rgba(17,24,39,0.25)",
+                              background: "rgba(255,255,255,0.92)",
+                              cursor: "pointer",
+                              fontWeight: 900,
+                              zIndex: 3
+                            }}
+                            title={t("common", "delete")}
+                          >
+                            ✕
+                          </button>
+                        )}
+                        {p.caption && (
+                          <div style={{ marginTop: 4, fontSize: 11, opacity: 0.85, wordBreak: "break-word" }}>{p.caption}</div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
 
-            {isCreate && pendingPhotos.length === 0 && (
-              <div
-                style={{
-                  fontSize: 12,
-                  fontWeight: 700,
-                  color: "#9a3412",
-                  background: "rgba(251,191,36,0.2)",
-                  padding: "6px 10px",
-                  borderRadius: 10,
-                }}
-              >
-                {t("taskDrawer", "beforePhotoMissing", "Brak zdjęcia dodaj")}
-              </div>
-            )}
+                {photos.length === 0 && pendingPhotos.length === 0 && (
+                  <div style={{ fontSize: 12, opacity: 0.75 }}>{t("taskDrawer", "photos")}: 0</div>
+                )}
 
-            {!isCreate && !hasAfterPhoto && (
-              <div
-                style={{
-                  fontSize: 12,
-                  fontWeight: 700,
-                  color: "#9a3412",
-                  background: "rgba(251,191,36,0.2)",
-                  padding: "6px 10px",
-                  borderRadius: 10,
-                }}
-              >
-                {t("taskDrawer", "afterPhotoMissing", "Brak zdjęcia po wykonaniu prac.")}
+                {isCreate && pendingPhotos.length === 0 && (
+                  <div
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 700,
+                      color: "#9a3412",
+                      background: "rgba(251,191,36,0.2)",
+                      padding: "6px 10px",
+                      borderRadius: 10,
+                    }}
+                  >
+                    {t("taskDrawer", "beforePhotoMissing", "Brak zdjęcia dodaj")}
+                  </div>
+                )}
+
+                {!isCreate && !hasAfterPhoto && (
+                  <div
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 700,
+                      color: "#9a3412",
+                      background: "rgba(251,191,36,0.2)",
+                      padding: "6px 10px",
+                      borderRadius: 10,
+                    }}
+                  >
+                    {t("taskDrawer", "afterPhotoMissing", "Brak zdjęcia po wykonaniu prac.")}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            </>
+          )}
 
           {/* COMMENTS */}
           {!isCreate && (

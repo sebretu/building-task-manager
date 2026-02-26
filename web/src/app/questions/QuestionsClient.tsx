@@ -105,7 +105,7 @@ type TaskThumb = {
   type: "BEFORE" | "AFTER" | null;
 };
 
-export default function Home() {
+export default function QuestionsClient() {
   const router = useRouter();
   const [priorityFilter, setPriorityFilter] = useState<string | null>(null);
   const [assignedFilter, setAssignedFilter] = useState("");
@@ -135,7 +135,7 @@ export default function Home() {
   const [qDebounced, setQDebounced] = useState("");
   const [limit, setLimit] = useState(20);
   const [offset, setOffset] = useState(0);
-  const [activeTab, setActiveTab] = useState<"tasks" | "questions">("tasks");
+  const [activeTab, setActiveTab] = useState<"questions" | "answers">("questions");
   const [err, setErr] = useState<string | null>(null);
   const [sessionLoaded, setSessionLoaded] = useState(false);
   const [taskTranslationMap, setTaskTranslationMap] = useState<Record<string, string>>({});
@@ -245,9 +245,13 @@ export default function Home() {
     return map;
   }, [profiles]);
 
-  const kanbanColumns = ["APPROVED"] as const;
+  const kanbanColumns = activeTab === "answers" ? ["APPROVED"] : ["OPEN"];
   const statusBadgeClassByCode: Record<string, string> = {
+    OPEN: "task-card__badge--open",
+    IN_PROGRESS: "task-card__badge--in-progress",
+    DONE_WAITING_APPROVAL: "task-card__badge--waiting",
     APPROVED: "task-card__badge--approved",
+    REJECTED: "task-card__badge--rejected",
   };
 
   const getTranslatedText = (scope: string, id: string, fallback?: string | null) => {
@@ -337,12 +341,6 @@ export default function Home() {
         const r = await fetch("/api/me", { headers: { Authorization: `Bearer ${token}` } });
         if (!r.ok) throw new Error("Profile load failed");
         const j = await r.json();
-
-        if (j.profile?.role?.toUpperCase() !== "ADMIN") {
-          router.push("/");
-          return;
-        }
-
         setUser(j.profile);
 
         setSessionLoaded(true);
@@ -367,8 +365,7 @@ export default function Home() {
       if (!pid) return;
       setProjectId(pid);
 
-      const statusQ = `&status=APPROVED`; // Lock to APPROVED
-      const isQuestionQ = activeTab === "questions" ? "&is_question=true" : "&is_question=false";
+      const statusQ = activeTab === "answers" ? "&status=APPROVED" : "&status=OPEN";
       const priorityQ = priorityFilter ? `&priority=${priorityFilter}` : "";
       const assignedQ = assignedFilter ? `&assigned_user_id=${encodeURIComponent(assignedFilter)}` : "";
       const dueFromQ = dueFrom ? `&due_from=${encodeURIComponent(dueFrom)}` : "";
@@ -377,7 +374,7 @@ export default function Home() {
       const qQ = qDebounced ? `&q=${encodeURIComponent(qDebounced)}` : "";
 
       const ts = await apiGet<Task[]>(
-        `/api/tasks?projectId=${encodeURIComponent(pid)}&limit=${limit}&offset=${offset}${statusQ}${isQuestionQ}${priorityQ}${assignedQ}${dueFromQ}${dueToQ}${sortQ}${qQ}`
+        `/api/tasks?projectId=${encodeURIComponent(pid)}&limit=${limit}&offset=${offset}${statusQ}${priorityQ}${assignedQ}${dueFromQ}${dueToQ}${sortQ}${qQ}&is_question=true`
       );
       setTasks(ts);
     } catch (e: unknown) {
@@ -526,18 +523,6 @@ export default function Home() {
 
     window.addEventListener("task-photo-added", handlePhotoAdded as EventListener);
 
-    // Listen for task creation to reload list
-    function onTaskCreated() {
-      handleTaskCreated();
-    }
-    window.addEventListener("task-created", onTaskCreated as EventListener);
-
-    // Listen for nav bar button to open create task modal
-    function onOpenNewTask() {
-      openNewTaskModalRef.current();
-    }
-    window.addEventListener("open-new-task", onOpenNewTask as EventListener);
-
     // Listen for nav bar button to open question modal
     function onOpenNewQuestion() {
       openNewQuestionModalRef.current();
@@ -546,8 +531,6 @@ export default function Home() {
 
     return () => {
       window.removeEventListener("task-photo-added", handlePhotoAdded as EventListener);
-      window.removeEventListener("task-created", onTaskCreated as EventListener);
-      window.removeEventListener("open-new-task", onOpenNewTask as EventListener);
       window.removeEventListener("open-new-question", onOpenNewQuestion as EventListener);
     };
   }, [loadThumb]);
@@ -574,6 +557,39 @@ export default function Home() {
     return <div style={{ padding: 24 }}>{t("common", "loading")}</div>;
   }
 
+  const services = [
+    {
+      title: t("home", "servicePlansTitle"),
+      body: t("home", "servicePlansBody"),
+      href: "/plans",
+    },
+    {
+      title: t("home", "serviceTasksTitle"),
+      body: t("home", "serviceTasksBody"),
+      href: "/",
+    },
+    {
+      title: t("home", "serviceWorkflowTitle"),
+      body: t("home", "serviceWorkflowBody"),
+      href: "/",
+    },
+    {
+      title: t("home", "serviceKanbanTitle"),
+      body: t("home", "serviceKanbanBody"),
+      href: "/",
+    },
+    {
+      title: t("home", "servicePhotosTitle"),
+      body: t("home", "servicePhotosBody"),
+      href: "/",
+    },
+    {
+      title: t("home", "serviceReportsTitle"),
+      body: t("home", "serviceReportsBody"),
+      href: "/",
+    },
+  ];
+
   return (
     <>
       <PWAInstallBanner />
@@ -586,21 +602,22 @@ export default function Home() {
         {err && <div className="home-card-error">{err}</div>}
         <section className="home-task-panel">
           <div className="home-section-header">
-            <h2>{t("home", "completedTasksTitle", "Zakończone Prace")}</h2>
-            <p>{t("home", "completedTasksSubtitle", "Lista wszystkich zrealizowanych prac i zgłoszeń")}</p>
+            <h2>{t("home", "questionsTitle", "Pytania")}</h2>
+            <p>{t("home", "questionsSubtitle", "Zarządzaj zadanymi pytaniami")}</p>
           </div>
+
           <div style={{ display: "flex", gap: "12px", marginBottom: "24px" }}>
-            <button
-              onClick={() => { setActiveTab("tasks"); setOffset(0); }}
-              style={{ padding: "8px 16px", borderRadius: "12px", border: "1px solid var(--border)", background: activeTab === "tasks" ? "var(--primary)" : "transparent", color: activeTab === "tasks" ? "#fff" : "var(--foreground)", fontWeight: 600, cursor: "pointer" }}
-            >
-              {t("home", "tabTasks", "Zadania")}
-            </button>
             <button
               onClick={() => { setActiveTab("questions"); setOffset(0); }}
               style={{ padding: "8px 16px", borderRadius: "12px", border: "1px solid var(--border)", background: activeTab === "questions" ? "var(--primary)" : "transparent", color: activeTab === "questions" ? "#fff" : "var(--foreground)", fontWeight: 600, cursor: "pointer" }}
             >
               {t("home", "tabQuestions", "Pytania")}
+            </button>
+            <button
+              onClick={() => { setActiveTab("answers"); setOffset(0); }}
+              style={{ padding: "8px 16px", borderRadius: "12px", border: "1px solid var(--border)", background: activeTab === "answers" ? "var(--primary)" : "transparent", color: activeTab === "answers" ? "#fff" : "var(--foreground)", fontWeight: 600, cursor: "pointer" }}
+            >
+              {t("home", "tabAnswers", "Odpowiedzi")}
             </button>
           </div>
 
@@ -630,22 +647,6 @@ export default function Home() {
                 onChange={(e) => setQ(e.target.value)}
                 placeholder={t("home", "search")}
               />
-            </label>
-            <label>
-              {t("home", "filterPriority")}:
-              <select
-                value={priorityFilter || ""}
-                onChange={(e) => {
-                  setPriorityFilter(e.target.value || null);
-                  setOffset(0);
-                }}
-              >
-                <option value="">{t("taskStatus", "ALL")}</option>
-                <option value="LOW">{t("taskPriority", "LOW")}</option>
-                <option value="MEDIUM">{t("taskPriority", "MEDIUM")}</option>
-                <option value="HIGH">{t("taskPriority", "HIGH")}</option>
-                <option value="CRITICAL">{t("taskPriority", "CRITICAL")}</option>
-              </select>
             </label>
 
             {(user?.role || "").toUpperCase() === "ADMIN" && (
@@ -702,9 +703,6 @@ export default function Home() {
                 }}
               >
                 <option value="">{t("home", "sortNewest")}</option>
-                <option value="due_asc">{t("home", "sortDueSoon")}</option>
-                <option value="due_desc">{t("home", "sortDueLatest")}</option>
-                <option value="priority_desc">{t("home", "sortPriority")}</option>
               </select>
             </label>
           </div>
@@ -811,14 +809,14 @@ export default function Home() {
 
                 return (
                   <div key={task.id} className="task-card">
-                    {/* Kliknięcie w zdjęcie → edycja taska */}
+                    {/* Kliknięcie w zdjęcie → edycja pytań */}
                     <div
                       className="task-card__media"
-                      onClick={() => router.push(`/task/${task.id}`)}
+                      onClick={() => router.push(`/task/${task.id}?isQuestion=true`)}
                       style={{ cursor: "pointer" }}
                       role="button"
                       tabIndex={0}
-                      onKeyDown={(e) => e.key === "Enter" && router.push(`/task/${task.id}`)}
+                      onKeyDown={(e) => e.key === "Enter" && router.push(`/task/${task.id}?isQuestion=true`)}
                       aria-label={translatedTitle || task.title}
                     >
                       {thumbUrl ? (
@@ -841,30 +839,29 @@ export default function Home() {
                       )}
                       <span className="task-card__hover-label" aria-hidden="true">{t("common", "edit", "Edit")}</span>
                     </div>
-                    {/* Kliknięcie w tytuł/body → edycja taska */}
+
                     <div
                       className="task-card__body"
-                      onClick={() => router.push(`/task/${task.id}`)}
+                      onClick={() => router.push(`/task/${task.id}?isQuestion=true`)}
                       style={{ cursor: "pointer" }}
                       role="button"
                       tabIndex={0}
-                      onKeyDown={(e) => e.key === "Enter" && router.push(`/task/${task.id}`)}
+                      onKeyDown={(e) => e.key === "Enter" && router.push(`/task/${task.id}?isQuestion=true`)}
                     >
                       <h3>{translatedTitle || task.title}</h3>
                       <p className={descriptionClasses}>{descriptionContent}</p>
                       <p className="task-card__note">
-                        {assigneeText} · {t("taskDrawer", "dueDate")}: {dueLabel}
+                        {assigneeText}
                       </p>
                     </div>
 
-                    {/* Kliknięcie w mapę → plan z podświetlonym markerem */}
                     <div
                       className="task-card__map"
                       onClick={() => {
                         if (task.plan_id) {
-                          router.push(`/plan/${task.plan_id}?taskId=${task.id}`);
+                          router.push(`/plan/${task.plan_id}?taskId=${task.id}&isQuestion=true`);
                         } else {
-                          router.push(`/task/${task.id}`);
+                          router.push(`/task/${task.id}?isQuestion=true`);
                         }
                       }}
                       style={{ cursor: task.plan_id ? "pointer" : "default" }}
@@ -872,7 +869,7 @@ export default function Home() {
                       tabIndex={task.plan_id ? 0 : undefined}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && task.plan_id) {
-                          router.push(`/plan/${task.plan_id}?taskId=${task.id}`);
+                          router.push(`/plan/${task.plan_id}?taskId=${task.id}&isQuestion=true`);
                         }
                       }}
                       aria-label={task.plan_id ? t("home", "openPlanLabel", "Open plan") : undefined}
@@ -886,7 +883,7 @@ export default function Home() {
                         </div>
                       )}
                       {taskNumberLabel && (
-                        <span className="task-card__map-marker task-marker task-marker--thumb">{taskNumberLabel}</span>
+                        <span className="task-card__map-marker task-marker task-marker--thumb task-marker--question">{taskNumberLabel}</span>
                       )}
                       {task.plan_id && (
                         <span className="task-card__hover-label" aria-hidden="true">{t("home", "openMap", "Map")}</span>
@@ -919,24 +916,17 @@ export default function Home() {
                 return (
                   <div key={status} className="home-kanban-column">
                     <div className="home-kanban-header">
-                      {t("taskStatus", status)} ({items.length})
+                      {t("taskStatus", status, status === "OPEN" ? "Zadane" : "Odpowiedź")} ({items.length})
                     </div>
                     <div className="home-kanban-list">
                       {items.length === 0 && <div className="home-empty">{t("home", "noTasks")}</div>}
                       {items.map((task) => {
                         const assignee = task.assigned_user_id ? profileById[task.assigned_user_id] : undefined;
-                        const dueLabel = task.due_date ? new Date(task.due_date).toLocaleDateString() : "—";
                         const translatedTitle = getTranslatedText("task.title", task.id, task.title);
                         return (
-                          <Link key={task.id} href={`/task/${task.id}`} className="home-kanban-card">
+                          <Link key={task.id} href={`/task/${task.id}?isQuestion=true`} className="home-kanban-card">
                             <div className="home-kanban-title">{translatedTitle || task.title}</div>
-                            <div className="home-kanban-meta">
-                              <span className="home-kanban-priority">
-                                {t("taskPriority", task.priority, task.priority)}
-                              </span>
-                              <span>{t("taskDrawer", "dueDate")}: {dueLabel}</span>
-                            </div>
-                            <div className="home-kanban-assignee">
+                            <div className="home-kanban-assignee" style={{ marginTop: 8 }}>
                               {t("taskDrawer", "assignedUser")}: {assignee?.full_name || assignee?.email || "—"}
                             </div>
                           </Link>
@@ -1151,7 +1141,7 @@ export default function Home() {
             </div>
           </div>
         </section>
-      </main>
+      </main >
     </>
   );
 }

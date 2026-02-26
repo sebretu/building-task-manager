@@ -156,8 +156,10 @@ export default function Home() {
     x_norm: number;
     y_norm: number;
     created_by?: string;
+    is_question?: boolean;
   } | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [isQuestionMode, setIsQuestionMode] = useState(false);
 
   useEffect(() => {
     if (!showNewTaskModal) return;
@@ -190,12 +192,23 @@ export default function Home() {
   const openNewTaskModal = () => {
     setNewTaskProjectId(projectId || (projects[0]?.id ?? ""));
     setNewTaskPlanId("");
+    setIsQuestionMode(false);
+    setShowNewTaskModal(true);
+  };
+
+  const openNewQuestionModal = () => {
+    setNewTaskProjectId(projectId || (projects[0]?.id ?? ""));
+    setNewTaskPlanId("");
+    setIsQuestionMode(true);
     setShowNewTaskModal(true);
   };
 
   // Always-current ref so the event listener never has a stale closure
   const openNewTaskModalRef = useRef(openNewTaskModal);
   openNewTaskModalRef.current = openNewTaskModal;
+
+  const openNewQuestionModalRef = useRef(openNewQuestionModal);
+  openNewQuestionModalRef.current = openNewQuestionModal;
 
   const closeNewTaskModal = () => {
     setShowNewTaskModal(false);
@@ -210,6 +223,7 @@ export default function Home() {
       x_norm: 0.5, // Default center
       y_norm: 0.5, // Default center
       created_by: user?.id,
+      is_question: isQuestionMode,
     });
     setDrawerOpen(true);
     closeNewTaskModal();
@@ -360,7 +374,7 @@ export default function Home() {
       const qQ = qDebounced ? `&q=${encodeURIComponent(qDebounced)}` : "";
 
       const ts = await apiGet<Task[]>(
-        `/api/tasks?projectId=${encodeURIComponent(pid)}&limit=${limit}&offset=${offset}${statusQ}${priorityQ}${assignedQ}${dueFromQ}${dueToQ}${sortQ}${qQ}`
+        `/api/tasks?projectId=${encodeURIComponent(pid)}&limit=${limit}&offset=${offset}${statusQ}${priorityQ}${assignedQ}${dueFromQ}${dueToQ}${sortQ}${qQ}&is_question=false`
       );
       setTasks(ts);
     } catch (e: unknown) {
@@ -521,10 +535,17 @@ export default function Home() {
     }
     window.addEventListener("open-new-task", onOpenNewTask as EventListener);
 
+    // Listen for nav bar button to open question modal
+    function onOpenNewQuestion() {
+      openNewQuestionModalRef.current();
+    }
+    window.addEventListener("open-new-question", onOpenNewQuestion as EventListener);
+
     return () => {
       window.removeEventListener("task-photo-added", handlePhotoAdded as EventListener);
       window.removeEventListener("task-created", onTaskCreated as EventListener);
       window.removeEventListener("open-new-task", onOpenNewTask as EventListener);
+      window.removeEventListener("open-new-question", onOpenNewQuestion as EventListener);
     };
   }, [loadThumb]);
 
@@ -990,7 +1011,7 @@ export default function Home() {
             >
               <div>
                 <h3 style={{ fontSize: 20, fontWeight: 800, color: "#000" }}>
-                  {t("taskDrawer", "newTask", "New Task")}
+                  {isQuestionMode ? t("home", "newQuestion", "New Question") : t("taskDrawer", "newTask", "New Task")}
                 </h3>
                 <p style={{ fontSize: 13, color: "#444", marginTop: 4 }}>
                   {t("home", "newTaskModalSubtitle", "Select a project and plan to attach the task to.")}
@@ -1079,7 +1100,7 @@ export default function Home() {
                 <button
                   onClick={() => {
                     if (newTaskPlanId) {
-                      router.push(`/plan/${newTaskPlanId}`);
+                      router.push(`/plan/${newTaskPlanId}${isQuestionMode ? '?isQuestion=true' : ''}`);
                     }
                   }}
                   disabled={!newTaskProjectId || !newTaskPlanId}

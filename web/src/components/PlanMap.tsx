@@ -26,6 +26,7 @@ type TaskRow = {
   title: string;
   status?: string;
   assigned_user_id?: string | null;
+  is_question?: boolean;
 };
 
 type ProfileRow = {
@@ -91,6 +92,7 @@ export default function PlanMap({
   currentUserId,
   currentUserRole,
   projectLoadError,
+  isQuestion,
 }: {
   planId: string;
   projectId: string | null;
@@ -102,6 +104,7 @@ export default function PlanMap({
   currentUserId?: string | null;
   currentUserRole?: string | null;
   projectLoadError?: string | null;
+  isQuestion?: boolean;
 }) {
   const START_ZOOM = 2;
   const FALLBACK_UPLOADED_BY = "44444444-4444-4444-4444-444444444444";
@@ -229,6 +232,7 @@ export default function PlanMap({
           x_norm: p.x / worldPxW,
           y_norm: p.y / worldPxH,
           created_by: createdBy,
+          is_question: isQuestion,
         };
 
         setDrawerTaskId(null);
@@ -280,18 +284,20 @@ export default function PlanMap({
   const mapHeight = fullHeight ? "100vh" : "calc(100vh - 120px)";
 
   const getIconForLabel = useCallback(
-    (label: string) => {
+    (label: string, isTaskQuestion?: boolean) => {
       if (!label) return undefined;
-      if (!markerIconCache.current[label]) {
-        markerIconCache.current[label] = L.divIcon({
+      const cacheKey = `${label}-${isTaskQuestion ? 'Q' : 'T'}`;
+      if (!markerIconCache.current[cacheKey]) {
+        const baseClass = isTaskQuestion ? "task-marker task-marker--map task-marker--question" : "task-marker task-marker--map";
+        markerIconCache.current[cacheKey] = L.divIcon({
           className: "",
-          html: `<div class="task-marker task-marker--map">${label}</div>`,
+          html: `<div class="${baseClass}">${label}</div>`,
           iconSize: [56, 72],
           iconAnchor: [28, 58],
           popupAnchor: [0, -44],
         });
       }
-      return markerIconCache.current[label];
+      return markerIconCache.current[cacheKey];
     },
     []
   );
@@ -334,7 +340,7 @@ export default function PlanMap({
             const phase = status === "APPROVED" ? "AFTER" : "BEFORE";
             const thumb = thumbByTask[`${task.id}:${phase}`];
             const taskNumberLabel = getTaskNumericLabel(task.id);
-            const markerIcon = getIconForLabel(taskNumberLabel);
+            const markerIcon = getIconForLabel(taskNumberLabel, task.is_question);
 
             const isFocused = focusTaskId === task.id;
 
