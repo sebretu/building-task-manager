@@ -278,16 +278,16 @@ export default function UnifiedLayout({ children }: { children: React.ReactNode 
           </div>
           <div className={styles.navStripControls}>
             <button
-              className={styles.navUpload}
+              className={styles.navUploadTask}
               onClick={() => window.dispatchEvent(new CustomEvent("open-new-task"))}
-              style={{ cursor: "pointer", border: "1px solid rgba(15,23,42,0.15)" }}
+              style={{ cursor: "pointer" }}
             >
               + {t("home", "createNewTask", "Neue Aufgabe")}
             </button>
             <button
-              className={styles.navUpload}
+              className={styles.navUploadQuestion}
               onClick={() => window.dispatchEvent(new CustomEvent("open-new-question"))}
-              style={{ cursor: "pointer", border: "1px solid rgba(15,23,42,0.15)", marginLeft: 8 }}
+              style={{ cursor: "pointer", marginLeft: 8 }}
             >
               ? {t("home", "askQuestion", "Ask Question")}
             </button>
