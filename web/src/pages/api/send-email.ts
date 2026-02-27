@@ -16,36 +16,47 @@ function readJsonBody(req: NextApiRequest): any {
     return req.body;
 }
 
-function getFunctionsBaseUrl() {
-    if (process.env.SUPABASE_FUNCTIONS_URL) return process.env.SUPABASE_FUNCTIONS_URL;
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-    return supabaseUrl ? `${supabaseUrl}/functions/v1` : "";
-}
+async function sendNotificationEmail(input: { to: string; subject: string; html: string }) {
+    const resendKey = process.env.RESEND_API_KEY || "re_47k34vN1_9uKk2y9XqyfBzE8aBvHk9Dqf"; // Replace with your actual Resend API Key if needed
 
-async function sendNotificationEmail(authToken: string, input: { to: string; subject: string; html: string }) {
-    const baseUrl = getFunctionsBaseUrl();
-    if (!baseUrl) {
-        throw new Error("Missing Supabase Functions URL");
+    // We can format the from string to include a display name "Name <email@domain.com>"
+    let resendFrom = process.env.RESEND_FROM || "onboarding@resend.dev";
+    if (resendFrom === "onboarding@resend.dev") {
+        resendFrom = "InspectHero <onboarding@resend.dev>";
+    } else if (!resendFrom.includes("<")) {
+        // If they just provided an email in env, wrap it with a nice display name
+        resendFrom = `InspectHero <${resendFrom}>`;
     }
 
-    if (!authToken) {
-        throw new Error("Missing Supabase Auth Token");
+    if (!resendKey) {
+        throw new Error("Missing RESEND_API_KEY");
     }
 
-    const res = await fetch(`${baseUrl}/notify-task`, {
+    const res = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${authToken}`,
+            Authorization: `Bearer ${resendKey}`,
         },
-        body: JSON.stringify(input),
+        body: JSON.stringify({
+            from: resendFrom,
+            to: input.to,
+            subject: input.subject,
+            html: input.html,
+        }),
     });
 
     if (!res.ok) {
-        const errText = await res.text();
-        throw new Error(`Edge function error: ${res.status} - ${errText}`);
+        let errText = await res.text();
+        try {
+            const parsed = JSON.parse(errText);
+            if (parsed.error) errText = parsed.error.message || parsed.error;
+            else if (parsed.message) errText = parsed.message;
+        } catch { }
+        throw new Error(`Resend API error: ${res.status} - ${errText}`);
     }
 }
+
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse<ApiOk | ApiErr>) {
     if (req.method !== "POST") {
@@ -96,7 +107,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         const authHeader = req.headers.authorization || "";
         const token = authHeader.replace(/^Bearer\s+/i, "").trim();
 
-        await sendNotificationEmail(token, { to, subject, html });
+        await sendNotificationEmail({ to, subject, html });
         return res.status(200).json({ ok: true, data: { sent: true } });
     } catch (error: any) {
         console.error("[send-email api] Error sending email:", error);
