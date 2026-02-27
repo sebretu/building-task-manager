@@ -11,9 +11,11 @@ function getAdminClient() {
 }
 
 /**
- * PATCH /api/order-items
- * Body: { itemId: string, quantity?: number, customName?: string, customUnit?: string }
- * Admin only — allows editing a single order item's quantity, name and unit.
+ * /api/order-items
+ * - PATCH: Edit an existing item (quantity, custom name/unit)
+ * - POST: Add a new item to an order
+ * - DELETE: Remove an item from an order
+ * Admin only.
  */
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
     try {
@@ -77,7 +79,53 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             return res.status(200).json({ ok: true, data: item });
         }
 
-        res.setHeader("Allow", ["PATCH"]);
+        if (req.method === "POST") {
+            const { orderId, materialId, customName, customUnit, quantity } = req.body;
+
+            if (!orderId) {
+                return res.status(400).json({ ok: false, error: { message: "orderId is required" } });
+            }
+            if (!quantity || Number(quantity) <= 0) {
+                return res.status(400).json({ ok: false, error: { message: "Positive quantity is required" } });
+            }
+            if (!materialId && !customName) {
+                return res.status(400).json({ ok: false, error: { message: "Must provide either materialId or customName" } });
+            }
+
+            const insertData: Record<string, any> = {
+                order_id: orderId,
+                material_id: materialId || null,
+                custom_name: materialId ? null : customName.trim(),
+                custom_unit: materialId ? null : (customUnit || "szt.").trim(),
+                quantity: Number(quantity)
+            };
+
+            const { data: item, error } = await supabase
+                .from("order_items")
+                .insert(insertData)
+                .select()
+                .single();
+
+            if (error) throw error;
+            return res.status(200).json({ ok: true, data: item });
+        }
+
+        if (req.method === "DELETE") {
+            const id = req.query.id || req.body.id;
+            if (!id) {
+                return res.status(400).json({ ok: false, error: { message: "id is required" } });
+            }
+
+            const { error } = await supabase
+                .from("order_items")
+                .delete()
+                .eq("id", id);
+
+            if (error) throw error;
+            return res.status(200).json({ ok: true, data: { deleted: id } });
+        }
+
+        res.setHeader("Allow", ["PATCH", "POST", "DELETE"]);
         return res.status(405).json({ ok: false, error: { message: `Method ${req.method} not allowed` } });
     } catch (error: any) {
         console.error("Order items API error:", error);

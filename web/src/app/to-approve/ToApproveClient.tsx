@@ -130,6 +130,11 @@ export default function ToApproveClient() {
   const [questions, setQuestions] = useState<Task[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
   const [editingItems, setEditingItems] = useState<Record<string, any[]>>({});
+  const [deletedItems, setDeletedItems] = useState<Record<string, string[]>>({});
+  const [materialsSearch, setMaterialsSearch] = useState<Record<string, any[]>>({});
+  const [isSearching, setIsSearching] = useState<Record<string, boolean>>({});
+  const [searchQuery, setSearchQuery] = useState<Record<string, string>>({});
+  const [customForms, setCustomForms] = useState<Record<string, boolean>>({});
   const [savingOrderId, setSavingOrderId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"tasks" | "orders" | "questions">("tasks");
   const [thumbByTask, setThumbByTask] = useState<Record<string, TaskThumb>>({});
@@ -142,6 +147,27 @@ export default function ToApproveClient() {
   const [offset, setOffset] = useState(0);
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+
+  async function searchMaterialsForOrder(orderId: string, query: string) {
+    if (query.trim().length < 2) {
+      setMaterialsSearch(prev => ({ ...prev, [orderId]: [] }));
+      return;
+    }
+    setIsSearching(prev => ({ ...prev, [orderId]: true }));
+    try {
+      const tokenStr = await getToken();
+      const results = await apiGet(`/api/materials?search=${encodeURIComponent(query)}`, tokenStr!) as any[];
+      setMaterialsSearch(prev => {
+        const next = { ...prev };
+        next[orderId] = results;
+        return next;
+      });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSearching(prev => ({ ...prev, [orderId]: false }));
+    }
+  }
   const [sessionLoaded, setSessionLoaded] = useState(false);
   const [taskTranslationMap, setTaskTranslationMap] = useState<Record<string, string>>({});
   const [taskTranslationLang, setTaskTranslationLang] = useState<Language | null>(null);
@@ -820,10 +846,11 @@ export default function ToApproveClient() {
                         <tr style={{ color: "#374151", borderBottom: "1px solid var(--border)", textAlign: "left" }}>
                           <th style={{ padding: "8px 0", fontWeight: 500 }}>{t("materials", "materialCol", "Materiał")}</th>
                           <th style={{ padding: "8px 8px", fontWeight: 500, textAlign: "right", whiteSpace: "nowrap" }}>{t("materials", "quantityCol", "Menge / Ilość")}</th>
+                          <th style={{ width: 40 }}></th>
                         </tr>
                       </thead>
                       <tbody>
-                        {(editingItems[order.id] || order.items || []).map((item: any, idx: number) => (
+                        {(editingItems[order.id] || order.items || []).filter((item: any) => !(deletedItems[order.id] || []).includes(item.id)).map((item: any, idx: number) => (
                           <tr key={item.id} style={{ borderBottom: "1px dashed var(--border)" }}>
                             <td style={{ padding: "10px 0", fontWeight: 500 }}>
                               {item.material ? (
@@ -884,7 +911,8 @@ export default function ToApproveClient() {
                                     if (!isNaN(val) && val > 0) {
                                       setEditingItems(prev => {
                                         const copy = [...(prev[order.id] || [])];
-                                        copy[idx] = { ...copy[idx], quantity: val };
+                                        const idxToUpdate = copy.findIndex(ci => ci.id === item.id);
+                                        if (idxToUpdate !== -1) copy[idxToUpdate] = { ...copy[idxToUpdate], quantity: val };
                                         return { ...prev, [order.id]: copy };
                                       });
                                     }
@@ -901,46 +929,180 @@ export default function ToApproveClient() {
                                 </span>
                               </div>
                             </td>
+                            <td style={{ padding: "10px 0", textAlign: "right" }}>
+                              <button
+                                onClick={() => setDeletedItems(prev => ({ ...prev, [order.id]: [...(prev[order.id] || []), item.id] }))}
+                                style={{ background: "transparent", border: "none", color: "var(--danger, #dc2626)", cursor: "pointer", padding: 4 }}
+                                title={t("common", "delete", "Usuń")}
+                              >
+                                ✖️
+                              </button>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
 
-                    {/* Save changes button */}
+                    {/* Add material UI */}
                     {editingItems[order.id] && (
-                      <div style={{ marginBottom: 12, display: "flex", justifyContent: "flex-end" }}>
-                        <button
-                          disabled={savingOrderId === order.id}
-                          onClick={async () => {
-                            setSavingOrderId(order.id);
-                            try {
-                              const items = editingItems[order.id] || [];
-                              for (const item of items) {
-                                const patch: Record<string, any> = { itemId: item.id, quantity: item.quantity };
-                                if (!item.material) {
-                                  patch.customName = item.custom_name;
-                                  patch.customUnit = item.custom_unit;
+                      <div style={{ marginBottom: 16, padding: 16, background: "var(--bg-secondary, #f8fafc)", borderRadius: "var(--radius)", border: "1px dashed var(--border)" }}>
+                        <h4 style={{ margin: "0 0 12px 0", fontSize: 14, color: "var(--home-muted, #475569)" }}>{t("adminMaterials", "addMaterialTitle", "Dodaj materiał do zamówienia")}</h4>
+                        <div style={{ position: "relative" }}>
+                          <input
+                            type="text"
+                            placeholder={t("materials", "searchPlaceholder", "Szukaj w katalogu...")}
+                            value={searchQuery[order.id] || ""}
+                            onChange={(e) => {
+                              setSearchQuery(prev => ({ ...prev, [order.id]: e.target.value }));
+                              searchMaterialsForOrder(order.id, e.target.value);
+                            }}
+                            style={{ width: "100%", padding: "8px 12px", borderRadius: "8px", border: "1px solid var(--border)", fontSize: 13, background: "var(--home-bg, #fff)", color: "var(--home-foreground, #1e293b)" }}
+                          />
+                          {(materialsSearch[order.id] || []).length > 0 && (searchQuery[order.id] || "").length >= 2 && (
+                            <div style={{ position: "absolute", zIndex: 10, background: "var(--home-bg, #fff)", border: "1px solid var(--border)", width: "100%", maxHeight: 200, overflowY: "auto", boxShadow: "0 4px 12px rgba(0,0,0,0.1)", borderRadius: "8px", marginTop: 4 }}>
+                              {materialsSearch[order.id].map(mat => (
+                                <div
+                                  key={mat.id}
+                                  onClick={() => {
+                                    setEditingItems(prev => {
+                                      const items = prev[order.id] || [];
+                                      const existing = items.find(i => i.material?.id === mat.id || i.material_id === mat.id);
+                                      if (existing) {
+                                        return { ...prev, [order.id]: items.map(i => i.id === existing.id ? { ...i, quantity: i.quantity + 1 } : i) };
+                                      }
+                                      return { ...prev, [order.id]: [...items, { id: `temp-${Math.random()}`, material_id: mat.id, material: mat, quantity: 1 }] };
+                                    });
+                                    setSearchQuery(prev => ({ ...prev, [order.id]: "" }));
+                                    setMaterialsSearch(prev => ({ ...prev, [order.id]: [] }));
+                                  }}
+                                  style={{ padding: "10px 16px", cursor: "pointer", borderBottom: "1px solid var(--border)", fontSize: 13, display: "flex", justifyContent: "space-between", color: "var(--home-foreground, #1e293b)" }}
+                                >
+                                  <span style={{ fontWeight: 500 }}>{mat.name}</span>
+                                  <span style={{ color: "var(--home-muted, #64748b)" }}>{mat.unit}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {!customForms[order.id] && (
+                          <button
+                            onClick={() => setCustomForms(prev => ({ ...prev, [order.id]: true }))}
+                            style={{ marginTop: 12, background: "transparent", border: "none", color: "#2563eb", cursor: "pointer", fontSize: 13, fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}
+                          >
+                            <span style={{ fontSize: 16 }}>+</span> {t("materials", "addCustomBtn", "Szukanego materiału nie ma na liście")}
+                          </button>
+                        )}
+
+                        {customForms[order.id] && (
+                          <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: 12 }}>
+                            <input
+                              type="text"
+                              id={`customName-${order.id}`}
+                              placeholder={t("adminMaterials", "materialNamePlaceholder", "Nazwa materiału (np. gniazdko)")}
+                              style={{ padding: "8px 12px", borderRadius: "8px", border: "1px solid var(--border)", fontSize: 13, background: "var(--home-bg, #fff)", color: "var(--home-foreground, #1e293b)" }}
+                            />
+                            <input
+                              type="text"
+                              id={`customUnit-${order.id}`}
+                              placeholder={t("adminMaterials", "unitPlaceholder", "Jedn. (np. szt., mb)")}
+                              style={{ padding: "8px 12px", borderRadius: "8px", border: "1px solid var(--border)", fontSize: 13, background: "var(--home-bg, #fff)", color: "var(--home-foreground, #1e293b)" }}
+                            />
+                            <button
+                              onClick={() => {
+                                const cName = (document.getElementById(`customName-${order.id}`) as HTMLInputElement)?.value;
+                                const cUnit = (document.getElementById(`customUnit-${order.id}`) as HTMLInputElement)?.value || "szt.";
+                                if (!cName) {
+                                  alert(t("adminMaterials", "nameRequired", "Nazwa jest wymagana."));
+                                  return;
                                 }
-                                await apiCall("/api/order-items", { method: "PATCH", body: patch, token });
-                              }
-                              await loadAll();
-                            } catch (e: any) { alert("Błąd zapisu: " + e.message); }
-                            finally { setSavingOrderId(null); }
-                          }}
-                          style={{
-                            padding: "7px 18px", borderRadius: "8px",
-                            background: savingOrderId === order.id ? "#94a3b8" : "#2563eb",
-                            border: "none", color: "#fff", cursor: savingOrderId === order.id ? "not-allowed" : "pointer",
-                            fontWeight: 600, fontSize: 13
-                          }}
-                        >
-                          {savingOrderId === order.id ? "Zapisywanie..." : "💾 Zapisz zmiany"}
-                        </button>
+
+                                setEditingItems(prev => {
+                                  const items = prev[order.id] || [];
+                                  return { ...prev, [order.id]: [...items, { id: `temp-${Math.random()}`, custom_name: cName, custom_unit: cUnit, quantity: 1 }] };
+                                });
+                                setCustomForms(prev => ({ ...prev, [order.id]: false }));
+                              }}
+                              style={{ background: "#2563eb", color: "#fff", border: "none", borderRadius: "8px", cursor: "pointer", fontSize: 13, fontWeight: 600 }}
+                            >
+                              + {t("adminMaterials", "addBtn", "Dodaj z użyciem własnej nazwy")}
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
 
+                    {/* Save changes button */}
+                    {
+                      editingItems[order.id] && (
+                        <div style={{ marginBottom: 12, display: "flex", justifyContent: "flex-end" }}>
+                          <button
+                            disabled={savingOrderId === order.id}
+                            onClick={async () => {
+                              setSavingOrderId(order.id);
+                              try {
+                                const items = editingItems[order.id] || [];
+                                const dels = deletedItems[order.id] || [];
+
+                                for (const delId of dels) {
+                                  if (!delId.startsWith("temp-")) {
+                                    await apiCall(`/api/order-items?id=${delId}`, { method: "DELETE", token });
+                                  }
+                                }
+
+                                for (const item of items) {
+                                  if (dels.includes(item.id)) continue;
+
+                                  if (item.id.startsWith("temp-")) {
+                                    let matIdToUse = item.material?.id || item.material_id;
+                                    let cName = item.custom_name;
+                                    let cUnit = item.custom_unit;
+
+                                    if (!matIdToUse && cName) {
+                                      try {
+                                        const savedMat: any = await apiCall("/api/materials", { method: "POST", body: { name: cName, unit: cUnit || "szt." }, token });
+                                        matIdToUse = savedMat.id;
+                                        cName = undefined;
+                                        cUnit = undefined;
+                                      } catch (e) {
+                                        // default to custom
+                                      }
+                                    }
+
+                                    await apiCall("/api/order-items", {
+                                      method: "POST",
+                                      body: { orderId: order.id, materialId: matIdToUse, customName: cName, customUnit: cUnit, quantity: item.quantity },
+                                      token
+                                    });
+                                  } else {
+                                    const patch: Record<string, any> = { itemId: item.id, quantity: item.quantity };
+                                    if (!item.material) {
+                                      patch.customName = item.custom_name;
+                                      patch.customUnit = item.custom_unit;
+                                    }
+                                    await apiCall("/api/order-items", { method: "PATCH", body: patch, token });
+                                  }
+                                }
+                                setDeletedItems(prev => ({ ...prev, [order.id]: [] }));
+                                await loadAll();
+                              } catch (e: any) { alert("Błąd zapisu: " + e.message); }
+                              finally { setSavingOrderId(null); }
+                            }}
+                            style={{
+                              padding: "7px 18px", borderRadius: "8px",
+                              background: savingOrderId === order.id ? "#94a3b8" : "#2563eb",
+                              border: "none", color: "#fff", cursor: savingOrderId === order.id ? "not-allowed" : "pointer",
+                              fontWeight: 600, fontSize: 13
+                            }}
+                          >
+                            {savingOrderId === order.id ? "Zapisywanie..." : "💾 Zapisz zmiany"}
+                          </button>
+                        </div>
+                      )
+                    }
+
                     {/* Delete always visible */}
-                    <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", marginTop: "8px" }}>
+                    < div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", marginTop: "8px" }}>
                       <button
                         onClick={async () => {
                           if (!confirm("Na pewno usunąć to zamówienie?")) return;
@@ -971,7 +1133,7 @@ export default function ToApproveClient() {
                           onClick={async () => {
                             try {
                               await apiCall("/api/orders", { method: "PATCH", body: { orderId: order.id, status: "APPROVED" }, token: token });
-                              loadAll();
+                              router.push(`/admin/orders/${order.id}/email`);
                             } catch (e: any) { alert("Błąd: " + e.message); }
                           }}
                           style={{ padding: "8px 16px", borderRadius: "8px", background: "#16a34a", border: "none", color: "#fff", cursor: "pointer", fontWeight: 600 }}
@@ -979,6 +1141,17 @@ export default function ToApproveClient() {
                           {t("materials", "approveBtn", "Zatwierdź")}
                         </button>
                       </>)}
+
+                      {order.status === "APPROVED" && (
+                        <button
+                          onClick={() => {
+                            router.push(`/admin/orders/${order.id}/email`);
+                          }}
+                          style={{ padding: "8px 16px", borderRadius: "8px", background: "#f59e0b", border: "none", color: "#fff", cursor: "pointer", fontWeight: 600 }}
+                        >
+                          ✉️ {t("materials", "resendEmailBtn", "Wyślij e-mail")}
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))
@@ -1223,148 +1396,150 @@ export default function ToApproveClient() {
               })}
             </div>
           )}
-        </section>
+        </section >
         {/* New Task Selection Modal */}
-        {showNewTaskModal && (
-          <div
-            style={{
-              position: "fixed",
-              inset: 0,
-              zIndex: 10001,
-              background: "rgba(0,0,0,0.5)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              backdropFilter: "blur(4px)",
-            }}
-            onClick={(e) => {
-              if (e.target === e.currentTarget) closeNewTaskModal();
-            }}
-          >
+        {
+          showNewTaskModal && (
             <div
               style={{
-                background: "#fff",
-                borderRadius: 24,
-                padding: 32,
-                width: "min(400px, 90vw)",
-                display: "grid",
-                gap: 24,
-                boxShadow: "0 25px 50px rgba(0,0,0,0.25)",
+                position: "fixed",
+                inset: 0,
+                zIndex: 10001,
+                background: "rgba(0,0,0,0.5)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                backdropFilter: "blur(4px)",
+              }}
+              onClick={(e) => {
+                if (e.target === e.currentTarget) closeNewTaskModal();
               }}
             >
-              <div>
-                <h3 style={{ fontSize: 20, fontWeight: 800, color: "#000" }}>
-                  {isQuestionMode ? t("home", "newQuestion", "New Question") : t("taskDrawer", "newTask", "New Task")}
-                </h3>
-                <p style={{ fontSize: 13, color: "#444", marginTop: 4 }}>
-                  {t("home", "newTaskModalSubtitle", "Select a project and plan to attach the task to.")}
-                </p>
-              </div>
+              <div
+                style={{
+                  background: "#fff",
+                  borderRadius: 24,
+                  padding: 32,
+                  width: "min(400px, 90vw)",
+                  display: "grid",
+                  gap: 24,
+                  boxShadow: "0 25px 50px rgba(0,0,0,0.25)",
+                }}
+              >
+                <div>
+                  <h3 style={{ fontSize: 20, fontWeight: 800, color: "#000" }}>
+                    {isQuestionMode ? t("home", "newQuestion", "New Question") : t("taskDrawer", "newTask", "New Task")}
+                  </h3>
+                  <p style={{ fontSize: 13, color: "#444", marginTop: 4 }}>
+                    {t("home", "newTaskModalSubtitle", "Select a project and plan to attach the task to.")}
+                  </p>
+                </div>
 
-              <label style={{ display: "grid", gap: 8, fontSize: 12, fontWeight: 700, color: "var(--home-muted)" }}>
-                {t("home", "selectProject", "Select Project")}
-                <select
-                  value={newTaskProjectId}
-                  onChange={(e) => {
-                    setNewTaskProjectId(e.target.value);
-                    setNewTaskPlanId("");
-                  }}
-                  style={{
-                    padding: "10px 12px",
-                    borderRadius: 12,
-                    border: "1px solid var(--home-line)",
-                    fontSize: 14,
-                    fontWeight: 600,
-                    backgroundColor: "#333", // Dark background
-                    color: "#fff",          // White text
-                  }}
-                >
-                  {projects.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                <label style={{ display: "grid", gap: 8, fontSize: 12, fontWeight: 700, color: "var(--home-muted)" }}>
+                  {t("home", "selectProject", "Select Project")}
+                  <select
+                    value={newTaskProjectId}
+                    onChange={(e) => {
+                      setNewTaskProjectId(e.target.value);
+                      setNewTaskPlanId("");
+                    }}
+                    style={{
+                      padding: "10px 12px",
+                      borderRadius: 12,
+                      border: "1px solid var(--home-line)",
+                      fontSize: 14,
+                      fontWeight: 600,
+                      backgroundColor: "#333", // Dark background
+                      color: "#fff",          // White text
+                    }}
+                  >
+                    {projects.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-              <label style={{ display: "grid", gap: 8, fontSize: 12, fontWeight: 700, color: "var(--home-muted)" }}>
-                {t("home", "selectPlan", "Select Plan")}
-                <select
-                  value={newTaskPlanId}
-                  onChange={(e) => setNewTaskPlanId(e.target.value)}
-                  disabled={loadingPlans || availablePlans.length === 0}
-                  style={{
-                    padding: "10px 12px",
-                    borderRadius: 12,
-                    border: "1px solid var(--home-line)",
-                    fontSize: 14,
-                    fontWeight: 600,
-                    backgroundColor: "#333", // Dark background
-                    color: "#fff",          // White text
-                    opacity: loadingPlans ? 0.6 : 1,
-                  }}
-                >
-                  {availablePlans.length === 0 ? (
-                    <option value="">{loadingPlans ? t("common", "loading") : t("plansPage", "noPlans")}</option>
-                  ) : (
-                    availablePlans.map((p) => {
-                      const bName = p.floor?.building?.name;
-                      const fName = p.floor?.name;
-                      const displayName = bName && fName
-                        ? `${bName} - ${fName}`
-                        : p.name || `Plan v${p.version ?? "?"}`;
+                <label style={{ display: "grid", gap: 8, fontSize: 12, fontWeight: 700, color: "var(--home-muted)" }}>
+                  {t("home", "selectPlan", "Select Plan")}
+                  <select
+                    value={newTaskPlanId}
+                    onChange={(e) => setNewTaskPlanId(e.target.value)}
+                    disabled={loadingPlans || availablePlans.length === 0}
+                    style={{
+                      padding: "10px 12px",
+                      borderRadius: 12,
+                      border: "1px solid var(--home-line)",
+                      fontSize: 14,
+                      fontWeight: 600,
+                      backgroundColor: "#333", // Dark background
+                      color: "#fff",          // White text
+                      opacity: loadingPlans ? 0.6 : 1,
+                    }}
+                  >
+                    {availablePlans.length === 0 ? (
+                      <option value="">{loadingPlans ? t("common", "loading") : t("plansPage", "noPlans")}</option>
+                    ) : (
+                      availablePlans.map((p) => {
+                        const bName = p.floor?.building?.name;
+                        const fName = p.floor?.name;
+                        const displayName = bName && fName
+                          ? `${bName} - ${fName}`
+                          : p.name || `Plan v${p.version ?? "?"}`;
 
-                      return (
-                        <option key={p.id} value={p.id}>
-                          {displayName}
-                        </option>
-                      );
-                    })
-                  )}
-                </select>
-              </label>
+                        return (
+                          <option key={p.id} value={p.id}>
+                            {displayName}
+                          </option>
+                        );
+                      })
+                    )}
+                  </select>
+                </label>
 
-              <div style={{ display: "flex", gap: 12 }}>
-                <button
-                  onClick={closeNewTaskModal}
-                  style={{
-                    flex: 1,
-                    padding: "12px",
-                    borderRadius: 12,
-                    border: "1px solid var(--home-line)",
-                    background: "#fff",
-                    color: "var(--home-ink)",
-                    fontWeight: 800,
-                    cursor: "pointer",
-                  }}
-                >
-                  {t("common", "cancel")}
-                </button>
-                <button
-                  onClick={() => {
-                    if (newTaskPlanId) {
-                      router.push(`/plan/${newTaskPlanId}${isQuestionMode ? '?isQuestion=true' : ''}`);
-                    }
-                  }}
-                  disabled={!newTaskProjectId || !newTaskPlanId}
-                  style={{
-                    flex: 1,
-                    padding: "12px",
-                    borderRadius: 12,
-                    border: "none",
-                    background: "#000", // Black background
-                    color: "#fff",      // White text
-                    fontWeight: 800,
-                    cursor: !newTaskProjectId || !newTaskPlanId ? "not-allowed" : "pointer",
-                    opacity: !newTaskProjectId || !newTaskPlanId ? 0.5 : 1,
-                  }}
-                >
-                  {t("common", "continue", "Continue")}
-                </button>
+                <div style={{ display: "flex", gap: 12 }}>
+                  <button
+                    onClick={closeNewTaskModal}
+                    style={{
+                      flex: 1,
+                      padding: "12px",
+                      borderRadius: 12,
+                      border: "1px solid var(--home-line)",
+                      background: "#fff",
+                      color: "var(--home-ink)",
+                      fontWeight: 800,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {t("common", "cancel")}
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (newTaskPlanId) {
+                        router.push(`/plan/${newTaskPlanId}${isQuestionMode ? '?isQuestion=true' : ''}`);
+                      }
+                    }}
+                    disabled={!newTaskProjectId || !newTaskPlanId}
+                    style={{
+                      flex: 1,
+                      padding: "12px",
+                      borderRadius: 12,
+                      border: "none",
+                      background: "#000", // Black background
+                      color: "#fff",      // White text
+                      fontWeight: 800,
+                      cursor: !newTaskProjectId || !newTaskPlanId ? "not-allowed" : "pointer",
+                      opacity: !newTaskProjectId || !newTaskPlanId ? 0.5 : 1,
+                    }}
+                  >
+                    {t("common", "continue", "Continue")}
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )
+        }
 
         {/* Task Drawer for Creation/Edit */}
         <TaskDrawer
@@ -1426,7 +1601,7 @@ export default function ToApproveClient() {
             </div>
           </div>
         </section>
-      </main>
+      </main >
     </>
   );
 }
