@@ -77,6 +77,43 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             return res.status(200).json({ ok: true, data: material });
         }
 
+        if (req.method === "PUT") {
+            if (!isAdmin) {
+                return res.status(403).json({ ok: false, error: { message: "Forbidden: Admins only" } });
+            }
+
+            const { id, name, unit, category } = req.body;
+            if (!id || !name || !unit) {
+                return res.status(400).json({ ok: false, error: { message: "ID, name and unit are required" } });
+            }
+
+            // Check if another material with the same name exists
+            const { data: existing } = await supabase
+                .from("materials")
+                .select("id")
+                .ilike("name", name.trim())
+                .neq("id", id)
+                .maybeSingle();
+
+            if (existing) {
+                return res.status(400).json({ ok: false, error: { message: "Material with this name already exists" } });
+            }
+
+            const { data: material, error } = await supabase
+                .from("materials")
+                .update({
+                    name: name.trim(),
+                    unit: unit.trim(),
+                    category: category ? category.trim() : null,
+                })
+                .eq("id", id)
+                .select()
+                .single();
+
+            if (error) throw error;
+            return res.status(200).json({ ok: true, data: material });
+        }
+
         if (req.method === "DELETE") {
             if (!isAdmin) {
                 return res.status(403).json({ ok: false, error: { message: "Forbidden: Admins only" } });
@@ -97,7 +134,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             return res.status(200).json({ ok: true, data: { success: true } });
         }
 
-        res.setHeader("Allow", ["GET", "POST", "DELETE"]);
+        res.setHeader("Allow", ["GET", "POST", "PUT", "DELETE"]);
         return res.status(405).json({ ok: false, error: { message: `Method ${req.method} not allowed` } });
     } catch (error: any) {
         console.error("Materials API error:", error);

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { apiGet, apiPost, getToken, apiDelete } from "@/lib/apiClient";
+import { apiGet, apiPost, getToken, apiDelete, apiPut } from "@/lib/apiClient";
 import Head from "next/head";
 
 interface Material {
@@ -35,6 +35,12 @@ export default function AdminMaterialsClient() {
     const [unit, setUnit] = useState("szt.");
     const [category, setCategory] = useState("");
     const [newCategoryName, setNewCategoryName] = useState("");
+
+    // Edit state
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [editName, setEditName] = useState("");
+    const [editUnit, setEditUnit] = useState("");
+    const [editCategory, setEditCategory] = useState("");
 
     useEffect(() => {
         loadMaterials();
@@ -113,6 +119,40 @@ export default function AdminMaterialsClient() {
         }
     }
 
+    function startEditing(m: Material) {
+        setEditingId(m.id);
+        setEditName(m.name);
+        setEditUnit(m.unit);
+        setEditCategory(m.category || "");
+    }
+
+    async function handleUpdateMaterial(id: string) {
+        if (!editName.trim() || !editUnit.trim()) {
+            setError(t("common", "error", "Błąd") + ": Nazwa i jednostka są wymagane");
+            return;
+        }
+
+        setError(null);
+        setSuccess(null);
+
+        try {
+            const token = await getToken();
+            const updatedMaterial = await apiPut(`/api/materials`, {
+                id,
+                name: editName.trim(),
+                unit: editUnit.trim(),
+                category: editCategory.trim() || undefined
+            }, token!);
+
+            setMaterials(prev => prev.map(m => m.id === id ? updatedMaterial as Material : m).sort((a, b) => a.name.localeCompare(b.name)));
+            setSuccess(t("common", "success", "Sukces"));
+            setEditingId(null);
+            setTimeout(() => setSuccess(null), 3000);
+        } catch (err: any) {
+            setError(t("common", "error", "Błąd aktualizacji") + ": " + err.message);
+        }
+    }
+
     async function handleAddCategory(e: React.FormEvent) {
         e.preventDefault();
         if (!newCategoryName.trim()) return;
@@ -179,6 +219,9 @@ export default function AdminMaterialsClient() {
         colCategory: t("adminMaterials", "colCategory", "Kategoria"),
         colUnit: t("adminMaterials", "colUnit", "Jednostka"),
         deleteTitle: t("adminMaterials", "deleteTitle", "Usuń"),
+        editTitle: t("adminMaterials", "editTitle", "Edytuj"),
+        saveTitle: t("adminMaterials", "saveTitle", "Zapisz"),
+        cancelTitle: t("adminMaterials", "cancelTitle", "Anuluj"),
     };
 
     return (
@@ -325,25 +368,84 @@ export default function AdminMaterialsClient() {
                                     });
 
                                     return sortedCategories.map(cat => (
-                                        <div key={cat} style={{ marginBottom: 24 }}>
-                                            <h4 style={{ margin: "0 0 8px 0", fontSize: 16, color: "var(--home-foreground)", borderBottom: "1px solid var(--border)", paddingBottom: 4 }}>
-                                                {cat} <span style={{ fontSize: 12, color: "var(--home-muted)", fontWeight: "normal" }}>({grouped[cat].length})</span>
+                                        <div key={cat} style={{ marginBottom: 32 }}>
+                                            <h4 style={{
+                                                margin: "0 0 12px 0",
+                                                fontSize: 16,
+                                                color: "var(--home-foreground)",
+                                                background: "var(--home-bg-secondary)",
+                                                padding: "10px 16px",
+                                                borderRadius: "var(--radius)",
+                                                borderLeft: "4px solid var(--primary)",
+                                                display: "flex",
+                                                alignItems: "center",
+                                                gap: "8px"
+                                            }}>
+                                                {cat} <span style={{ fontSize: 13, color: "var(--home-muted)", fontWeight: "normal", background: "var(--home-bg)", padding: "2px 8px", borderRadius: "100px" }}>{grouped[cat].length}</span>
                                             </h4>
                                             <table style={{ width: "100%", borderCollapse: "collapse", color: "var(--home-foreground)", fontSize: 14 }}>
                                                 <tbody>
                                                     {grouped[cat].map(m => (
                                                         <tr key={m.id} style={{ borderBottom: "1px solid var(--border)" }} className="hover-bg-secondary">
-                                                            <td style={{ padding: "8px 0", fontWeight: 500 }}>{m.name}</td>
-                                                            <td style={{ padding: "8px 16px", textAlign: "right", color: "var(--home-muted)" }}>{m.unit}</td>
-                                                            <td style={{ padding: "8px 0", textAlign: "right", width: 40 }}>
-                                                                <button
-                                                                    onClick={() => handleDeleteMaterial(m.id)}
-                                                                    style={{ background: "transparent", border: "none", color: "var(--danger)", cursor: "pointer", padding: 4 }}
-                                                                    title={txt.deleteTitle}
-                                                                >
-                                                                    {txt.deleteTitle}
-                                                                </button>
-                                                            </td>
+                                                            {editingId === m.id ? (
+                                                                <>
+                                                                    <td style={{ padding: "8px 0", fontWeight: 500 }}>
+                                                                        <input
+                                                                            type="text"
+                                                                            value={editName}
+                                                                            onChange={(e) => setEditName(e.target.value)}
+                                                                            className="upload-input"
+                                                                            style={{ padding: "4px 8px", margin: 0 }}
+                                                                        />
+                                                                    </td>
+                                                                    <td style={{ padding: "8px 16px", textAlign: "right", color: "var(--home-muted)" }}>
+                                                                        <input
+                                                                            type="text"
+                                                                            value={editUnit}
+                                                                            onChange={(e) => setEditUnit(e.target.value)}
+                                                                            className="upload-input"
+                                                                            style={{ padding: "4px 8px", margin: 0, width: "80px", textAlign: "right" }}
+                                                                        />
+                                                                    </td>
+                                                                    <td style={{ padding: "8px 0", textAlign: "right", whiteSpace: "nowrap" }}>
+                                                                        <button
+                                                                            onClick={() => handleUpdateMaterial(m.id)}
+                                                                            style={{ background: "transparent", border: "none", color: "var(--success)", cursor: "pointer", padding: "4px 8px", fontWeight: "bold" }}
+                                                                            title={txt.saveTitle}
+                                                                        >
+                                                                            {txt.saveTitle}
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => setEditingId(null)}
+                                                                            style={{ background: "transparent", border: "none", color: "var(--home-muted)", cursor: "pointer", padding: "4px 8px", fontWeight: "bold" }}
+                                                                            title={txt.cancelTitle}
+                                                                        >
+                                                                            &times;
+                                                                        </button>
+                                                                    </td>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <td style={{ padding: "8px 0", fontWeight: 500 }}>{m.name}</td>
+                                                                    <td style={{ padding: "8px 16px", textAlign: "right", color: "var(--home-muted)" }}>{m.unit}</td>
+                                                                    <td style={{ padding: "8px 0", textAlign: "right", whiteSpace: "nowrap" }}>
+                                                                        <button
+                                                                            onClick={() => startEditing(m)}
+                                                                            style={{ background: "transparent", border: "none", color: "var(--primary)", cursor: "pointer", padding: "4px 8px" }}
+                                                                            title={txt.editTitle}
+                                                                        >
+                                                                            {txt.editTitle}
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => handleDeleteMaterial(m.id)}
+                                                                            style={{ background: "transparent", border: "none", color: "var(--danger)", cursor: "pointer", padding: "4px 8px" }}
+                                                                            title={txt.deleteTitle}
+                                                                        >
+                                                                            {txt.deleteTitle}
+                                                                        </button>
+                                                                    </td>
+                                                                </>
+                                                            )}
                                                         </tr>
                                                     ))}
                                                 </tbody>

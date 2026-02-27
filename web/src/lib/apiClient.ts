@@ -97,3 +97,11 @@ export async function apiPatch<T>(path: string, body?: any, token?: string | nul
 export async function apiDelete<T>(path: string, token?: string | null): Promise<T> {
   return apiCall<T>(path, { method: "DELETE", token });
 }
+
+/**
+ * Convenience: PUT with auto-token
+ */
+export async function apiPut<T>(path: string, body?: any, token?: string | null): Promise<T> {
+  return apiCall<T>(path, { method: "PUT", body, token });
+}
+
