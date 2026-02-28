@@ -3,6 +3,11 @@ import fs from "fs/promises";
 import path from "path";
 import { createServerSupabaseClient, isAuthRequiredError } from "@/lib/supabaseServer";
 
+export const dynamic = "force-static";
+export function generateStaticParams() {
+    return [];
+}
+
 const REPORTS_DIR = path.join(process.cwd(), "private_reports");
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ filename: string }> }) {

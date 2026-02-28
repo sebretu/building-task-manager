@@ -12,6 +12,11 @@ type Meta = {
   limits?: Record<string, { maxX: number; maxY: number }>;
 };
 
+export const dynamic = "force-static";
+export function generateStaticParams() {
+  return [];
+}
+
 // 1x1 transparent PNG
 const TRANSPARENT_PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
