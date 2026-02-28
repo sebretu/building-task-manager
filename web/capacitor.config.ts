@@ -10,10 +10,7 @@ const config: CapacitorConfig = {
     // Allow clear text (HTTP) for local development
     androidScheme: 'https',
     iosScheme: 'https',
-    hostname: 'app.taskmanager.com',
-    // Point to live server for Web Wrapper
-    url: 'https://api.inspecthero.pl',
-    cleartext: true,
+    hostname: 'app.taskmanager.com'
   },
 
   // Plugin configuration
