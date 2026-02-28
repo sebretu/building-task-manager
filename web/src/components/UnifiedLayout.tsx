@@ -1,5 +1,5 @@
 "use client";
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import { useNotification } from "@/contexts/NotificationContext";
 import Link from "next/link";
 import styles from "./UnifiedLayout.module.css";
@@ -17,6 +17,8 @@ export default function UnifiedLayout({ children }: { children: React.ReactNode 
   const { showNotification } = useNotification();
   const hideChrome = pathname?.startsWith("/task/");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [adminDropdownOpen, setAdminDropdownOpen] = useState(false);
+  const adminDropdownRef = useRef<HTMLDivElement>(null);
   const { t } = useLanguage();
   const currentYear = new Date().getFullYear();
   const footerTagline = t("footer", "tagline", "Inspection and reporting platform");
@@ -70,6 +72,19 @@ export default function UnifiedLayout({ children }: { children: React.ReactNode 
     return () => {
       alive = false;
       sub.subscription?.unsubscribe();
+    };
+  }, []);
+
+  // Handle clicking outside Admin Dropdown
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (adminDropdownRef.current && !adminDropdownRef.current.contains(event.target as Node)) {
+        setAdminDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
 
@@ -225,17 +240,20 @@ export default function UnifiedLayout({ children }: { children: React.ReactNode 
     if (!isAdmin) {
       links.push({ href: "/questions", label: t("nav", "questions", "Pytania") });
     }
-    const adminLinks = isAdmin
-      ? [
-        { href: "/users", label: t("nav", "users", "Użytkownicy") },
-        { href: "/companies", label: t("nav", "companies", "Firmy") },
-        { href: "/reports", label: t("nav", "reports", "Raporty") },
-        { href: "/to-approve", label: t("nav", "toApprove", "Do zatwierdzenia") },
-        { href: "/completed", label: t("nav", "completed", "Zakończone prace") },
-        { href: "/admin/materials", label: t("nav", "adminMaterials", "Materiały (Admin)") },
-      ]
-      : [];
-    return [...links, ...adminLinks];
+    return links;
+  }, [t, isAdmin]);
+
+  const adminLinks = useMemo(() => {
+    if (!isAdmin) return [];
+    return [
+      { href: "/users", label: t("nav", "users", "Użytkownicy") },
+      { href: "/companies", label: t("nav", "companies", "Firmy") },
+      { href: "/reports", label: t("nav", "reports", "Raporty") },
+      { href: "/to-approve", label: t("nav", "toApprove", "Do zatwierdzenia") },
+      { href: "/completed", label: t("nav", "completed", "Zakończone prace") },
+      { href: "/admin/materials", label: t("nav", "adminMaterials", "Materiały (Admin)") },
+      { href: "/plans/upload", label: t("nav", "adminUploadPlan", "Upload plan") },
+    ];
   }, [t, isAdmin]);
 
   if (hideChrome) {
@@ -275,6 +293,36 @@ export default function UnifiedLayout({ children }: { children: React.ReactNode 
                 </Link>
               );
             })}
+            {isAdmin && (
+              <div
+                className={styles.adminDropdownWrapper}
+                ref={adminDropdownRef}
+              >
+                <button
+                  className={`${styles.navStripLink} ${styles.adminDropdownToggle} ${adminLinks.some((l) => pathname === l.href) ? styles.navStripLinkActive : ""}`.trim()}
+                  onClick={() => setAdminDropdownOpen((prev) => !prev)}
+                >
+                  Admin <span className={styles.dropdownCaret}>▾</span>
+                </button>
+                {adminDropdownOpen && (
+                  <div className={styles.adminDropdownMenu}>
+                    {adminLinks.map((link) => {
+                      const isActive = pathname === link.href;
+                      return (
+                        <Link
+                          key={`admin-${link.href}`}
+                          href={link.href}
+                          onClick={() => setAdminDropdownOpen(false)}
+                          className={`${styles.adminDropdownItem} ${isActive ? styles.adminDropdownItemActive : ""}`.trim()}
+                        >
+                          {link.label}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           <div className={styles.navStripControls}>
             <button
@@ -291,11 +339,6 @@ export default function UnifiedLayout({ children }: { children: React.ReactNode 
             >
               ? {t("home", "askQuestion", "Ask Question")}
             </button>
-            {isAdmin && (
-              <Link href="/plans/upload" className={styles.navUpload}>
-                Upload plan
-              </Link>
-            )}
             <ThemeSwitcher />
             <LanguageSwitcher />
             <LogoutButton className={styles.navLogout} />

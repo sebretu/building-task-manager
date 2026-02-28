@@ -14,11 +14,11 @@ Found 1 warning while optimizing generated CSS:
 [2m┆[22m        [33m[2m^--[22m @import rules must precede all rules aside from @charset and @layer statements[39m
 [2m┆[22m
 [2m│ [data-theme="dark-blue"] {[22m
-[2m│   --ui-bg: #e2e8f0;[22m
+[2m│   --ui-bg: #94a3b8;[22m
 
-Turbopack build encountered 6 warnings:
+Turbopack build encountered 7 warnings:
 ./src/app/api/tiles/[planId]/[z]/[x]/[y].png/route.ts:169:22
-The file pattern ('/ROOT/private_tiles/' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '.png') matches 58465 files in [project]/
+The file pattern ('/ROOT/private_tiles/' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '.png') matches 85603 files in [project]/
 [0m [90m 167 |[39m     }
  [90m 168 |[39m
 [31m[1m>[22m[39m[90m 169 |[39m     [36mconst[39m tilePath [33m=[39m path[33m.[39mjoin(base[33m,[39m [33mString[39m(zNum)[33m,[39m [33mString[39m(xNum)[33m,[39m [32m`${yNum}.png`[39m)[33m;[39m
@@ -31,7 +31,7 @@ Overly broad patterns can lead to build performance issues and over bundling.
 
 
 ./src/app/api/tiles/[planId]/[z]/[x]/[y].png/route.ts:170:10
-The file pattern ('/ROOT/private_tiles/' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '.png') matches 58465 files in [project]/
+The file pattern ('/ROOT/private_tiles/' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '.png') matches 85603 files in [project]/
 [0m [90m 168 |[39m
  [90m 169 |[39m     [36mconst[39m tilePath [33m=[39m path[33m.[39mjoin(base[33m,[39m [33mString[39m(zNum)[33m,[39m [33mString[39m(xNum)[33m,[39m [32m`${yNum}.png`[39m)[33m;[39m
 [31m[1m>[22m[39m[90m 170 |[39m     [36mif[39m ([33m![39mfs[33m.[39mexistsSync(tilePath)) {
@@ -44,7 +44,7 @@ Overly broad patterns can lead to build performance issues and over bundling.
 
 
 ./src/app/api/tiles/[planId]/[z]/[x]/[y].png/route.ts:174:17
-The file pattern ('/ROOT/private_tiles/' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '.png') matches 58465 files in [project]/
+The file pattern ('/ROOT/private_tiles/' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '.png') matches 85603 files in [project]/
 [0m [90m 172 |[39m     }
  [90m 173 |[39m
 [31m[1m>[22m[39m[90m 174 |[39m     [36mconst[39m buf [33m=[39m fs[33m.[39mreadFileSync(tilePath)[33m;[39m
@@ -57,7 +57,7 @@ Overly broad patterns can lead to build performance issues and over bundling.
 
 
 ./src/pages/api/plans.ts:139:20
-The file pattern ('/ROOT/private_tiles/' <dynamic> | '/ROOT/private_tiles' <dynamic> | '/ROOT/private_tiles/' | '/ROOT/private_tiles') matches 14632 files in [project]/
+The file pattern ('/ROOT/private_tiles/' <dynamic> | '/ROOT/private_tiles' <dynamic> | '/ROOT/private_tiles/' | '/ROOT/private_tiles') matches 21430 files in [project]/
 [0m [90m 137 |[39m   }
  [90m 138 |[39m
 [31m[1m>[22m[39m[90m 139 |[39m   [36mconst[39m tilesDir [33m=[39m path[33m.[39mjoin(process[33m.[39mcwd()[33m,[39m [32m"private_tiles"[39m[33m,[39m planId)[33m;[39m
@@ -69,8 +69,21 @@ The file pattern ('/ROOT/private_tiles/' <dynamic> | '/ROOT/private_tiles' <dyna
 Overly broad patterns can lead to build performance issues and over bundling.
 
 
+./src/pages/api/plans/upload.ts:152:11
+The file pattern ('/ROOT/private_tiles/' <dynamic> | '/ROOT/private_tiles' <dynamic>) matches 10715 files in [project]/
+[0m [90m 150 |[39m       [90m// 2b) WAŻNE: usuń alpha z wygenerowanych kafli (naprawa “siwe” + kratka)[39m
+ [90m 151 |[39m       [36mconst[39m tilesDir [33m=[39m path[33m.[39mjoin(webRoot[33m,[39m [32m"private_tiles"[39m[33m,[39m opts[33m.[39mplanId)[33m;[39m
+[31m[1m>[22m[39m[90m 152 |[39m       [36mif[39m (fsSync[33m.[39mexistsSync(tilesDir)) {
+ [90m     |[39m           [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 153 |[39m         [36mawait[39m flattenTilesDirToWhite(tilesDir)[33m;[39m
+ [90m 154 |[39m       }
+ [90m 155 |[39m[0m
+
+Overly broad patterns can lead to build performance issues and over bundling.
+
+
 ./src/app/api/tiles/[planId]/[z]/[x]/[y].png/route.ts:141:18
-The file pattern ('/ROOT/private_tiles/' <dynamic> | '/ROOT/private_tiles' <dynamic>) matches 14632 files in [project]/
+The file pattern ('/ROOT/private_tiles/' <dynamic> | '/ROOT/private_tiles' <dynamic>) matches 21430 files in [project]/
 [0m [90m 139 |[39m     }
  [90m 140 |[39m
 [31m[1m>[22m[39m[90m 141 |[39m     [36mconst[39m base [33m=[39m path[33m.[39mjoin(process[33m.[39mcwd()[33m,[39m [32m"private_tiles"[39m[33m,[39m planIdStr)[33m;[39m
@@ -83,7 +96,7 @@ Overly broad patterns can lead to build performance issues and over bundling.
 
 
 ./src/pages/api/plans/upload.ts:151:24
-The file pattern ('/ROOT/private_tiles/' <dynamic> | '/ROOT/private_tiles' <dynamic>) matches 14632 files in [project]/
+The file pattern ('/ROOT/private_tiles/' <dynamic> | '/ROOT/private_tiles' <dynamic>) matches 21430 files in [project]/
 [0m [90m 149 |[39m
  [90m 150 |[39m       [90m// 2b) WAŻNE: usuń alpha z wygenerowanych kafli (naprawa “siwe” + kratka)[39m
 [31m[1m>[22m[39m[90m 151 |[39m       [36mconst[39m tilesDir [33m=[39m path[33m.[39mjoin(webRoot[33m,[39m [32m"private_tiles"[39m[33m,[39m opts[33m.[39mplanId)[33m;[39m
@@ -95,19 +108,22 @@ The file pattern ('/ROOT/private_tiles/' <dynamic> | '/ROOT/private_tiles' <dyna
 Overly broad patterns can lead to build performance issues and over bundling.
 
 
-✓ Compiled successfully in 6.2s
+✓ Compiled successfully in 6.8s
   Running TypeScript ...
   Collecting page data using 7 workers ...
-  Generating static pages using 7 workers (0/12) ...
-  Generating static pages using 7 workers (3/12) 
-  Generating static pages using 7 workers (6/12) 
-  Generating static pages using 7 workers (9/12) 
-✓ Generating static pages using 7 workers (12/12) in 449.4ms
+  Generating static pages using 7 workers (0/20) ...
+  Generating static pages using 7 workers (5/20) 
+  Generating static pages using 7 workers (10/20) 
+  Generating static pages using 7 workers (15/20) 
+✓ Generating static pages using 7 workers (20/20) in 616.2ms
   Finalizing page optimization ...
 
 Route (app)
 ┌ ƒ /
 ├ ○ /_not-found
+├ ○ /admin/materials
+├ ● /admin/orders/[id]/email
+│ └ /admin/orders/1/email
 ├ ƒ /api/reports
 ├ ƒ /api/reports/[filename]
 ├ ƒ /api/reports/list
@@ -116,11 +132,17 @@ Route (app)
 ├ ƒ /api/tiles/[planId]/meta
 ├ ○ /auth/login
 ├ ○ /companies
-├ ƒ /plan/[id]
+├ ○ /completed
+├ ○ /materials
+├ ● /plan/[id]
+│ └ /plan/1
 ├ ○ /plans
 ├ ○ /plans/upload
+├ ○ /questions
 ├ ○ /reports
-├ ƒ /task/[id]
+├ ● /task/[id]
+│ └ /task/1
+├ ○ /to-approve
 └ ○ /users
 
 Route (pages)
@@ -129,8 +151,12 @@ Route (pages)
 ├ ƒ /api/companies
 ├ ƒ /api/companies/[id]/members
 ├ ƒ /api/floors
+├ ƒ /api/material-categories
+├ ƒ /api/materials
 ├ ƒ /api/me
 ├ ƒ /api/notification-settings
+├ ƒ /api/order-items
+├ ƒ /api/orders
 ├ ƒ /api/plan
 ├ ƒ /api/plans
 ├ ƒ /api/plans/pdf
@@ -138,14 +164,19 @@ Route (pages)
 ├ ƒ /api/plans/upload
 ├ ƒ /api/profiles
 ├ ƒ /api/projects
+├ ƒ /api/saved-buildings
+├ ƒ /api/saved-emails
+├ ƒ /api/send-email
 ├ ƒ /api/task
 ├ ƒ /api/task-comments
 ├ ƒ /api/task-history
 ├ ƒ /api/task-photos
+├ ƒ /api/task-photos/batch
 ├ ƒ /api/tasks
 ├ ƒ /api/translate
 └ ƒ /api/users
 
 ○  (Static)   prerendered as static content
+●  (SSG)      prerendered as static HTML (uses generateStaticParams)
 ƒ  (Dynamic)  server-rendered on demand
 

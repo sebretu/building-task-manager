@@ -33,6 +33,7 @@ export const translations = {
       questions: "Questions",
       reportedTasksTab: "Reported tasks",
       reportedTasksSubtitle: "Tasks reported and pending verification",
+      adminUploadPlan: "Upload plan",
     },
     reports: {
       title: "Reports",
@@ -491,6 +492,7 @@ export const translations = {
       questions: "Pytania",
       reportedTasksTab: "Zadania zgłoszone",
       reportedTasksSubtitle: "Zadania zgłoszone i oczekujące na weryfikację",
+      adminUploadPlan: "Wgraj plan",
     },
     reports: {
       title: "Raporty",
@@ -949,6 +951,7 @@ export const translations = {
       questions: "Fragen",
       reportedTasksTab: "Gemeldete Aufgaben",
       reportedTasksSubtitle: "Gemeldete Aufgaben, die auf Überprüfung warten",
+      adminUploadPlan: "Plan hochladen",
     },
     reports: {
       title: "Berichte",
@@ -1404,6 +1407,7 @@ export const translations = {
       materials: "Požiadavky",
       adminMaterials: "Materiály (Admin)",
       questions: "Otázky",
+      adminUploadPlan: "Nahrať plán",
     },
     materials: {
       title: "Požiadavka",
