@@ -14,8 +14,8 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install Monorepo Dependencies
-        run: npm ci
+      - name: Install dependencies in web directory
+        run: cd web && npm ci
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -27,16 +27,13 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Build Next.js App
-        working-directory: ./web
-        run: npm run build:mobile
+        run: cd web && npm run build:mobile
 
       - name: Sync Capacitor
-        working-directory: ./web
-        run: npx cap sync android
+        run: cd web && npx cap sync android
 
       - name: Build APK
-        working-directory: ./web/android
-        run: ./gradlew assembleDebug
+        run: cd web/android && ./gradlew assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
