@@ -13,3 +13,4 @@ export default async function Page({
     </Suspense>
   );
 }
+export async function generateStaticParams() { return [{ id: '1' }]; }

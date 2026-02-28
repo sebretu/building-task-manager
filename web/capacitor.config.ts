@@ -11,9 +11,9 @@ const config: CapacitorConfig = {
     androidScheme: 'https',
     iosScheme: 'https',
     hostname: 'app.taskmanager.com',
-    // For testing, you can point to your local server
-    // url: 'http://188.245.42.178:3000',
-    // cleartext: true,
+    // Point to live server for Web Wrapper
+    url: 'https://api.inspecthero.pl',
+    cleartext: true,
   },
 
   // Plugin configuration

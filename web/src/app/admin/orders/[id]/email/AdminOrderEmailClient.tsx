@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { apiGet, getToken } from "@/lib/apiClient";
+import { apiGet, getToken, apiPost, apiDelete } from "@/lib/apiClient";
 import Head from "next/head";
 
 export default function AdminOrderEmailClient({ orderId }: { orderId: string }) {
@@ -15,15 +15,19 @@ export default function AdminOrderEmailClient({ orderId }: { orderId: string }) 
     const [order, setOrder] = useState<any>(null);
 
     const [emailTo, setEmailTo] = useState("");
+    const [selectedBuilding, setSelectedBuilding] = useState("");
     const [emailSubject, setEmailSubject] = useState("Baumaterialien Bestellung");
     const [emailContent, setEmailContent] = useState("");
     const [isSending, setIsSending] = useState(false);
 
+    const [savedEmails, setSavedEmails] = useState<{ id: string; email: string }[]>([]);
+    const [savedBuildings, setSavedBuildings] = useState<{ id: string; name: string }[]>([]);
+
     useEffect(() => {
-        loadOrder();
+        loadData();
     }, [orderId]);
 
-    async function loadOrder() {
+    async function loadData() {
         try {
             setLoading(true);
             const token = await getToken();
@@ -32,27 +36,32 @@ export default function AdminOrderEmailClient({ orderId }: { orderId: string }) 
                 return;
             }
 
-            // We can fetch the specific order by using the GET endpoint we analyzed.
-            // But wait, the GET endpoint can filter by project, we might just get all and filter locally
-            // since there's no ?id= param. However, we can just use the GET /api/orders.
-            // Wait, actually let's just fetch all orders and find this one, or better yet, create a specific api call if needed.
-            // For admin, fetching all is fine.
+            // Fetch order
             const resp = await fetch(`/api/orders`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
+                headers: { 'Authorization': `Bearer ${token}` }
             });
             const { data, ok, error } = await resp.json();
-
             if (!ok) throw new Error(error?.message || "Error fetching logic");
 
             const foundOrder = (data || []).find((o: any) => String(o.id) === String(orderId));
             if (!foundOrder) {
-                throw new Error("Zamówienie nie zostało znalezione (" + orderId + ").");
+                throw new Error(t("email", "alertOrderNotFound", "Nie znaleziono zamówienia") + " (" + orderId + ").");
             }
-
             setOrder(foundOrder);
-            generateTemplate(foundOrder);
+
+            // Fetch saved emails
+            try {
+                const emailsData: any = await apiGet("/api/saved-emails", token);
+                setSavedEmails(emailsData || []);
+            } catch (e) { console.error(e); }
+
+            // Fetch saved buildings
+            try {
+                const buildingsData: any = await apiGet("/api/saved-buildings", token);
+                setSavedBuildings(buildingsData || []);
+            } catch (e) { console.error(e); }
+
+            generateTemplate(foundOrder, "");
         } catch (err: any) {
             setError(err.message);
         } finally {
@@ -60,12 +69,78 @@ export default function AdminOrderEmailClient({ orderId }: { orderId: string }) 
         }
     }
 
-    function generateTemplate(o: any) {
+    async function handleSaveEmail() {
+        if (!emailTo.trim()) return;
+        try {
+            const token = await getToken();
+            const res: any = await apiPost("/api/saved-emails", { email: emailTo.trim() }, token!);
+            console.log("save email response:", res);
+            const newEmail = res?.data ? (Array.isArray(res.data) ? res.data[0] : res.data) : (Array.isArray(res) ? res[0] : res);
+            if (newEmail && newEmail.id) {
+                setSavedEmails(prev => {
+                    if (prev.find(e => e.email === newEmail.email)) return prev;
+                    return [newEmail, ...prev];
+                });
+            }
+        } catch (e: any) { alert("Error saving email: " + e.message); }
+    }
+
+    async function handleDeleteEmail(id: string) {
+        if (!confirm(t("common", "deleteConfirm", "Na pewno usunąć?"))) return;
+        try {
+            const token = await getToken();
+            await apiDelete(`/api/saved-emails?id=${id}`, token!);
+            setSavedEmails(prev => prev.filter(e => e.id !== id));
+            if (savedEmails.find(e => e.id === id)?.email === emailTo) setEmailTo("");
+        } catch (e: any) { alert("Error deleting: " + e.message); }
+    }
+
+    async function handleSaveBuilding() {
+        if (!selectedBuilding.trim()) return;
+        try {
+            const token = await getToken();
+            const res: any = await apiPost("/api/saved-buildings", { name: selectedBuilding.trim() }, token!);
+            console.log("save building response:", res);
+            const newBuilding = res?.data ? (Array.isArray(res.data) ? res.data[0] : res.data) : (Array.isArray(res) ? res[0] : res);
+            if (newBuilding && newBuilding.id) {
+                setSavedBuildings(prev => {
+                    if (prev.find(b => b.name === newBuilding.name)) return prev;
+                    return [newBuilding, ...prev];
+                });
+            }
+            // re-generate template with the saved/added building
+            generateTemplate(order, selectedBuilding.trim());
+        } catch (e: any) { alert("Error saving building: " + e.message); }
+    }
+
+    async function handleDeleteBuilding(id: string) {
+        if (!confirm(t("common", "deleteConfirm", "Na pewno usunąć?"))) return;
+        try {
+            const token = await getToken();
+            await apiDelete(`/api/saved-buildings?id=${id}`, token!);
+            setSavedBuildings(prev => prev.filter(b => b.id !== id));
+            if (savedBuildings.find(b => b.id === id)?.name === selectedBuilding) {
+                setSelectedBuilding("");
+                generateTemplate(order, "");
+            }
+        } catch (e: any) { alert("Error deleting: " + e.message); }
+    }
+
+
+
+    function generateTemplate(o: any, buildingName: string) {
+        if (!o) return;
         let lines: string[] = [];
 
-        lines.push("Sehr geehrte Damen und Herren,");
+        lines.push("Guten Tag,");
         lines.push("");
-        lines.push("ich möchte gerne folgende Materialien für morgen bestellen:");
+
+        if (buildingName) {
+            lines.push(`hiermit möchte ich folgendes Material für die Baustelle ${buildingName} bestellen:`);
+        } else {
+            lines.push("hiermit möchte ich folgendes Material bestellen:");
+        }
+
         lines.push("");
 
         const items = o.items || [];
@@ -73,7 +148,7 @@ export default function AdminOrderEmailClient({ orderId }: { orderId: string }) 
             const name = item.material ? item.material.name : item.custom_name;
             const unit = item.material ? item.material.unit : item.custom_unit;
             const qty = item.quantity;
-            lines.push(`- ${name}  |  ${qty} ${unit}`);
+            lines.push(`- ${name} – ${qty} ${unit}`);
         });
 
         lines.push("");
@@ -81,14 +156,14 @@ export default function AdminOrderEmailClient({ orderId }: { orderId: string }) 
         lines.push("Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.");
         lines.push("");
         lines.push("Mit freundlichen Grüßen,");
-        lines.push("Marcin Słapiński");
+        lines.push("Marcin Slapinski");
 
         setEmailContent(lines.join("\n"));
     }
 
     async function handleSend() {
         if (!emailTo) {
-            alert("Proszę podać adres e-mail.");
+            alert(t("email", "alertNoEmail", "Proszę podać adres e-mail."));
             return;
         }
 
@@ -112,13 +187,13 @@ export default function AdminOrderEmailClient({ orderId }: { orderId: string }) 
 
             const data = await res.json();
             if (!data.ok) {
-                throw new Error(data.error?.message || "Wystąpił błąd podczas wysyłania.");
+                throw new Error(data.error?.message || t("email", "alertError", "Błąd wysyłki."));
             }
 
-            alert("E-mail został pomyślnie wysłany ze strony!");
+            alert(t("email", "alertSuccess", "E-mail został pomyślnie wysłany ze strony!"));
             router.push("/to-approve");
         } catch (err: any) {
-            alert(err.message || "Błąd wysyłki.");
+            alert(err.message || t("email", "alertError", "Błąd wysyłki."));
         } finally {
             setIsSending(false);
         }
@@ -131,7 +206,7 @@ export default function AdminOrderEmailClient({ orderId }: { orderId: string }) 
     return (
         <>
             <Head>
-                <title>Wyślij E-mail | InspectHero</title>
+                <title>{t("email", "title", "Wyślij formalny e-mail")} | InspectHero</title>
             </Head>
 
             <main className="home-main">
@@ -140,14 +215,14 @@ export default function AdminOrderEmailClient({ orderId }: { orderId: string }) 
                         onClick={() => router.push("/to-approve")}
                         style={{ background: "transparent", border: "none", color: "var(--primary)", cursor: "pointer", fontWeight: 600, padding: 0, marginBottom: 16 }}
                     >
-                        &larr; Wróć do listy
+                        &larr; {t("email", "backToList", "Wróć do listy")}
                     </button>
 
                     <div className="home-section-header">
                         <div>
-                            <div className="home-hero-kicker">Admin</div>
-                            <h2>Wyślij formalny e-mail</h2>
-                            <p>Wygenerowana wiadomość w języku niemieckim (zamówienie materiałów).</p>
+                            <div className="home-hero-kicker">{t("email", "kickerAdmin", "Admin")}</div>
+                            <h2>{t("email", "title", "Wyślij formalny e-mail")}</h2>
+                            <p>{t("email", "description", "Wygenerowana wiadomość w języku niemieckim (zamówienie materiałów).")}</p>
                         </div>
                     </div>
 
@@ -155,19 +230,104 @@ export default function AdminOrderEmailClient({ orderId }: { orderId: string }) 
 
                     <div className="upload-card" style={{ marginBottom: 32 }}>
                         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                            {/* EMAIL SELECTION */}
                             <div>
-                                <label className="upload-label">Adres e-mail hurtowni (Odbiorca)</label>
-                                <input
-                                    type="email"
-                                    className="upload-input"
-                                    value={emailTo}
-                                    onChange={e => setEmailTo(e.target.value)}
-                                    placeholder="hurtownia@example.com"
-                                />
+                                <label className="upload-label">{t("email", "recipientLabel", "Adres e-mail hurtowni (Odbiorca)")}</label>
+                                <div style={{ display: "flex", gap: "8px", alignItems: "center", marginBottom: "8px" }}>
+                                    <select
+                                        className="upload-input"
+                                        value={emailTo}
+                                        onChange={e => setEmailTo(e.target.value)}
+                                        style={{ flex: 1, margin: 0 }}
+                                    >
+                                        <option value="">-- {t("email", "selectEmail", "Wybierz zapisany e-mail")} --</option>
+                                        {savedEmails.map(s => (
+                                            <option key={s.id} value={s.email}>{s.email}</option>
+                                        ))}
+                                    </select>
+                                    <button
+                                        onClick={() => {
+                                            const idToDelete = savedEmails.find(e => e.email === emailTo)?.id;
+                                            if (idToDelete) handleDeleteEmail(idToDelete);
+                                        }}
+                                        disabled={!savedEmails.find(e => e.email === emailTo)}
+                                        style={{ background: "transparent", border: "1px solid var(--danger)", color: "var(--danger)", padding: "10px 12px", borderRadius: "8px", cursor: savedEmails.find(e => e.email === emailTo) ? "pointer" : "not-allowed", opacity: savedEmails.find(e => e.email === emailTo) ? 1 : 0.5 }}
+                                    >
+                                        🗑
+                                    </button>
+                                </div>
+                                <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                                    <input
+                                        type="email"
+                                        className="upload-input"
+                                        value={emailTo}
+                                        onChange={e => setEmailTo(e.target.value)}
+                                        placeholder="hurtownia@example.com"
+                                        style={{ flex: 1, margin: 0 }}
+                                    />
+                                    <button
+                                        onClick={handleSaveEmail}
+                                        disabled={!emailTo || !!savedEmails.find(e => e.email === emailTo)}
+                                        style={{ background: "var(--primary)", color: "#fff", border: "none", padding: "10px 12px", borderRadius: "8px", cursor: (!emailTo || !!savedEmails.find(e => e.email === emailTo)) ? "not-allowed" : "pointer", opacity: (!emailTo || !!savedEmails.find(e => e.email === emailTo)) ? 0.5 : 1, whiteSpace: "nowrap" }}
+                                    >
+                                        + {t("email", "saveEmailBtn", "Zapisz")}
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* BUILDING SELECTION */}
+                            <div>
+                                <label className="upload-label">{t("email", "buildingLabel", "Budowa (opcjonalnie)")}</label>
+                                <div style={{ display: "flex", gap: "8px", alignItems: "center", marginBottom: "8px" }}>
+                                    <select
+                                        className="upload-input"
+                                        value={selectedBuilding}
+                                        onChange={e => {
+                                            setSelectedBuilding(e.target.value);
+                                            generateTemplate(order, e.target.value);
+                                        }}
+                                        style={{ flex: 1, margin: 0 }}
+                                    >
+                                        <option value="">-- {t("email", "selectBuilding", "Wybierz zapisaną budowę")} --</option>
+                                        {savedBuildings.map(s => (
+                                            <option key={s.id} value={s.name}>{s.name}</option>
+                                        ))}
+                                    </select>
+                                    <button
+                                        onClick={() => {
+                                            const idToDelete = savedBuildings.find(b => b.name === selectedBuilding)?.id;
+                                            if (idToDelete) handleDeleteBuilding(idToDelete);
+                                        }}
+                                        disabled={!savedBuildings.find(b => b.name === selectedBuilding)}
+                                        style={{ background: "transparent", border: "1px solid var(--danger)", color: "var(--danger)", padding: "10px 12px", borderRadius: "8px", cursor: savedBuildings.find(b => b.name === selectedBuilding) ? "pointer" : "not-allowed", opacity: savedBuildings.find(b => b.name === selectedBuilding) ? 1 : 0.5 }}
+                                    >
+                                        🗑
+                                    </button>
+                                </div>
+                                <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                                    <input
+                                        type="text"
+                                        className="upload-input"
+                                        value={selectedBuilding}
+                                        onChange={e => {
+                                            setSelectedBuilding(e.target.value);
+                                            generateTemplate(order, e.target.value);
+                                        }}
+                                        placeholder={t("email", "buildingPlaceholder", "Wpisz nową nazwę budowy")}
+                                        style={{ flex: 1, margin: 0 }}
+                                    />
+                                    <button
+                                        onClick={handleSaveBuilding}
+                                        disabled={!selectedBuilding || !!savedBuildings.find(b => b.name === selectedBuilding)}
+                                        style={{ background: "var(--primary)", color: "#fff", border: "none", padding: "10px 12px", borderRadius: "8px", cursor: (!selectedBuilding || !!savedBuildings.find(b => b.name === selectedBuilding)) ? "not-allowed" : "pointer", opacity: (!selectedBuilding || !!savedBuildings.find(b => b.name === selectedBuilding)) ? 0.5 : 1, whiteSpace: "nowrap" }}
+                                    >
+                                        + {t("email", "saveBuildingBtn", "Zapisz")}
+                                    </button>
+                                </div>
                             </div>
 
                             <div>
-                                <label className="upload-label">Temat</label>
+                                <label className="upload-label">{t("email", "subjectLabel", "Temat")}</label>
                                 <input
                                     type="text"
                                     className="upload-input"
@@ -177,7 +337,7 @@ export default function AdminOrderEmailClient({ orderId }: { orderId: string }) 
                             </div>
 
                             <div>
-                                <label className="upload-label">Treść wiadomości</label>
+                                <label className="upload-label">{t("email", "contentLabel", "Treść wiadomości")}</label>
                                 <textarea
                                     className="upload-input"
                                     value={emailContent}
@@ -198,7 +358,7 @@ export default function AdminOrderEmailClient({ orderId }: { orderId: string }) 
                                     fontWeight: 600, cursor: isSending ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 8
                                 }}
                             >
-                                {isSending ? "Wysyłanie..." : "✉️ Wyślij e-mail ze strony"}
+                                {isSending ? t("email", "sendingButton", "Wysyłanie...") : t("email", "sendButton", "✉️ Wyślij e-mail ze strony")}
                             </button>
                         </div>
                     </div>

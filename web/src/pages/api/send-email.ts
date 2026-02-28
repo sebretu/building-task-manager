@@ -19,13 +19,12 @@ function readJsonBody(req: NextApiRequest): any {
 async function sendNotificationEmail(input: { to: string; subject: string; html: string }) {
     const resendKey = process.env.RESEND_API_KEY || "re_47k34vN1_9uKk2y9XqyfBzE8aBvHk9Dqf"; // Replace with your actual Resend API Key if needed
 
-    // We can format the from string to include a display name "Name <email@domain.com>"
+    // Configure sender name and address
     let resendFrom = process.env.RESEND_FROM || "onboarding@resend.dev";
     if (resendFrom === "onboarding@resend.dev") {
-        resendFrom = "InspectHero <onboarding@resend.dev>";
+        resendFrom = "Marcin Slapinski Etecprojekt + Bau GmbH <onboarding@resend.dev>";
     } else if (!resendFrom.includes("<")) {
-        // If they just provided an email in env, wrap it with a nice display name
-        resendFrom = `InspectHero <${resendFrom}>`;
+        resendFrom = `Marcin Slapinski Etecprojekt + Bau GmbH <${resendFrom}>`;
     }
 
     if (!resendKey) {
@@ -43,6 +42,7 @@ async function sendNotificationEmail(input: { to: string; subject: string; html:
             to: input.to,
             subject: input.subject,
             html: input.html,
+            reply_to: "m.slapinski@etecprojekt.de",
         }),
     });
 

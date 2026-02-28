@@ -1095,7 +1095,7 @@ export default function ToApproveClient() {
                               fontWeight: 600, fontSize: 13
                             }}
                           >
-                            {savingOrderId === order.id ? "Zapisywanie..." : "💾 Zapisz zmiany"}
+                            {savingOrderId === order.id ? t("common", "savingChanges", "Zapisywanie...") : "💾 " + t("common", "saveChanges", "Zapisz zmiany")}
                           </button>
                         </div>
                       )
@@ -1149,7 +1149,7 @@ export default function ToApproveClient() {
                           }}
                           style={{ padding: "8px 16px", borderRadius: "8px", background: "#f59e0b", border: "none", color: "#fff", cursor: "pointer", fontWeight: 600 }}
                         >
-                          ✉️ {t("materials", "resendEmailBtn", "Wyślij e-mail")}
+                          ✉️ {t("email", "sendEmailOrderBtn", "Wyślij e-mail")}
                         </button>
                       )}
                     </div>
