@@ -14,8 +14,12 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Debug directory structure
+        run: ls -la && ls -la web
+
       - name: Install dependencies in web directory
-        run: cd web && npm ci
+        working-directory: ./web
+        run: npm ci
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -27,13 +31,16 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Build Next.js App
-        run: cd web && npm run build:mobile
+        working-directory: ./web
+        run: npm run build:mobile
 
       - name: Sync Capacitor
-        run: cd web && npx cap sync android
+        working-directory: ./web
+        run: npx cap sync android
 
       - name: Build APK
-        run: cd web/android && ./gradlew assembleDebug
+        working-directory: ./web/android
+        run: ./gradlew assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
