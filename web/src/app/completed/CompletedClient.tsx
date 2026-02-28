@@ -334,7 +334,7 @@ export default function Home() {
         // Get user profile
         const userEmail = data.session.user.email;
         const token = data.session.access_token;
-        const r = await fetch("/api/me", { headers: { Authorization: `Bearer ${token}` } });
+        const r = await fetch((process.env.NEXT_PUBLIC_PLATFORM === "mobile" ? "https://api.inspecthero.pl" : "") + "/api/me", { headers: { Authorization: `Bearer ${token}` } });
         if (!r.ok) throw new Error("Profile load failed");
         const j = await r.json();
 

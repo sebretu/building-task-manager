@@ -172,7 +172,7 @@ export default function AdminOrderEmailClient({ orderId }: { orderId: string }) 
             const token = await getToken();
             const htmlContent = emailContent.replace(/\n/g, "<br />");
 
-            const res = await fetch("/api/send-email", {
+            const res = await fetch((process.env.NEXT_PUBLIC_PLATFORM === "mobile" ? "https://api.inspecthero.pl" : "") + "/api/send-email", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

@@ -91,7 +91,7 @@ export default function TaskClient({ id }: { id: string }) {
 
         const authId = data.session?.user?.id;
         const token = data.session?.access_token;
-        const r = await fetch("/api/me", { headers: { Authorization: `Bearer ${token}` } });
+        const r = await fetch((process.env.NEXT_PUBLIC_PLATFORM === "mobile" ? "https://api.inspecthero.pl" : "") + "/api/me", { headers: { Authorization: `Bearer ${token}` } });
         if (!r.ok) { setCurrentUser(null); return; }
         const j = await r.json();
         setCurrentUser(j.profile || null);

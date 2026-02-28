@@ -39,7 +39,9 @@ export default function UnifiedLayout({ children }: { children: React.ReactNode 
           return;
         }
 
-        const r = await fetch("/api/me", {
+        const isMobile = process.env.NEXT_PUBLIC_PLATFORM === 'mobile';
+        const url = isMobile ? 'https://api.inspecthero.pl/api/me' : '/api/me';
+        const r = await fetch(url, {
           headers: { Authorization: `Bearer ${token}` },
           cache: "no-store",
         });
@@ -105,111 +107,6 @@ export default function UnifiedLayout({ children }: { children: React.ReactNode 
       window.removeEventListener("task-submitted-for-approval", handleTaskSubmitted as any);
     };
   }, [userRole, showNotification]);
-
-  // Load role via /api/me (no direct profiles query in browser)
-  useEffect(() => {
-    let alive = true;
-
-    async function loadRole(sessionToken?: string | null) {
-      try {
-        const token = sessionToken || (await supabase.auth.getSession()).data.session?.access_token;
-        console.log("[UnifiedLayout] loadRole token?", !!token);
-
-        if (!token) {
-          if (alive) setUserRole(null);
-          return;
-        }
-
-        const r = await fetch("/api/me", {
-          headers: { Authorization: `Bearer ${token}` },
-          cache: "no-store",
-        });
-
-        console.log("[UnifiedLayout] /api/me status", r.status);
-
-        if (!r.ok) {
-          if (alive) setUserRole(null);
-          return;
-        }
-
-        const j = await r.json();
-        console.log("[UnifiedLayout] role =", j?.profile?.role);
-
-        if (alive) setUserRole(j?.profile?.role || "USER");
-      } catch (e) {
-        console.warn("[UnifiedLayout] loadRole failed", e);
-        if (alive) setUserRole(null);
-      }
-    }
-
-    // initial
-    loadRole(null);
-
-    // update on auth changes
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      loadRole(session?.access_token || null);
-    });
-
-    return () => {
-      alive = false;
-      sub.subscription?.unsubscribe();
-    };
-  }, []);
-
-  // Listen for task submitted for approval event (depends on role)
-  useEffect(() => {
-    function handleTaskSubmitted(e: any) {
-      if ((userRole || "").toUpperCase() === "ADMIN") {
-        const taskTitle = e?.detail?.title || "";
-        showNotification(
-          taskTitle ? `Zadanie "${taskTitle}" zgłoszone do akceptacji.` : "Zadanie zgłoszone do akceptacji.",
-          "info"
-        );
-      }
-    }
-
-    window.addEventListener("task-submitted-for-approval", handleTaskSubmitted as any);
-    return () => {
-      window.removeEventListener("task-submitted-for-approval", handleTaskSubmitted as any);
-    };
-  }, [userRole, showNotification]);
-
-
-  // Load role via /api/me (no direct profiles query in browser)
-  useEffect(() => {
-    let alive = true;
-
-    (async () => {
-      try {
-        const { data } = await supabase.auth.getSession();
-        const token = data.session?.access_token;
-
-        if (!token) {
-          if (alive) setUserRole(null);
-          return;
-        }
-
-        const r = await fetch("/api/me", {
-          headers: { Authorization: `Bearer ${token}` },
-          cache: "no-store",
-        });
-
-        if (!r.ok) {
-          if (alive) setUserRole(null);
-          return;
-        }
-
-        const j = await r.json();
-        if (alive) setUserRole(j.profile?.role || "USER");
-      } catch {
-        if (alive) setUserRole(null);
-      }
-    })();
-
-    return () => {
-      alive = false;
-    };
-  }, []);
 
   // Listen for task submitted for approval event (depends on role)
   useEffect(() => {

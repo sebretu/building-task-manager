@@ -59,8 +59,17 @@ export async function apiCall<T>(
     }
   }
 
-  const r = await fetch(path, fetchOptions);
-  const j = await r.json();
+  const isMobile = process.env.NEXT_PUBLIC_PLATFORM === 'mobile';
+  const baseUrl = isMobile ? 'https://api.inspecthero.pl' : '';
+  const fullPath = path.startsWith('/api/') ? `${baseUrl}${path}` : path;
+
+  const r = await fetch(fullPath, fetchOptions);
+  let j;
+  try {
+    j = await r.json();
+  } catch (e) {
+    throw new Error(`Parse error for ${fullPath}: ${e}`);
+  }
 
   if (!j.ok) {
     const msg = j?.error?.message || "API error";

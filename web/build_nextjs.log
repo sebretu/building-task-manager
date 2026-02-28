@@ -1,0 +1,160 @@
+
+> web@0.1.0 build:mobile
+> NEXT_PUBLIC_PLATFORM=mobile next build
+
+▲ Next.js 16.1.6 (Turbopack)
+- Environments: .env.local
+
+  Creating an optimized production build ...
+Found 1 warning while optimizing generated CSS:
+
+[2m│   }[22m
+[2m│ }[22m
+[2m│[22m @import url("https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700;800&display=swap");
+[2m┆[22m        [33m[2m^--[22m @import rules must precede all rules aside from @charset and @layer statements[39m
+[2m┆[22m
+[2m│ [data-theme="dark-blue"] {[22m
+[2m│   --ui-bg: #94a3b8;[22m
+
+Turbopack build encountered 7 warnings:
+./src/app/api/tiles/[planId]/[z]/[x]/[y].png/route.ts:169:22
+The file pattern ('/ROOT/private_tiles/' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '.png') matches 85603 files in [project]/
+[0m [90m 167 |[39m     }
+ [90m 168 |[39m
+[31m[1m>[22m[39m[90m 169 |[39m     [36mconst[39m tilePath [33m=[39m path[33m.[39mjoin(base[33m,[39m [33mString[39m(zNum)[33m,[39m [33mString[39m(xNum)[33m,[39m [32m`${yNum}.png`[39m)[33m;[39m
+ [90m     |[39m                      [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 170 |[39m     [36mif[39m ([33m![39mfs[33m.[39mexistsSync(tilePath)) {
+ [90m 171 |[39m       [36mreturn[39m transparent()[33m;[39m
+ [90m 172 |[39m     }[0m
+
+Overly broad patterns can lead to build performance issues and over bundling.
+
+
+./src/app/api/tiles/[planId]/[z]/[x]/[y].png/route.ts:170:10
+The file pattern ('/ROOT/private_tiles/' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '.png') matches 85603 files in [project]/
+[0m [90m 168 |[39m
+ [90m 169 |[39m     [36mconst[39m tilePath [33m=[39m path[33m.[39mjoin(base[33m,[39m [33mString[39m(zNum)[33m,[39m [33mString[39m(xNum)[33m,[39m [32m`${yNum}.png`[39m)[33m;[39m
+[31m[1m>[22m[39m[90m 170 |[39m     [36mif[39m ([33m![39mfs[33m.[39mexistsSync(tilePath)) {
+ [90m     |[39m          [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 171 |[39m       [36mreturn[39m transparent()[33m;[39m
+ [90m 172 |[39m     }
+ [90m 173 |[39m[0m
+
+Overly broad patterns can lead to build performance issues and over bundling.
+
+
+./src/app/api/tiles/[planId]/[z]/[x]/[y].png/route.ts:174:17
+The file pattern ('/ROOT/private_tiles/' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '/' <dynamic> '.png' | '/ROOT/private_tiles/' <dynamic> '.png' | '/ROOT/private_tiles' <dynamic> '.png') matches 85603 files in [project]/
+[0m [90m 172 |[39m     }
+ [90m 173 |[39m
+[31m[1m>[22m[39m[90m 174 |[39m     [36mconst[39m buf [33m=[39m fs[33m.[39mreadFileSync(tilePath)[33m;[39m
+ [90m     |[39m                 [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 175 |[39m     [36mreturn[39m pngResponse(buf[33m,[39m tilePath)[33m;[39m
+ [90m 176 |[39m   } [36mcatch[39m (e[33m:[39m any) {
+ [90m 177 |[39m     [90m// console.error("[tiles app] error:", e);[39m[0m
+
+Overly broad patterns can lead to build performance issues and over bundling.
+
+
+./src/pages/api/plans.ts:139:20
+The file pattern ('/ROOT/private_tiles/' <dynamic> | '/ROOT/private_tiles' <dynamic> | '/ROOT/private_tiles/' | '/ROOT/private_tiles') matches 21430 files in [project]/
+[0m [90m 137 |[39m   }
+ [90m 138 |[39m
+[31m[1m>[22m[39m[90m 139 |[39m   [36mconst[39m tilesDir [33m=[39m path[33m.[39mjoin(process[33m.[39mcwd()[33m,[39m [32m"private_tiles"[39m[33m,[39m planId)[33m;[39m
+ [90m     |[39m                    [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 140 |[39m   [36mawait[39m fs[33m.[39mrm(tilesDir[33m,[39m { recursive[33m:[39m [36mtrue[39m[33m,[39m force[33m:[39m [36mtrue[39m })[33m.[39m[36mcatch[39m(() [33m=>[39m { })[33m;[39m
+ [90m 141 |[39m
+ [90m 142 |[39m   [36mconst[39m { data[33m:[39m replacement[33m,[39m error[33m:[39m replacementError } [33m=[39m [36mawait[39m admin[0m
+
+Overly broad patterns can lead to build performance issues and over bundling.
+
+
+./src/pages/api/plans/upload.ts:152:11
+The file pattern ('/ROOT/private_tiles/' <dynamic> | '/ROOT/private_tiles' <dynamic>) matches 10715 files in [project]/
+[0m [90m 150 |[39m       [90m// 2b) WAŻNE: usuń alpha z wygenerowanych kafli (naprawa “siwe” + kratka)[39m
+ [90m 151 |[39m       [36mconst[39m tilesDir [33m=[39m path[33m.[39mjoin(webRoot[33m,[39m [32m"private_tiles"[39m[33m,[39m opts[33m.[39mplanId)[33m;[39m
+[31m[1m>[22m[39m[90m 152 |[39m       [36mif[39m (fsSync[33m.[39mexistsSync(tilesDir)) {
+ [90m     |[39m           [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 153 |[39m         [36mawait[39m flattenTilesDirToWhite(tilesDir)[33m;[39m
+ [90m 154 |[39m       }
+ [90m 155 |[39m[0m
+
+Overly broad patterns can lead to build performance issues and over bundling.
+
+
+./src/app/api/tiles/[planId]/[z]/[x]/[y].png/route.ts:141:18
+The file pattern ('/ROOT/private_tiles/' <dynamic> | '/ROOT/private_tiles' <dynamic>) matches 21430 files in [project]/
+[0m [90m 139 |[39m     }
+ [90m 140 |[39m
+[31m[1m>[22m[39m[90m 141 |[39m     [36mconst[39m base [33m=[39m path[33m.[39mjoin(process[33m.[39mcwd()[33m,[39m [32m"private_tiles"[39m[33m,[39m planIdStr)[33m;[39m
+ [90m     |[39m                  [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 142 |[39m     [36mconst[39m metaPath [33m=[39m path[33m.[39mjoin(base[33m,[39m [32m"meta.json"[39m)[33m;[39m
+ [90m 143 |[39m
+ [90m 144 |[39m     [90m// Jeśli meta jeszcze nie ma (processing) → transparent (bez 404 spam)[39m[0m
+
+Overly broad patterns can lead to build performance issues and over bundling.
+
+
+./src/pages/api/plans/upload.ts:151:24
+The file pattern ('/ROOT/private_tiles/' <dynamic> | '/ROOT/private_tiles' <dynamic>) matches 21430 files in [project]/
+[0m [90m 149 |[39m
+ [90m 150 |[39m       [90m// 2b) WAŻNE: usuń alpha z wygenerowanych kafli (naprawa “siwe” + kratka)[39m
+[31m[1m>[22m[39m[90m 151 |[39m       [36mconst[39m tilesDir [33m=[39m path[33m.[39mjoin(webRoot[33m,[39m [32m"private_tiles"[39m[33m,[39m opts[33m.[39mplanId)[33m;[39m
+ [90m     |[39m                        [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 152 |[39m       [36mif[39m (fsSync[33m.[39mexistsSync(tilesDir)) {
+ [90m 153 |[39m         [36mawait[39m flattenTilesDirToWhite(tilesDir)[33m;[39m
+ [90m 154 |[39m       }[0m
+
+Overly broad patterns can lead to build performance issues and over bundling.
+
+
+
+> Build error occurred
+Error: Turbopack build failed with 2 errors:
+./src/app/reports/ReportsClient.tsx:6:1
+Module not found: Can't resolve 'qs'
+[0m [90m 4 |[39m [36mimport[39m [33mLink[39m [36mfrom[39m [32m"next/link"[39m[33m;[39m
+ [90m 5 |[39m [36mimport[39m { apiGet[33m,[39m apiPost } [36mfrom[39m [32m"@/lib/apiClient"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 6 |[39m [36mimport[39m qs [36mfrom[39m [32m"qs"[39m[33m;[39m
+ [90m   |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 7 |[39m [36mimport[39m { useLanguage } [36mfrom[39m [32m"@/contexts/LanguageContext"[39m[33m;[39m
+ [90m 8 |[39m [36mimport[39m { getTaskNumericLabel } [36mfrom[39m [32m"@/lib/taskNumber"[39m[33m;[39m
+ [90m 9 |[39m [36mimport[39m dynamic [36mfrom[39m [32m"next/dynamic"[39m[33m;[39m[0m
+
+
+
+Import trace:
+  Server Component:
+    ./src/app/reports/ReportsClient.tsx
+    ./src/app/reports/page.tsx
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./src/components/PlanMap.tsx:5:1
+Module not found: Can't resolve 'qs'
+[0m [90m 3 |[39m [36mimport[39m { useCallback[33m,[39m useEffect[33m,[39m useMemo[33m,[39m useRef[33m,[39m useState } [36mfrom[39m [32m"react"[39m[33m;[39m
+ [90m 4 |[39m [90m// Batch fetch[39m
+[31m[1m>[22m[39m[90m 5 |[39m [36mimport[39m qs [36mfrom[39m [32m"qs"[39m[33m;[39m
+ [90m   |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 6 |[39m [36mimport[39m { [33mMapContainer[39m[33m,[39m [33mTileLayer[39m[33m,[39m [33mMarker[39m[33m,[39m [33mPopup[39m[33m,[39m useMap[33m,[39m useMapEvents } [36mfrom[39m [32m"react-leaflet"[39m[33m;[39m
+ [90m 7 |[39m [36mimport[39m [33mL[39m [36mfrom[39m [32m"leaflet"[39m[33m;[39m
+ [90m 8 |[39m [36mimport[39m [32m"leaflet/dist/leaflet.css"[39m[33m;[39m[0m
+
+
+
+Import trace:
+  Client Component Browser:
+    ./src/components/PlanMap.tsx [Client Component Browser]
+    ./src/components/PlanViewer.tsx [Client Component Browser]
+    ./src/app/task/[id]/TaskClient.tsx [Client Component Browser]
+    ./src/app/task/[id]/TaskClient.tsx [Server Component]
+    ./src/app/task/[id]/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+    at <unknown> (./src/app/reports/ReportsClient.tsx:6:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./src/components/PlanMap.tsx:5:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
