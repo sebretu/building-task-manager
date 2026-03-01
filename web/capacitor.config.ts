@@ -15,6 +15,9 @@ const config: CapacitorConfig = {
 
   // Plugin configuration
   plugins: {
+    CapacitorHttp: {
+      enabled: true,
+    },
     // Camera configuration
     Camera: {
       // Request camera and photo library permissions on iOS
