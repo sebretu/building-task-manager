@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiGet, getToken } from "@/lib/apiClient";
+import { apiGet, getToken, getApiUrl } from "@/lib/apiClient";
 import { supabase } from "@/lib/supabase";
 import { usePlanPdfUrl } from "@/hooks/usePlanPdfUrl";
 
@@ -80,7 +80,7 @@ export default function PlanViewer({
           headers.Authorization = `Bearer ${token}`;
         }
 
-        const r = await fetch(`/api/tiles/${planId}/meta`, {
+        const r = await fetch(getApiUrl(`/api/tiles/${planId}/meta`), {
           cache: "no-store",
           headers,
         });
@@ -175,10 +175,13 @@ export default function PlanViewer({
       if (!alive) return;
 
       if (session?.user?.id) {
-        const token = session.access_token;
-        const r = await fetch((process.env.NEXT_PUBLIC_PLATFORM === "mobile" ? "https://inspecthero.pl" : "") + "/api/me", { headers: { Authorization: `Bearer ${token}` } });
-        if (!r.ok) { setViewerProfile(null); return; }
-        const j = await r.json();
+        // fetch user role explicitly on mount to ensure freshness
+        let j: any;
+        try {
+          j = await apiGet<any>('/api/me');
+        } catch (err) {
+          // ignore error
+        }
         setViewerProfile(j.profile || null);
 
       } else {

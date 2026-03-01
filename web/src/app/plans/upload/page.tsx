@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { apiGet, apiPost, getToken } from "@/lib/apiClient";
+import { apiGet, apiPost, getToken, getApiUrl } from "@/lib/apiClient";
 import { supabase } from "@/lib/supabase";
 
 type Project = { id: string; name: string };
@@ -94,7 +94,7 @@ export default function PlansUploadPage() {
     setErr(null);
     try {
       const token = await getToken();
-      await fetch((process.env.NEXT_PUBLIC_PLATFORM === "mobile" ? "https://inspecthero.pl" : "") + "/api/projects", {
+      await fetch(getApiUrl("/api/projects"), {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ id: editingProject, name: editingProjectName.trim() }),
@@ -115,7 +115,7 @@ export default function PlansUploadPage() {
     setErr(null);
     try {
       const token = await getToken();
-      await fetch((process.env.NEXT_PUBLIC_PLATFORM === "mobile" ? "https://inspecthero.pl" : "") + "/api/buildings", {
+      await fetch(getApiUrl("/api/buildings"), {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ id: editingBuilding, name: editingBuildingName.trim() }),
@@ -136,7 +136,7 @@ export default function PlansUploadPage() {
     setErr(null);
     try {
       const token = await getToken();
-      await fetch((process.env.NEXT_PUBLIC_PLATFORM === "mobile" ? "https://inspecthero.pl" : "") + "/api/floors", {
+      await fetch(getApiUrl("/api/floors"), {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ id: editingFloor, name: editingFloorName.trim() }),
@@ -522,7 +522,7 @@ export default function PlansUploadPage() {
       fd.append("floorId", floorId);
       fd.append("file", file); // field must be named "file"
 
-      const r = await fetch((process.env.NEXT_PUBLIC_PLATFORM === "mobile" ? "https://inspecthero.pl" : "") + "/api/plans/upload", {
+      const r = await fetch(getApiUrl("/api/plans/upload"), {
         method: "POST",
         body: fd,
         headers: {

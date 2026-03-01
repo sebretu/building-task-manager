@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { getToken } from "@/lib/apiClient";
+import { getToken, getApiUrl } from "@/lib/apiClient";
 
 type TilesMeta = {
   limits?: Record<string, { maxX: number; maxY: number }>;
@@ -33,7 +33,7 @@ const PlanCompositeThumbnail: React.FC<PlanCompositeThumbnailProps> = ({ planId,
 
     const loadMeta = async () => {
       try {
-        const res = await fetch(`/api/tiles/${planId}/meta` + (token ? `?token=${token}` : ""), { cache: "force-cache" });
+        const res = await fetch(getApiUrl(`/api/tiles/${planId}/meta` + (token ? `?token=${token}` : "")), { cache: "force-cache" });
         if (!res.ok) throw new Error(`meta ${res.status}`);
         const data = (await res.json()) as TilesMeta;
         if (!cancelled) setMeta(data);
@@ -61,7 +61,7 @@ const PlanCompositeThumbnail: React.FC<PlanCompositeThumbnailProps> = ({ planId,
   const gridTemplateColumns = `repeat(${columns}, ${cellSize}px)`;
   const gridTemplateRows = `repeat(${rows}, ${cellSize}px)`;
 
-  const tileSrc = (x: number, y: number) => `/api/tiles/${planId}/${zoom}/${x}/${y}.png` + (token ? `?token=${token}` : "");
+  const tileSrc = (x: number, y: number) => getApiUrl(`/api/tiles/${planId}/${zoom}/${x}/${y}.png` + (token ? `?token=${token}` : ""));
   const tiles = useMemo(() => {
     if (!token && token !== null) return null; // loading or no token? if no token, maybe we should still try? 
     // actually getToken returns null if not logged in. 
@@ -71,7 +71,7 @@ const PlanCompositeThumbnail: React.FC<PlanCompositeThumbnailProps> = ({ planId,
       Array.from({ length: columns }).map((__, x) => (
         <img
           key={`${x}-${y}`}
-          src={tileSrc(x, y)}
+          src={getApiUrl(tileSrc(x, y))}
           alt={alt}
           style={{ width: cellSize, height: cellSize, objectFit: "contain", background: "#eee" }}
           onError={() => setTileError(true)}
@@ -98,7 +98,7 @@ const PlanCompositeThumbnail: React.FC<PlanCompositeThumbnailProps> = ({ planId,
   if (metaError || tileError) {
     return (
       <img
-        src="/assets/plan-placeholder.svg"
+        src={getApiUrl("/assets/plan-placeholder.svg")}
         alt={alt}
         style={{ width: size, height: size, opacity: 0.5, border: "1px solid #ccc", borderRadius: 8 }}
       />

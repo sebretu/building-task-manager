@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { apiGet, apiPost } from "@/lib/apiClient";
+import { apiGet, apiPost, getApiUrl } from "@/lib/apiClient";
 import qs from "qs";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { getTaskNumericLabel } from "@/lib/taskNumber";
@@ -483,7 +483,7 @@ export default function ReportsClient() {
                 if (!b64) {
                     try {
                         console.log(`[Reports] Fallback: Stitching high-res for ${plan.id.slice(0, 8)}...`);
-                        const metaRes = await fetch(`/api/tiles/${plan.id}/meta`, {
+                        const metaRes = await fetch(getApiUrl(`/api/tiles/${plan.id}/meta`), {
                             headers: token ? { "Authorization": `Bearer ${token}` } : {}
                         });
 
@@ -522,7 +522,7 @@ export default function ReportsClient() {
                                     const tilePromises = [];
                                     for (let x = 0; x <= lim.maxX; x++) {
                                         for (let y = 0; y <= lim.maxY; y++) {
-                                            const tUrl = `/api/tiles/${plan.id}/${bestZoom}/${x}/${y}.png`;
+                                            const tUrl = getApiUrl(`/api/tiles/${plan.id}/${bestZoom}/${x}/${y}.png`);
                                             tilePromises.push((async () => {
                                                 const tB64 = await urlToBase64(tUrl, token);
                                                 if (tB64) {
@@ -645,7 +645,7 @@ export default function ReportsClient() {
                         formData.append('file', blob, filename);
                         formData.append('filename', filename);
                         try {
-                            res = await fetch((process.env.NEXT_PUBLIC_PLATFORM === "mobile" ? "https://inspecthero.pl" : "") + "/api/reports", {
+                            res = await fetch(getApiUrl("/api/reports"), {
                                 method: "POST",
                                 body: formData
                             });
@@ -664,7 +664,7 @@ export default function ReportsClient() {
                         console.log("[Reports][DEBUG] FileReader finished", { resultPreview: base64data.slice(0, 100), b64Length });
                         console.log("[Reports][DEBUG] Ready to POST /api/reports", { filename, b64Preview: b64.slice(0, 100), b64Length });
                         try {
-                            res = await fetch((process.env.NEXT_PUBLIC_PLATFORM === "mobile" ? "https://inspecthero.pl" : "") + "/api/reports", {
+                            res = await fetch(getApiUrl("/api/reports"), {
                                 method: "POST",
                                 headers: { "Content-Type": "application/json" },
                                 body: JSON.stringify({

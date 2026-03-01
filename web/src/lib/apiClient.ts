@@ -18,6 +18,18 @@ export async function getToken(): Promise<string | null> {
   return looksLikeJwt(tok) ? tok : null;
 }
 
+import { Capacitor } from '@capacitor/core';
+
+/**
+ * Generic string URL parser for React Components
+ */
+export function getApiUrl(path: string | undefined | null) {
+  if (!path) return '';
+  const isMobile = Capacitor.isNativePlatform();
+  const baseUrl = isMobile ? 'https://inspecthero.pl' : '';
+  return path.startsWith('/api/') ? `${baseUrl}${path}` : path;
+}
+
 /**
  * Generic API client with automatic token injection
  */
@@ -59,9 +71,7 @@ export async function apiCall<T>(
     }
   }
 
-  const isMobile = process.env.NEXT_PUBLIC_PLATFORM === 'mobile';
-  const baseUrl = isMobile ? 'https://inspecthero.pl' : '';
-  const fullPath = path.startsWith('/api/') ? `${baseUrl}${path}` : path;
+  const fullPath = getApiUrl(path);
 
   const r = await fetch(fullPath, fetchOptions);
   let j;

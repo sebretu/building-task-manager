@@ -88,12 +88,19 @@ export default function TaskClient({ id }: { id: string }) {
       try {
         const { data } = await supabase.auth.getSession();
         if (!active) return;
+        // Get profile to check role
+        const sessionUser = data.session?.user;
+        if (!sessionUser) {
+          setCurrentUser(null);
+          return;
+        }
 
-        const authId = data.session?.user?.id;
-        const token = data.session?.access_token;
-        const r = await fetch((process.env.NEXT_PUBLIC_PLATFORM === "mobile" ? "https://inspecthero.pl" : "") + "/api/me", { headers: { Authorization: `Bearer ${token}` } });
-        if (!r.ok) { setCurrentUser(null); return; }
-        const j = await r.json();
+        let j: any;
+        try {
+          j = await apiGet<any>('/api/me');
+        } catch (err) {
+          throw new Error("Profile load failed");
+        }
         setCurrentUser(j.profile || null);
 
       } catch {

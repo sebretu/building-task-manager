@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { apiGet, apiPost, getToken } from "@/lib/apiClient";
+import { apiGet, apiPatch, apiPost, getApiUrl, getToken } from "@/lib/apiClient";
 import { supabase } from "@/lib/supabase";
 import type { Language } from "@/lib/translations";
 import { PWAInstallBanner } from "@/components/PWAInstallBanner";
@@ -308,7 +308,7 @@ export default function QuestionsClient() {
       const headers: HeadersInit = {};
       if (token) headers.Authorization = `Bearer ${token}`;
 
-      const r = await fetch(`/api/tiles/${encodeURIComponent(planId)}/meta`, {
+      const r = await fetch(getApiUrl(`/api/tiles/${encodeURIComponent(planId)}/meta`), {
         cache: "no-store",
         headers,
       });
@@ -337,10 +337,12 @@ export default function QuestionsClient() {
 
         // Get user profile
         const userEmail = data.session.user.email;
-        const token = data.session.access_token;
-        const r = await fetch((process.env.NEXT_PUBLIC_PLATFORM === "mobile" ? "https://inspecthero.pl" : "") + "/api/me", { headers: { Authorization: `Bearer ${token}` } });
-        if (!r.ok) throw new Error("Profile load failed");
-        const j = await r.json();
+        let j: any;
+        try {
+          j = await apiGet<any>('/api/me');
+        } catch (err) {
+          throw new Error("Profile load failed");
+        }
         setUser(j.profile);
 
         setSessionLoaded(true);
@@ -494,11 +496,47 @@ export default function QuestionsClient() {
   }, [q]);
 
   useEffect(() => {
-    tasks.forEach((task) => {
-      if (!Object.prototype.hasOwnProperty.call(thumbByTask, task.id)) {
-        loadThumb(task.id).catch(() => { });
-      }
-    });
+    const missingPhotos = tasks.filter(
+      (task) => !Object.prototype.hasOwnProperty.call(thumbByTask, task.id)
+    );
+    if (missingPhotos.length > 0) {
+      const nextThumbs = { ...thumbByTask };
+      missingPhotos.forEach(t => nextThumbs[t.id] = { url: null, type: null });
+      setThumbByTask(nextThumbs);
+
+      const params = new URLSearchParams();
+      missingPhotos.forEach((t) => params.append("taskIds", t.id));
+      params.append("phases", "BEFORE");
+      params.append("phases", "AFTER");
+      params.append("limit", "1");
+
+      apiGet<any[]>(`/api/task-photos/batch?${params.toString()}`)
+        .then((photos) => {
+          const fetchedThumbs = { ...nextThumbs };
+          const photoMap: Record<string, any> = {};
+
+          for (const p of photos) {
+            if (!photoMap[p.task_id]) photoMap[p.task_id] = {};
+            if (!photoMap[p.task_id][p.photo_type]) {
+              photoMap[p.task_id][p.photo_type] = p;
+            }
+          }
+
+          missingPhotos.forEach((t) => {
+            const after = photoMap[t.id]?.AFTER;
+            const before = photoMap[t.id]?.BEFORE;
+            const selected = after || before;
+            if (selected) {
+              fetchedThumbs[t.id] = {
+                url: selected.url ? fixStorageUrl(selected.url) : null,
+                type: selected.photo_type,
+              };
+            }
+          });
+          setThumbByTask(fetchedThumbs);
+        })
+        .catch((err) => console.warn("[questions] Batch photo fetch failed", err));
+    }
 
     const planIds = new Set(
       tasks
@@ -506,11 +544,21 @@ export default function QuestionsClient() {
         .filter((id): id is string => typeof id === "string" && id.length > 0)
     );
 
-    planIds.forEach((planId) => {
-      if (!Object.prototype.hasOwnProperty.call(metaByPlan, planId)) {
+    const missingPlans = Array.from(planIds).filter(
+      (planId) => !Object.prototype.hasOwnProperty.call(metaByPlan, planId)
+    );
+
+    if (missingPlans.length > 0) {
+      setMetaByPlan((prev) => {
+        const next = { ...prev };
+        missingPlans.forEach(id => next[id] = null);
+        return next;
+      });
+
+      missingPlans.forEach(planId => {
         loadPlanMeta(planId).catch(() => { });
-      }
-    });
+      });
+    }
   }, [tasks, thumbByTask, metaByPlan, loadThumb]);
 
   useEffect(() => {
@@ -550,7 +598,7 @@ export default function QuestionsClient() {
     const x = Math.min(Math.max(0, Math.floor(xNorm * meta.gridW)), maxX);
     const y = Math.min(Math.max(0, Math.floor(yNorm * meta.gridH)), maxY);
 
-    return `/api/tiles/${task.plan_id}/${meta.maxZoom}/${x}/${y}.png` + (token ? `?token=${token}` : "");
+    return getApiUrl(`/api/tiles/${task.plan_id}/${meta.maxZoom}/${x}/${y}.png` + (token ? `?token=${token}` : ""));
   }
 
   if (!sessionLoaded || !user) {
@@ -821,7 +869,7 @@ export default function QuestionsClient() {
                     >
                       {thumbUrl ? (
                         <>
-                          <img src={thumbUrl} alt={thumbAlt} />
+                          <img src={getApiUrl(thumbUrl)} alt={thumbAlt} />
                           {thumbBadge && (
                             <span
                               className={`task-card__media-badge ${thumbType === "AFTER" ? "task-card__media-badge--after" : "task-card__media-badge--before"
@@ -875,7 +923,7 @@ export default function QuestionsClient() {
                       aria-label={task.plan_id ? t("home", "openPlanLabel", "Open plan") : undefined}
                     >
                       {tileUrl ? (
-                        <img src={tileUrl} alt={t("home", "mapLabel")} />
+                        <img src={getApiUrl(tileUrl)} alt={t("home", "mapLabel")} />
                       ) : (
                         <div className="task-card__map-placeholder">
                           <span aria-hidden="true">📍</span>

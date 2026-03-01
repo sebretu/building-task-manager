@@ -11,6 +11,7 @@ import { LogoutButton } from "@/components/LogoutButton";
 
 
 import { supabase } from "@/lib/supabase";
+import { apiGet } from "@/lib/apiClient";
 
 export default function UnifiedLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -29,46 +30,23 @@ export default function UnifiedLayout({ children }: { children: React.ReactNode 
   useEffect(() => {
     let alive = true;
 
-    async function loadRole(sessionToken?: string | null) {
+    async function loadRole() {
       try {
-        const token = sessionToken || (await supabase.auth.getSession()).data.session?.access_token;
-        console.log("[UnifiedLayout] loadRole token?", !!token);
-
-        if (!token) {
-          if (alive) setUserRole(null);
-          return;
-        }
-
-        const isMobile = process.env.NEXT_PUBLIC_PLATFORM === 'mobile';
-        const url = isMobile ? 'https://inspecthero.pl/api/me' : '/api/me';
-        const r = await fetch(url, {
-          headers: { Authorization: `Bearer ${token}` },
-          cache: "no-store",
-        });
-
-        console.log("[UnifiedLayout] /api/me status", r.status);
-
-        if (!r.ok) {
-          if (alive) setUserRole(null);
-          return;
-        }
-
-        const j = await r.json();
+        const j = await apiGet<any>('/api/me');
         console.log("[UnifiedLayout] role =", j?.profile?.role);
-
         if (alive) setUserRole(j?.profile?.role || "USER");
       } catch (e) {
-        console.warn("[UnifiedLayout] loadRole failed", e);
+        console.error("[UnifiedLayout] loadRole failed:", e);
         if (alive) setUserRole(null);
       }
     }
 
     // initial
-    loadRole(null);
+    loadRole();
 
     // update on auth changes
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      loadRole(session?.access_token || null);
+    const { data: sub } = supabase.auth.onAuthStateChange(() => {
+      loadRole();
     });
 
     return () => {

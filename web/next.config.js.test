@@ -19,7 +19,7 @@ const nextConfig = {
     // Disable features incompatible with static export
     trailingSlash: true,
   }),
-
+  
   ...(process.env.NEXT_PUBLIC_PLATFORM !== 'mobile' && {
     async headers() {
       return [

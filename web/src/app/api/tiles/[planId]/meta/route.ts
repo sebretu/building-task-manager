@@ -4,10 +4,7 @@ import path from "path";
 import { createServerSupabaseClient } from "@/lib/supabaseServer";
 import { createClient } from "@supabase/supabase-js";
 
-export const dynamic = "force-static";
-export function generateStaticParams() {
-  return [];
-}
+export const dynamic = "force-dynamic";
 
 type Meta = {
   tileSize: number;

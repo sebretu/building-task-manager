@@ -7,7 +7,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from "re
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import TaskDrawer from "./TaskDrawer";
-import { apiGet } from "@/lib/apiClient";
+import { apiGet, getApiUrl } from "@/lib/apiClient";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { getTaskNumericLabel } from "@/lib/taskNumber";
 
@@ -327,7 +327,7 @@ export default function PlanMap({
         maxBoundsViscosity={1.0}
         style={{ height: mapHeight, background: "#fff" }}
       >
-        {token && <TileLayer url={`/api/tiles/${planId}/{z}/{x}/{y}.png?token=${token}`} />}
+        {token && <TileLayer url={getApiUrl(`/api/tiles/${planId}/{z}/{x}/{y}.png?token=${token}`)} />}
 
         {allowCreate && projectId && currentUserId && <ClickToCreate projectId={projectId} createdBy={currentUserId} />}
 
@@ -372,7 +372,7 @@ export default function PlanMap({
                   <div style={{ width: 240, color: "#111827" }}>
                     {thumb ? (
                       <img
-                        src={thumb}
+                        src={getApiUrl(thumb)}
                         alt=""
                         style={{ width: "100%", height: 90, objectFit: "cover", borderRadius: 10, display: "block" }}
                       />

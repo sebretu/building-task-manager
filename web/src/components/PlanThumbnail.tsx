@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { getToken } from "@/lib/apiClient";
+import { getToken, getApiUrl } from "@/lib/apiClient";
 
 interface PlanThumbnailProps {
   planId: string;
@@ -31,7 +31,7 @@ const PlanThumbnail: React.FC<PlanThumbnailProps> = ({ planId, width = 480, heig
     <div style={{ width, height, border: "1px solid #ccc", borderRadius: 8, overflow: "hidden", background: "#f8f8f8", display: "flex", alignItems: "center", justifyContent: "center" }}>
       {token ? (
         <img
-          src={currentPath}
+          src={getApiUrl(currentPath)}
           alt={alt}
           style={{ width: "100%", height: "100%", objectFit: "contain", display: "block", background: "#eee" }}
           onError={() => setSrcIdx(idx => (idx < tilePaths.length - 1 ? idx + 1 : idx))}

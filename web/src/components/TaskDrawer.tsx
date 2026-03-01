@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useRef } from "react";
-import { apiGet, apiPost, apiPatch, apiDelete } from "@/lib/apiClient";
+import { apiGet, apiPost, apiPatch, apiDelete, getApiUrl } from "@/lib/apiClient";
 import { useLanguage } from "@/contexts/LanguageContext";
 import type { Language } from "@/lib/translations";
 
@@ -1361,7 +1361,7 @@ export default function TaskDrawer({
                         </span>
                         <a href={p.url} target="_blank" rel="noreferrer" style={{ textDecoration: "none" }}>
                           <img
-                            src={p.url}
+                            src={getApiUrl(p.url)}
                             alt={p.caption || ""}
                             style={{ width: "100%", height: 92, objectFit: "cover", borderRadius: 12, border: "1px solid rgba(17,24,39,0.10)" }}
                             loading="lazy"

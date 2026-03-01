@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { apiGet, getToken, apiPost, apiDelete } from "@/lib/apiClient";
+import { apiGet, getToken, apiPost, apiDelete, getApiUrl } from "@/lib/apiClient";
 import Head from "next/head";
 
 export default function AdminOrderEmailClient({ orderId }: { orderId: string }) {
@@ -172,7 +172,7 @@ export default function AdminOrderEmailClient({ orderId }: { orderId: string }) 
             const token = await getToken();
             const htmlContent = emailContent.replace(/\n/g, "<br />");
 
-            const res = await fetch((process.env.NEXT_PUBLIC_PLATFORM === "mobile" ? "https://inspecthero.pl" : "") + "/api/send-email", {
+            const res = await fetch(getApiUrl("/api/send-email"), {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
