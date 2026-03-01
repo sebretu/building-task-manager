@@ -94,7 +94,7 @@ export default function PlansUploadPage() {
     setErr(null);
     try {
       const token = await getToken();
-      await fetch((process.env.NEXT_PUBLIC_PLATFORM === "mobile" ? "https://api.inspecthero.pl" : "") + "/api/projects", {
+      await fetch((process.env.NEXT_PUBLIC_PLATFORM === "mobile" ? "https://inspecthero.pl" : "") + "/api/projects", {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ id: editingProject, name: editingProjectName.trim() }),
@@ -115,7 +115,7 @@ export default function PlansUploadPage() {
     setErr(null);
     try {
       const token = await getToken();
-      await fetch((process.env.NEXT_PUBLIC_PLATFORM === "mobile" ? "https://api.inspecthero.pl" : "") + "/api/buildings", {
+      await fetch((process.env.NEXT_PUBLIC_PLATFORM === "mobile" ? "https://inspecthero.pl" : "") + "/api/buildings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ id: editingBuilding, name: editingBuildingName.trim() }),
@@ -136,7 +136,7 @@ export default function PlansUploadPage() {
     setErr(null);
     try {
       const token = await getToken();
-      await fetch((process.env.NEXT_PUBLIC_PLATFORM === "mobile" ? "https://api.inspecthero.pl" : "") + "/api/floors", {
+      await fetch((process.env.NEXT_PUBLIC_PLATFORM === "mobile" ? "https://inspecthero.pl" : "") + "/api/floors", {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ id: editingFloor, name: editingFloorName.trim() }),
@@ -522,7 +522,7 @@ export default function PlansUploadPage() {
       fd.append("floorId", floorId);
       fd.append("file", file); // field must be named "file"
 
-      const r = await fetch((process.env.NEXT_PUBLIC_PLATFORM === "mobile" ? "https://api.inspecthero.pl" : "") + "/api/plans/upload", {
+      const r = await fetch((process.env.NEXT_PUBLIC_PLATFORM === "mobile" ? "https://inspecthero.pl" : "") + "/api/plans/upload", {
         method: "POST",
         body: fd,
         headers: {

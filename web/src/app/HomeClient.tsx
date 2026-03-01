@@ -339,7 +339,7 @@ export default function Home() {
         const userEmail = data.session.user.email;
         const token = data.session.access_token;
         const isMobile = process.env.NEXT_PUBLIC_PLATFORM === 'mobile';
-        const url = isMobile ? 'https://api.inspecthero.pl/api/me' : '/api/me';
+        const url = isMobile ? 'https://inspecthero.pl/api/me' : '/api/me';
         const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
         if (!r.ok) throw new Error("Profile load failed");
         const j = await r.json();

@@ -40,7 +40,7 @@ export default function UnifiedLayout({ children }: { children: React.ReactNode 
         }
 
         const isMobile = process.env.NEXT_PUBLIC_PLATFORM === 'mobile';
-        const url = isMobile ? 'https://api.inspecthero.pl/api/me' : '/api/me';
+        const url = isMobile ? 'https://inspecthero.pl/api/me' : '/api/me';
         const r = await fetch(url, {
           headers: { Authorization: `Bearer ${token}` },
           cache: "no-store",

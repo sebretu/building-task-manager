@@ -645,7 +645,7 @@ export default function ReportsClient() {
                         formData.append('file', blob, filename);
                         formData.append('filename', filename);
                         try {
-                            res = await fetch((process.env.NEXT_PUBLIC_PLATFORM === "mobile" ? "https://api.inspecthero.pl" : "") + "/api/reports", {
+                            res = await fetch((process.env.NEXT_PUBLIC_PLATFORM === "mobile" ? "https://inspecthero.pl" : "") + "/api/reports", {
                                 method: "POST",
                                 body: formData
                             });
@@ -664,7 +664,7 @@ export default function ReportsClient() {
                         console.log("[Reports][DEBUG] FileReader finished", { resultPreview: base64data.slice(0, 100), b64Length });
                         console.log("[Reports][DEBUG] Ready to POST /api/reports", { filename, b64Preview: b64.slice(0, 100), b64Length });
                         try {
-                            res = await fetch((process.env.NEXT_PUBLIC_PLATFORM === "mobile" ? "https://api.inspecthero.pl" : "") + "/api/reports", {
+                            res = await fetch((process.env.NEXT_PUBLIC_PLATFORM === "mobile" ? "https://inspecthero.pl" : "") + "/api/reports", {
                                 method: "POST",
                                 headers: { "Content-Type": "application/json" },
                                 body: JSON.stringify({

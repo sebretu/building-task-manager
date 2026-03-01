@@ -60,7 +60,7 @@ export async function apiCall<T>(
   }
 
   const isMobile = process.env.NEXT_PUBLIC_PLATFORM === 'mobile';
-  const baseUrl = isMobile ? 'https://api.inspecthero.pl' : '';
+  const baseUrl = isMobile ? 'https://inspecthero.pl' : '';
   const fullPath = path.startsWith('/api/') ? `${baseUrl}${path}` : path;
 
   const r = await fetch(fullPath, fetchOptions);

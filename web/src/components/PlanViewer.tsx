@@ -176,7 +176,7 @@ export default function PlanViewer({
 
       if (session?.user?.id) {
         const token = session.access_token;
-        const r = await fetch((process.env.NEXT_PUBLIC_PLATFORM === "mobile" ? "https://api.inspecthero.pl" : "") + "/api/me", { headers: { Authorization: `Bearer ${token}` } });
+        const r = await fetch((process.env.NEXT_PUBLIC_PLATFORM === "mobile" ? "https://inspecthero.pl" : "") + "/api/me", { headers: { Authorization: `Bearer ${token}` } });
         if (!r.ok) { setViewerProfile(null); return; }
         const j = await r.json();
         setViewerProfile(j.profile || null);
