@@ -55,16 +55,18 @@ export default function UnifiedLayout({ children }: { children: React.ReactNode 
     };
   }, []);
 
-  // Handle clicking outside Admin Dropdown
+  // Handle clicking/tapping outside Admin Dropdown
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
+    function handleClickOutside(event: MouseEvent | TouchEvent) {
       if (adminDropdownRef.current && !adminDropdownRef.current.contains(event.target as Node)) {
         setAdminDropdownOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside as EventListener);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside as EventListener);
     };
   }, []);
 
