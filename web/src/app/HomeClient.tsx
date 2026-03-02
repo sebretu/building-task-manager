@@ -160,6 +160,11 @@ export default function Home() {
   } | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [isQuestionMode, setIsQuestionMode] = useState(false);
+  // For viewing/editing existing tasks inline on native Android
+  const [viewTaskId, setViewTaskId] = useState<string | null>(null);
+
+  // Detect native Capacitor platform (Android/iOS)
+  const isNative = typeof window !== 'undefined' && !!(window as any).Capacitor?.isNativePlatform?.();
 
   useEffect(() => {
     if (!showNewTaskModal) return;
@@ -894,11 +899,11 @@ export default function Home() {
                     {/* Kliknięcie w zdjęcie → edycja taska */}
                     <div
                       className="task-card__media"
-                      onClick={() => router.push(`/task/${task.id}`)}
+                      onClick={() => isNative ? setViewTaskId(task.id) : router.push(`/task/${task.id}`)}
                       style={{ cursor: "pointer" }}
                       role="button"
                       tabIndex={0}
-                      onKeyDown={(e) => e.key === "Enter" && router.push(`/task/${task.id}`)}
+                      onKeyDown={(e) => e.key === "Enter" && (isNative ? setViewTaskId(task.id) : router.push(`/task/${task.id}`))}
                       aria-label={translatedTitle || task.title}
                     >
                       {thumbUrl ? (
@@ -924,11 +929,11 @@ export default function Home() {
                     {/* Kliknięcie w tytuł/body → edycja taska */}
                     <div
                       className="task-card__body"
-                      onClick={() => router.push(`/task/${task.id}`)}
+                      onClick={() => isNative ? setViewTaskId(task.id) : router.push(`/task/${task.id}`)}
                       style={{ cursor: "pointer" }}
                       role="button"
                       tabIndex={0}
-                      onKeyDown={(e) => e.key === "Enter" && router.push(`/task/${task.id}`)}
+                      onKeyDown={(e) => e.key === "Enter" && (isNative ? setViewTaskId(task.id) : router.push(`/task/${task.id}`))}
                     >
                       <h3>{translatedTitle || task.title}</h3>
                       <p className={descriptionClasses}>{descriptionContent}</p>
@@ -944,7 +949,7 @@ export default function Home() {
                         if (task.plan_id) {
                           router.push(`/plan/${task.plan_id}?taskId=${task.id}`);
                         } else {
-                          router.push(`/task/${task.id}`);
+                          isNative ? setViewTaskId(task.id) : router.push(`/task/${task.id}`);
                         }
                       }}
                       style={{ cursor: task.plan_id ? "pointer" : "default" }}
@@ -975,11 +980,11 @@ export default function Home() {
 
                     <div
                       className="task-card__footer"
-                      onClick={() => router.push(`/task/${task.id}`)}
+                      onClick={() => isNative ? setViewTaskId(task.id) : router.push(`/task/${task.id}`)}
                       style={{ cursor: "pointer" }}
                       role="button"
                       tabIndex={0}
-                      onKeyDown={(e) => e.key === "Enter" && router.push(`/task/${task.id}`)}
+                      onKeyDown={(e) => e.key === "Enter" && (isNative ? setViewTaskId(task.id) : router.push(`/task/${task.id}`))}
                     >
                       <span>
                         {priorityLabel} · {dueLabel}
@@ -1185,6 +1190,17 @@ export default function Home() {
           currentUserRole={user?.role}
         />
 
+        {/* Inline TaskDrawer for viewing/editing tasks on native Android */}
+        <TaskDrawer
+          open={!!viewTaskId}
+          taskId={viewTaskId}
+          createDraft={null}
+          onClose={() => setViewTaskId(null)}
+          uploadedBy={user?.id || ""}
+          currentUserId={user?.id}
+          currentUserRole={user?.role}
+        />
+
         {/* Notifications panel at bottom */}
         <section className="home-control" style={{ marginTop: 16 }}>
           <div className="home-control-card">
@@ -1231,7 +1247,7 @@ export default function Home() {
             </div>
           </div>
         </section>
-      </main>
+      </main >
     </>
   );
 }
