@@ -36,8 +36,7 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://api.inspecthero.pl' }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJFUzI1NiIsImtpZCI6ImI4MTI2OWYxLTIxZDgtNGYyZS1iNzE5LWMyMjQwYTg0MGQ5MCIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjIwODY4OTM2ODR9.86CeEuFUiPu9XZ8IJyrKfxHd2dGkJ7S5bJpJqVNpeZRXeY0YhcWdTsB44lcNPJs6p4gS1dvyelwT9pbd-3Jy7g' }}
           NEXT_PUBLIC_PLATFORM: mobile
-          NEXT_DISABLE_TURBOPACK: '1'
-        run: npm run build:mobile
+        run: mv src/app/api src/api_bak && NEXT_PUBLIC_PLATFORM=mobile npx next build --no-turbo; exit_code=$?; mv src/api_bak src/app/api; exit $exit_code
 
       - name: Sync Capacitor
         working-directory: ./web
