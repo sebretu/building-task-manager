@@ -35,5 +35,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(403).json({ error: "PROFILE_NOT_FOUND" });
   }
 
-  return res.status(200).json({ profile });
+  return res.status(200).json({ ok: true, data: { profile } });
 }
