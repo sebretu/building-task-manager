@@ -23,7 +23,8 @@ interface CartItem {
     materialId?: string;
     name: string;
     unit: string;
-    quantity: number;
+    quantity: number | "";
+    category?: string;
 }
 
 export default function MaterialsClient() {
@@ -125,7 +126,7 @@ export default function MaterialsClient() {
             if (existing) {
                 return prev.map(item =>
                     item.materialId === mat.id
-                        ? { ...item, quantity: item.quantity + 1 }
+                        ? { ...item, quantity: (item.quantity === "" ? 0 : item.quantity) + 1 }
                         : item
                 );
             }
@@ -134,7 +135,8 @@ export default function MaterialsClient() {
                 materialId: mat.id,
                 name: mat.name,
                 unit: mat.unit,
-                quantity: 1
+                category: mat.category,
+                quantity: ""
             }];
         });
         setSearchQuery("");
@@ -160,7 +162,7 @@ export default function MaterialsClient() {
                 if (existing) {
                     return prev.map(item =>
                         item.materialId === savedMat.id
-                            ? { ...item, quantity: item.quantity + Number(customQty) }
+                            ? { ...item, quantity: (Number(item.quantity) || 0) + Number(customQty) }
                             : item
                     );
                 }
@@ -208,6 +210,12 @@ export default function MaterialsClient() {
             return;
         }
 
+        const missingQty = cart.filter(item => item.quantity === "" || item.quantity <= 0);
+        if (missingQty.length > 0) {
+            setError("Wprowadź prawidłową ilość dla wszystkich materiałów.");
+            return;
+        }
+
         setIsSubmitting(true);
         setError(null);
         setSuccess(null);
@@ -237,7 +245,7 @@ export default function MaterialsClient() {
                     materialId: item.materialId,
                     customName: item.materialId ? undefined : item.name,
                     customUnit: item.materialId ? undefined : item.unit,
-                    quantity: item.quantity
+                    quantity: Number(item.quantity)
                 }))
             };
 
@@ -401,7 +409,7 @@ export default function MaterialsClient() {
                                         </div>
                                         <div>
                                             <label style={{ display: "block", fontSize: 12, color: "var(--home-muted)", marginBottom: 4 }}>{t("materials", "quantityCol", "Ilość")}</label>
-                                            <input type="number" min="0.01" step="0.01" className="upload-input" value={customQty} onChange={e => setCustomQty(e.target.value ? Number(e.target.value) : "")} placeholder="0" />
+                                            <input type="number" min="0.01" step="1" className="upload-input" value={customQty} onChange={e => setCustomQty(e.target.value ? Number(e.target.value) : "")} placeholder="0" />
                                         </div>
                                     </div>
                                     <div style={{ display: "flex", gap: 12, marginTop: 16, justifyContent: "flex-end" }}>
@@ -439,6 +447,7 @@ export default function MaterialsClient() {
                                                         {/* Editable name only for custom (non-catalog) items */}
                                                         {item.materialId ? (
                                                             <span>
+                                                                {item.category && <span style={{ fontWeight: 500 }}>{item.category} — </span>}
                                                                 {item.name}
                                                             </span>
                                                         ) : (
@@ -491,12 +500,17 @@ export default function MaterialsClient() {
                                                         <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6 }}>
                                                             <input
                                                                 type="number"
-                                                                min="0.01"
-                                                                step="0.01"
+                                                                min="1"
+                                                                step="1"
                                                                 value={item.quantity}
                                                                 onChange={e => {
-                                                                    const val = parseFloat(e.target.value.replace(",", "."));
-                                                                    if (!isNaN(val) && val > 0) {
+                                                                    const valString = e.target.value;
+                                                                    if (valString === '') {
+                                                                        setCart(prev => prev.map(ci => ci.id === item.id ? { ...ci, quantity: "" } : ci));
+                                                                        return;
+                                                                    }
+                                                                    const val = parseFloat(valString.replace(",", "."));
+                                                                    if (!isNaN(val) && val >= 0) {
                                                                         setCart(prev => prev.map(ci =>
                                                                             ci.id === item.id ? { ...ci, quantity: val } : ci
                                                                         ));
@@ -539,7 +553,7 @@ export default function MaterialsClient() {
                                                     id: Math.random().toString(36).substr(2, 9),
                                                     name: "",
                                                     unit: "szt.",
-                                                    quantity: 1
+                                                    quantity: ""
                                                 }]);
                                             }}
                                             style={{

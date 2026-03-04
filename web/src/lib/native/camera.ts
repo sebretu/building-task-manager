@@ -64,6 +64,7 @@ export class CameraService {
                 allowEditing: false,
                 resultType: CameraResultType.DataUrl,
                 source: CameraSource.Camera,
+                saveToGallery: true,
             });
 
             return {

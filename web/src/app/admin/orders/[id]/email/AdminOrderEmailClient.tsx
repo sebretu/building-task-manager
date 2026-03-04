@@ -145,10 +145,12 @@ export default function AdminOrderEmailClient({ orderId }: { orderId: string }) 
 
         const items = o.items || [];
         items.forEach((item: any) => {
+            const category = item.material?.category;
             const name = item.material ? item.material.name : item.custom_name;
             const unit = item.material ? item.material.unit : item.custom_unit;
             const qty = item.quantity;
-            lines.push(`- ${name} – ${qty} ${unit}`);
+            const displayName = category ? `${category} — ${name}` : name;
+            lines.push(`- ${displayName} – ${qty} ${unit}`);
         });
 
         lines.push("");

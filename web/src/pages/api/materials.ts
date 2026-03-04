@@ -54,7 +54,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             // Check if material with same name already exists (case-insensitive) to avoid duplicates
             const { data: existing } = await supabase
                 .from("materials")
-                .select("id, name, unit")
+                .select("id, name, unit, category")
                 .ilike("name", name.trim())
                 .maybeSingle();
 

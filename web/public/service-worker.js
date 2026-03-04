@@ -64,33 +64,33 @@ self.addEventListener("fetch", (event) => {
   }
 
   // API requests - Network first, fallback to cache
-  // Skip binary downloads like /api/reports/ — let browser handle them directly
   if (url.pathname.startsWith("/api/")) {
+    // Skip binary downloads like /api/reports/
     if (url.pathname.startsWith("/api/reports")) {
-      // Pass through directly — binary PDF downloads must not be intercepted
       return;
     }
     event.respondWith(
       fetch(request)
         .then((response) => {
-          // Cache successful API responses
           if (response.ok) {
             const cache = caches.open(API_CACHE);
             cache.then((c) => c.put(request, response.clone()));
           }
           return response;
         })
-        .catch(() => {
-          // Return cached response if network fails
+        .catch((error) => {
+          console.warn(`[SW] API fetch failed for ${url.pathname}:`, error);
           return caches.match(request).then((cachedResponse) => {
-            return (
-              cachedResponse ||
-              new Response(
-                JSON.stringify({
-                  error: "Offline - cached data may not be available",
-                }),
-                { status: 503, headers: { "Content-Type": "application/json" } }
-              )
+            if (cachedResponse) {
+              console.log(`[SW] Returning cached API response for ${url.pathname}`);
+              return cachedResponse;
+            }
+            return new Response(
+              JSON.stringify({
+                error: "Offline - data not available",
+                details: error.message
+              }),
+              { status: 503, headers: { "Content-Type": "application/json" } }
             );
           });
         })
@@ -103,19 +103,19 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       caches.open(IMAGE_CACHE).then((cache) => {
         return cache.match(request).then((cachedResponse) => {
-          return (
-            cachedResponse ||
-            fetch(request)
-              .then((response) => {
-                if (response.ok) {
-                  cache.put(request, response.clone());
-                }
-                return response;
-              })
-              .catch(() => {
-                return new Response(null, { status: 404 });
-              })
-          );
+          if (cachedResponse) return cachedResponse;
+
+          return fetch(request)
+            .then((response) => {
+              if (response.ok) {
+                cache.put(request, response.clone());
+              }
+              return response;
+            })
+            .catch((error) => {
+              console.error(`[SW] Image fetch failed for ${url.pathname}:`, error);
+              return new Response(null, { status: 404 });
+            });
         });
       })
     );
@@ -123,7 +123,7 @@ self.addEventListener("fetch", (event) => {
   }
 
   // HTML pages - Network first, fallback to cache
-  if (request.headers.get("accept").includes("text/html")) {
+  if (request.headers.get("accept") && request.headers.get("accept").includes("text/html")) {
     event.respondWith(
       fetch(request)
         .then((response) => {
@@ -133,39 +133,51 @@ self.addEventListener("fetch", (event) => {
           }
           return response;
         })
-        .catch(() => {
-          return caches
-            .match(request)
-            .then((cachedResponse) => {
-              return (
-                cachedResponse ||
-                caches
-                  .match("/offline.html")
-                  .then((offlinePage) => offlinePage)
-              );
-            });
+        .catch((error) => {
+          console.warn(`[SW] HTML fetch failed for ${url.pathname}:`, error);
+          return caches.match(request).then((cachedResponse) => {
+            return (
+              cachedResponse ||
+              caches.match("/offline.html").then((offlinePage) => offlinePage)
+            );
+          });
         })
     );
     return;
   }
 
   // CSS/JS - Cache first, fallback to network
+  // This is critical for Next.js chunks. If a chunk is not in cache, we MUST try to fetch it.
+  // If fetch fails, we return a 503 instead of letting the SW crash.
   if (
     /\.(css|js)$/i.test(url.pathname) ||
-    request.headers.get("accept").includes("application/javascript")
+    (request.headers.get("accept") && request.headers.get("accept").includes("application/javascript"))
   ) {
     event.respondWith(
       caches.open(CACHE_NAME).then((cache) => {
         return cache.match(request).then((cachedResponse) => {
-          return (
-            cachedResponse ||
-            fetch(request).then((response) => {
+          if (cachedResponse) {
+            // Check if the cached response is valid (not a corrupted stream)
+            // Sometimes browser cache entries get corrupted, returning them causes NS_ERROR_CORRUPTED_CONTENT
+            return cachedResponse;
+          }
+
+          return fetch(request)
+            .then((response) => {
               if (response.ok) {
                 cache.put(request, response.clone());
               }
               return response;
             })
-          );
+            .catch((error) => {
+              console.error(`[SW] Critical asset fetch failed for ${url.pathname}:`, error);
+              // Return a synthetic error response that Next.js might be able to handle better than a SW crash
+              return new Response(`/* Service Worker Error: ${error.message} */`, {
+                status: 503,
+                statusText: "Service Unavailable",
+                headers: { "Content-Type": "application/javascript" }
+              });
+            });
         });
       })
     );
@@ -175,8 +187,8 @@ self.addEventListener("fetch", (event) => {
   // Default - Network first
   event.respondWith(
     fetch(request)
-      .then((response) => response)
-      .catch(() => {
+      .catch((error) => {
+        console.warn(`[SW] Default fetch failed for ${url.pathname}:`, error);
         return caches.match(request);
       })
   );

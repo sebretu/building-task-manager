@@ -903,7 +903,10 @@ export default function ToApproveClient() {
                             <td style={{ padding: "10px 0", fontWeight: 500 }}>
                               {item.material ? (
                                 // Catalog material — name not editable, but show it clearly
-                                <span>{item.material.name}</span>
+                                <span>
+                                  {item.material.category && <span style={{ fontWeight: 500 }}>{item.material.category} — </span>}
+                                  {item.material.name}
+                                </span>
                               ) : (
                                 // Custom item — name & unit are editable
                                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>

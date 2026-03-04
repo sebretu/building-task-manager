@@ -88,7 +88,50 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             return res.status(200).json({ ok: true, data: { success: true } });
         }
 
-        res.setHeader("Allow", ["GET", "POST", "DELETE"]);
+        if (req.method === "PUT") {
+            if (!isAdmin) {
+                return res.status(403).json({ ok: false, error: { message: "Forbidden: Admins only" } });
+            }
+
+            const { id, name: newName } = req.body;
+            if (!id || !newName || newName.trim() === "") {
+                return res.status(400).json({ ok: false, error: { message: "Category ID and new name are required" } });
+            }
+
+            // Get old name first
+            const { data: existing, error: fetchError } = await supabase
+                .from("material_categories")
+                .select("name")
+                .eq("id", id)
+                .single();
+
+            if (fetchError || !existing) {
+                return res.status(404).json({ ok: false, error: { message: "Category not found" } });
+            }
+
+            const oldName = existing.name;
+            const trimmedNew = newName.trim();
+
+            // Update category name
+            const { data: updatedCat, error: updateError } = await supabase
+                .from("material_categories")
+                .update({ name: trimmedNew })
+                .eq("id", id)
+                .select()
+                .single();
+
+            if (updateError) throw updateError;
+
+            // Cascade update materials that had the old category name
+            await supabase
+                .from("materials")
+                .update({ category: trimmedNew })
+                .eq("category", oldName);
+
+            return res.status(200).json({ ok: true, data: updatedCat });
+        }
+
+        res.setHeader("Allow", ["GET", "POST", "PUT", "DELETE"]);
         return res.status(405).json({ ok: false, error: { message: `Method ${req.method} not allowed` } });
     } catch (error: any) {
         console.error("Material Categories API error:", error);

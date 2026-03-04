@@ -137,7 +137,8 @@
   background: none;
   border: none;
   padding: 0;
-  padding-bottom: 4px; /* match .navStripLink */
+  padding-bottom: 4px;
+  /* match .navStripLink */
   cursor: pointer;
   font-family: inherit;
   font-size: inherit;
@@ -313,14 +314,26 @@
 
   .navStripLinks {
     width: 100%;
-    overflow-x: auto;
+    /* Replaced overflow-x: auto with visible to prevent clipping absolute dropdowns */
+    /* If horizontal scrolling is needed, we should wrap only the basic links, not the dropdown */
+    overflow: visible;
     padding-bottom: 2px;
     gap: 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    /* Allow wrapping on mobile instead of horizontal scroll for better reliability with dropdowns */
   }
 
   .navStripControls {
     width: 100%;
     justify-content: flex-start;
+  }
+
+  .adminDropdownMenu {
+    left: 0;
+    right: auto;
+    max-width: calc(100vw - 48px);
+    width: max-content;
   }
 
   .main {

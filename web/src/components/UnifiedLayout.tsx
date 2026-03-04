@@ -88,23 +88,7 @@ export default function UnifiedLayout({ children }: { children: React.ReactNode 
     };
   }, [userRole, showNotification]);
 
-  // Listen for task submitted for approval event (depends on role)
-  useEffect(() => {
-    function handleTaskSubmitted(e: any) {
-      if ((userRole || "").toUpperCase() === "ADMIN") {
-        const taskTitle = e?.detail?.title || "";
-        showNotification(
-          taskTitle ? `Zadanie "${taskTitle}" zgłoszone do akceptacji.` : "Zadanie zgłoszone do akceptacji.",
-          "info"
-        );
-      }
-    }
 
-    window.addEventListener("task-submitted-for-approval", handleTaskSubmitted as any);
-    return () => {
-      window.removeEventListener("task-submitted-for-approval", handleTaskSubmitted as any);
-    };
-  }, [userRole, showNotification]);
 
 
 

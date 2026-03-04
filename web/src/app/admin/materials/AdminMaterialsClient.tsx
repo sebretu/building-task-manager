@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { apiGet, apiPost, getToken, apiDelete, apiPut } from "@/lib/apiClient";
 import Head from "next/head";
+
+const LAST_CATEGORY_KEY = "adminMaterials_lastCategory";
 
 interface Material {
     id: string;
@@ -35,16 +37,30 @@ export default function AdminMaterialsClient() {
     const [unit, setUnit] = useState("szt.");
     const [category, setCategory] = useState("");
     const [newCategoryName, setNewCategoryName] = useState("");
+    const categoryInitialized = useRef(false);
 
-    // Edit state
+    // Edit state (materials)
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editName, setEditName] = useState("");
     const [editUnit, setEditUnit] = useState("");
     const [editCategory, setEditCategory] = useState("");
 
+    // Edit state (categories)
+    const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
+    const [editingCategoryName, setEditingCategoryName] = useState("");
+
     useEffect(() => {
         loadMaterials();
     }, []);
+
+    // Pre-select last used category once categories are loaded
+    useEffect(() => {
+        if (!categoryInitialized.current && categories.length > 0) {
+            categoryInitialized.current = true;
+            const saved = localStorage.getItem(LAST_CATEGORY_KEY) ?? "";
+            setCategory(saved);
+        }
+    }, [categories]);
 
     async function loadMaterials() {
         try {
@@ -90,8 +106,7 @@ export default function AdminMaterialsClient() {
             setMaterials(prev => [...prev, newMaterialData as Material].sort((a, b) => a.name.localeCompare(b.name)));
             setSuccess("Dodano materiał pomyślnie.");
             setName("");
-            setCategory("");
-            // keep unit as it might be reused often
+            // keep category and unit - they are likely to be reused
 
             setTimeout(() => setSuccess(null), 3000);
         } catch (err: any) {
@@ -190,10 +205,50 @@ export default function AdminMaterialsClient() {
             await apiDelete(`/api/material-categories?id=${id}`, token!);
             setCategories(prev => prev.filter(c => c.id !== id));
             setCategory("");
+            localStorage.setItem(LAST_CATEGORY_KEY, "");
             setSuccess(t("common", "success", "Sukces"));
             setTimeout(() => setSuccess(null), 3000);
         } catch (err: any) {
             setError(t("common", "error", "Błąd usuwania") + ": " + err.message);
+        }
+    }
+
+    async function handleRenameCategory(id: string) {
+        const trimmed = editingCategoryName.trim();
+        if (!trimmed) return;
+
+        setError(null);
+        setSuccess(null);
+
+        try {
+            const token = await getToken();
+            const updated = await apiPut("/api/material-categories", { id, name: trimmed }, token!);
+            const updatedCat = updated as MaterialCategory;
+
+            // Find old name before updating state
+            const oldCat = categories.find(c => c.id === id);
+            const oldName = oldCat?.name ?? "";
+
+            setCategories(prev =>
+                prev.map(c => c.id === id ? updatedCat : c).sort((a, b) => a.name.localeCompare(b.name))
+            );
+
+            // Update materials in local state that had the old category name
+            setMaterials(prev =>
+                prev.map(m => m.category === oldName ? { ...m, category: updatedCat.name } : m)
+            );
+
+            // Update persisted category if it was the renamed one
+            if (category === oldName) {
+                setCategory(updatedCat.name);
+                localStorage.setItem(LAST_CATEGORY_KEY, updatedCat.name);
+            }
+
+            setEditingCategoryId(null);
+            setSuccess("Zmieniono nazwę kategorii pomyślnie.");
+            setTimeout(() => setSuccess(null), 3000);
+        } catch (err: any) {
+            setError("Błąd zmiany nazwy kategorii: " + err.message);
         }
     }
 
@@ -277,9 +332,46 @@ export default function AdminMaterialsClient() {
                         {categories.length > 0 && (
                             <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "16px" }}>
                                 {categories.map(c => (
-                                    <div key={c.id} style={{ display: "flex", alignItems: "center", gap: "8px", background: "var(--home-bg-secondary)", padding: "4px 12px", borderRadius: "100px", fontSize: "14px", border: "1px solid var(--border)" }}>
-                                        {c.name}
-                                        <button onClick={() => handleDeleteCategory(c.id)} style={{ background: "transparent", border: "none", color: "var(--danger)", cursor: "pointer", padding: "0 4px", fontWeight: "bold" }}>×</button>
+                                    <div key={c.id} style={{ display: "flex", alignItems: "center", gap: "6px", background: "var(--home-bg-secondary)", padding: "4px 12px", borderRadius: "100px", fontSize: "14px", border: "1px solid var(--border)" }}>
+                                        {editingCategoryId === c.id ? (
+                                            <>
+                                                <input
+                                                    autoFocus
+                                                    type="text"
+                                                    value={editingCategoryName}
+                                                    onChange={e => setEditingCategoryName(e.target.value)}
+                                                    onKeyDown={e => {
+                                                        if (e.key === "Enter") handleRenameCategory(c.id);
+                                                        if (e.key === "Escape") setEditingCategoryId(null);
+                                                    }}
+                                                    style={{ border: "none", background: "transparent", outline: "1px solid var(--primary)", borderRadius: 4, padding: "2px 6px", fontSize: 14, minWidth: 80, maxWidth: 160 }}
+                                                />
+                                                <button
+                                                    onClick={() => handleRenameCategory(c.id)}
+                                                    title="Zapisz"
+                                                    style={{ background: "transparent", border: "none", color: "var(--success)", cursor: "pointer", padding: "0 2px", fontWeight: "bold", fontSize: 16, lineHeight: 1 }}
+                                                >✓</button>
+                                                <button
+                                                    onClick={() => setEditingCategoryId(null)}
+                                                    title="Anuluj"
+                                                    style={{ background: "transparent", border: "none", color: "var(--home-muted)", cursor: "pointer", padding: "0 2px", fontWeight: "bold", fontSize: 16, lineHeight: 1 }}
+                                                >✕</button>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <span>{c.name}</span>
+                                                <button
+                                                    onClick={() => { setEditingCategoryId(c.id); setEditingCategoryName(c.name); }}
+                                                    title="Edytuj nazwę"
+                                                    style={{ background: "transparent", border: "none", color: "var(--primary)", cursor: "pointer", padding: "0 2px", fontSize: 13, lineHeight: 1 }}
+                                                >✏️</button>
+                                                <button
+                                                    onClick={() => handleDeleteCategory(c.id)}
+                                                    title="Usuń"
+                                                    style={{ background: "transparent", border: "none", color: "var(--danger)", cursor: "pointer", padding: "0 2px", fontWeight: "bold", fontSize: 16, lineHeight: 1 }}
+                                                >×</button>
+                                            </>
+                                        )}
                                     </div>
                                 ))}
                             </div>
@@ -317,7 +409,10 @@ export default function AdminMaterialsClient() {
                                     <select
                                         className="upload-input"
                                         value={category}
-                                        onChange={e => setCategory(e.target.value)}
+                                        onChange={e => {
+                                            setCategory(e.target.value);
+                                            localStorage.setItem(LAST_CATEGORY_KEY, e.target.value);
+                                        }}
                                     >
                                         <option value="">{t("adminMaterials", "noCategory", "-- Brak kategorii --")}</option>
                                         {categories.map(c => (

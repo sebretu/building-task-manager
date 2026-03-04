@@ -44,7 +44,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             quantity,
             custom_name,
             custom_unit,
-            material:materials(id, name, unit)
+            material:materials(id, name, unit, category)
           )
         `)
                 .order("created_at", { ascending: false });
@@ -65,6 +65,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             const { data: orders, error } = await query;
 
             if (error) throw error;
+            // DEBUG: log first item's material category
+            const firstItem = orders?.[0]?.items?.[0];
+            console.log('[orders debug] first item material:', JSON.stringify(firstItem?.material));
             return res.status(200).json({ ok: true, data: orders || [] });
         }
 
